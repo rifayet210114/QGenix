@@ -1,0 +1,1259 @@
+/* ==========================================================================
+   QGenix — Global Stylesheet (index.css)
+   ==========================================================================
+   This is the root CSS file for the QGenix AI-powered academic management
+   platform. It is imported once at the application entry point and provides:
+
+     1. Google Fonts import (Inter for body, Outfit for headings)
+     2. CSS custom properties (design tokens) for dark mode (default) and
+        light mode, covering colours, typography, shadows, spacing, and radii.
+     3. A global CSS reset and base element styles.
+     4. Utility / helper classes (glass panels, buttons, inputs, layout).
+     5. Dashboard scaffold styles (sidebar, header, content area).
+     6. Component-specific styles (badges, countdown rings, tooltips, etc.).
+     7. Light-mode overrides for sidebar, widgets, and charts.
+     8. Premium-card glassmorphism layer that runs AFTER AnimatedBackground.css.
+
+   Naming conventions:
+     - BEM-ish flat class names:  .sidebar-link, .sidebar-link-active
+     - Tailwind-inspired utilities: .flex, .gap-4, .grid-cols-3
+     - Theme scoping via body.light-mode ancestor selector
+   ========================================================================== */
+
+
+/* =============================== FONTS =============================== */
+/* Import Inter (body text) and Outfit (headings) from Google Fonts.
+   Weights are subset to only those used across the app to minimise payload. */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap');
+
+
+/* =========================================================================
+   SECTION 1 — DESIGN TOKENS (CSS Custom Properties)
+   =========================================================================
+   All visual values — colours, fonts, shadows, spacing, border-radii — live
+   here as CSS variables so every component can reference a single source of
+   truth.  The :root block defines the **dark-mode** (default) palette;
+   body.light-mode overrides only the tokens that change.
+   ========================================================================= */
+
+:root {
+
+  /* ----- Colour Palette: Dark Mode (default) ----- */
+
+  /* Primary background — near-black deep navy used for the page canvas */
+  --bg-primary: #0B1120;
+  /* Secondary background — translucent dark blue for cards and panels */
+  --bg-secondary: rgba(22, 30, 49, 0.7);
+  /* Tertiary background — slightly lighter, used for nested containers */
+  --bg-tertiary: rgba(30, 41, 59, 0.7);
+
+  /* High-contrast white for headings and primary body text */
+  --text-primary: #f8fafc;
+  /* Muted cool grey for secondary / supporting text */
+  --text-secondary: #94a3b8;
+  /* Even more subdued grey for hints, placeholders, and disabled text */
+  --text-muted: #64748b;
+
+  /* Accent colours — vibrant neon tones used for interactive elements */
+  --accent-primary: #8B5CF6;   /* Neon Purple — brand colour, CTAs, active states */
+  --accent-secondary: #3B82F6; /* Bright Blue — links, secondary actions */
+  --accent-success: #10B981;   /* Emerald/Teal — success badges, positive metrics */
+  --accent-danger: #ef4444;    /* Red — errors, destructive actions */
+  --accent-warning: #f59e0b;   /* Amber — warnings, pending states */
+
+  /* Border colours — very low-opacity white for subtle separation on dark bg */
+  --border-color: rgba(255, 255, 255, 0.08);
+  --border-color-light: rgba(255, 255, 255, 0.15);
+
+  /* ----- Typography ----- */
+
+  /* Inter for body / UI text; Outfit for display headings */
+  --font-sans: 'Inter', sans-serif;
+  --font-heading: 'Outfit', sans-serif;
+
+  /* ----- Shadows & Glassmorphism ----- */
+
+  /* Glass panel base: translucent dark fill with blur */
+  --glass-bg: rgba(22, 30, 49, 0.55);
+  /* Glass panel border — single-pixel white at very low opacity */
+  --glass-border: 1px solid rgba(255, 255, 255, 0.08);
+  /* Glass panel drop-shadow — deep, diffuse black shadow */
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.45);
+
+  /* General-purpose elevation shadows (sm → lg depth) */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  /* Purple neon glow used on primary button hover & focus effects */
+  --shadow-glow: 0 0 25px rgba(139, 92, 246, 0.35);
+
+  /* ----- Spacing Scale ----- */
+  /* 4px-based spacing tokens used for padding, margin, and gap */
+  --spacing-1: 0.25rem;   /*  4px */
+  --spacing-2: 0.5rem;    /*  8px */
+  --spacing-3: 0.75rem;   /* 12px */
+  --spacing-4: 1rem;      /* 16px */
+  --spacing-6: 1.5rem;    /* 24px */
+  --spacing-8: 2rem;      /* 32px */
+  --spacing-12: 3rem;     /* 48px */
+
+  /* ----- Border Radii ----- */
+  --radius-sm: 0.375rem;  /*  6px — small pills, tags */
+  --radius-md: 0.5rem;    /*  8px — buttons, inputs */
+  --radius-lg: 1rem;      /* 16px — cards, modals */
+  --radius-xl: 1.5rem;    /* 24px — large hero panels */
+}
+
+
+/* =========================================================================
+   SECTION 2 — LIGHT-MODE TOKEN OVERRIDES
+   =========================================================================
+   When body has the class "light-mode", these custom property overrides
+   swap the dark palette for a clean, bright aesthetic while keeping every
+   component's structure unchanged.
+   ========================================================================= */
+
+body.light-mode {
+  /* Backgrounds shift from dark navy to soft light slate / white */
+  --bg-primary: #f8fafc;  /* Softer, premium off-white (Slate 50) */
+  --bg-secondary: #ffffff; /* Solid white for cards and layout blocks */
+  --bg-tertiary: #f1f5f9;  /* Slate 100 for nested panels */
+
+  /* Text becomes dark navy / charcoal for readability on white */
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #64748b;  /* unchanged — neutral grey works in both modes */
+
+  /* Borders switch to soft brand-colored violet instead of dark lines */
+  --border-color: rgba(139, 92, 246, 0.08);
+  --border-color-light: rgba(139, 92, 246, 0.12);
+
+  /* Glass panels become highly opaque soft white with beautiful shadows */
+  --glass-bg: rgba(255, 255, 255, 0.92);
+  --glass-border: 1px solid rgba(139, 92, 246, 0.14);
+  --glass-shadow: 0 8px 30px -5px rgba(139, 92, 246, 0.08), 0 4px 12px -2px rgba(0, 0, 0, 0.03);
+}
+
+
+/* =========================================================================
+   SECTION 3 — GLOBAL RESET
+   =========================================================================
+   A minimal box-sizing reset ensures consistent sizing across all elements.
+   Margins and padding are zeroed so components start from a clean baseline.
+   ========================================================================= */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+
+/* =========================================================================
+   SECTION 4 — SMOOTH THEME TRANSITIONS
+   =========================================================================
+   When the user toggles between dark ↔ light mode, these transition rules
+   animate background, text, border, and shadow changes over 0.4 s so the
+   switch feels fluid rather than jarring.  Only major layout surfaces are
+   listed here; component-level transitions handle themselves.
+   ========================================================================= */
+
+body,
+.dashboard-sidebar,
+.dashboard-header,
+.dashboard-main,
+.card,
+.glass-panel,
+.input-field,
+table th, table td {
+  transition: background-color 0.4s ease,
+              color 0.4s ease,
+              border-color 0.4s ease,
+              box-shadow 0.4s ease;
+}
+
+
+/* =========================================================================
+   SECTION 5 — BASE ELEMENT STYLES (Body, Headings, Links)
+   =========================================================================
+   Foundational styles applied to raw HTML elements before any class-based
+   overrides.
+   ========================================================================= */
+
+/* Body — sets the global font, page background, text colour, and ensures
+   the page is at least full-viewport height.  -webkit-font-smoothing
+   enables sub-pixel antialiasing on macOS/iOS for crisper type. */
+html {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+/* Headings — use the display font (Outfit) with a tighter line-height
+   to give titles a modern, compact feel. */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+/* Links — coloured with the brand purple accent; transition smoothly to
+   blue on hover for a subtle interactive cue. */
+a {
+  color: var(--accent-primary);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+a:hover {
+  color: var(--accent-secondary);
+}
+
+
+/* =========================================================================
+   SECTION 6 — UTILITY / HELPER CLASSES
+   =========================================================================
+   Reusable single-purpose classes inspired by Tailwind CSS.
+   They can be composed directly in JSX to avoid one-off CSS.
+   ========================================================================= */
+
+/* ---------- 6a. Glass Panel ---------- */
+/* A frosted-glass container used for cards, modals, and floating panels.
+   Combines a translucent fill, a backdrop blur, a subtle border, and
+   a diffuse shadow for the signature QGenix glassmorphism look. */
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);  /* Safari support */
+  border: var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-shadow);
+}
+
+/* ---------- 6b. Gradient Text ---------- */
+/* Applies a purple → blue horizontal gradient to text.
+   Uses background-clip to mask the gradient to the text shape. */
+.text-gradient {
+  background: linear-gradient(to right, var(--accent-primary), var(--accent-secondary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ---------- 6c. Buttons ---------- */
+
+/* Base .btn — shared structure for all button variants.
+   Uses inline-flex so icon + label pairs align correctly. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-2) var(--spacing-4);
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+}
+
+/* Primary button — gradient fill (purple → blue) with a medium elevation
+   shadow.  On hover it gains a purple glow and lifts 1 px. */
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  color: white;
+  box-shadow: var(--shadow-md);
+}
+
+.btn-primary:hover {
+  box-shadow: var(--shadow-glow);
+  transform: translateY(-1px);
+}
+
+/* Secondary button — filled with the secondary background colour and a
+   thin border.  On hover the background darkens slightly. */
+.btn-secondary {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--border-color-light);
+}
+
+/* ---------- 6d. Input Fields ---------- */
+
+/* Standard text input — full-width, dark-filled with a subtle border.
+   Focus state highlights with the brand purple and a faint ring. */
+.input-field {
+  width: 100%;
+  padding: var(--spacing-3) var(--spacing-4);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  transition: all 0.2s ease;
+}
+
+.input-field:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  /* 2 px indigo ring around the input to indicate focus (accessible) */
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+
+/* =========================================================================
+   SECTION 7 — LAYOUT UTILITIES
+   =========================================================================
+   Minimal Tailwind-style helpers for flexbox, grid, sizing, and gaps.
+   These keep JSX clean by avoiding inline style props for common layouts.
+   ========================================================================= */
+
+/* ----- Flexbox ----- */
+.flex { display: flex; }
+.flex-col { display: flex; flex-direction: column; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.justify-center { justify-content: center; }
+
+/* ----- Gap (uses spacing tokens) ----- */
+.gap-2 { gap: var(--spacing-2); }   /*  8px */
+.gap-4 { gap: var(--spacing-4); }   /* 16px */
+.gap-6 { gap: var(--spacing-6); }   /* 24px */
+.gap-8 { gap: var(--spacing-8); }   /* 32px */
+
+/* ----- Sizing ----- */
+.w-full { width: 100%; }
+.h-full { height: 100%; }
+
+
+/* =========================================================================
+   SECTION 8 — GRID SYSTEM
+   =========================================================================
+   Simple responsive grid utilities.
+   Mobile-first: on screens ≤ 768 px the md: prefixed classes collapse
+   to fewer columns.
+   ========================================================================= */
+
+.grid { display: grid; }
+.grid-cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+.grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+/* Responsive overrides — kick in at tablet breakpoint and below */
+@media (max-width: 768px) {
+  .md\:grid-cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+  .md\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+
+/* =========================================================================
+   SECTION 9 — ANIMATIONS
+   =========================================================================
+   Reusable keyframe animations.
+   ========================================================================= */
+
+/* fadeIn — slides content up by 10 px while fading in.
+   Applied via the .animate-fade-in utility class for page/card entrances. */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out forwards;
+}
+
+
+/* =========================================================================
+   SECTION 10 — DASHBOARD LAYOUT
+   =========================================================================
+   The core three-part dashboard scaffold:
+     ┌──────────┬──────────────────────┐
+     │ Sidebar  │  Header              │
+     │ (fixed)  ├──────────────────────┤
+     │          │  Content (scrollable)│
+     └──────────┴──────────────────────┘
+   ========================================================================= */
+
+/* Outer wrapper — full-viewport flex container; overflow hidden so only
+   the content area scrolls. */
+.dashboard-container {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  max-width: 100vw;
+  overflow: hidden;
+}
+
+/* Left sidebar — fixed 260 px width, dark background, column layout
+   for logo + navigation links + footer. */
+.dashboard-sidebar {
+  width: 260px;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Right-hand main area — fills remaining width, column layout so header
+   sits above scrollable content. */
+.dashboard-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+/* Top header bar — fixed 85 px height, won't shrink.  Holds the page
+   title, search bar, and user actions (theme toggle, notifications). */
+.dashboard-header {
+  height: 85px;
+  min-height: 85px;
+  flex-shrink: 0;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--spacing-6);
+  justify-content: space-between;
+}
+
+/* Light-mode header override — uses a distinct pale blue-grey tint so the
+   header is visually separated from the white content area below it. */
+body.light-mode .dashboard-header {
+  background-color: #eff3f7;
+}
+
+/* Scrollable content area — takes remaining vertical space, auto-scrolls
+   when content overflows.  Padding provides consistent gutters. */
+.dashboard-content {
+  padding: var(--spacing-6);
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative; /* Contain absolute background elements (glow orbs) within page boundary */
+}
+
+
+/* =========================================================================
+   SECTION 11 — STATUS BADGES
+   =========================================================================
+   Small coloured pills used for status indicators (e.g. "Active",
+   "Pending", "Failed").  Each variant uses a translucent tinted background
+   with matching text colour for readability.
+   ========================================================================= */
+
+/* Base badge structure */
+.badge {
+  padding: 2px 8px;
+  border-radius: 12px;   /* Fully rounded pill shape */
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: inline-flex;
+}
+
+/* Badge colour variants — tinted bg at 20 % opacity + solid text */
+.badge-success { background: rgba(16, 185, 129, 0.2); color: var(--accent-success); }
+.badge-warning { background: rgba(245, 158, 11, 0.2); color: var(--accent-warning); }
+.badge-danger  { background: rgba(239, 68, 68, 0.2);  color: var(--accent-danger); }
+.badge-primary { background: rgba(99, 102, 241, 0.2); color: var(--accent-primary); }
+
+
+/* =========================================================================
+   SECTION 12 — MOBILE RESPONSIVENESS
+   =========================================================================
+   On screens ≤ 768 px the sidebar becomes a slide-in overlay panel.
+   A dark backdrop (.sidebar-overlay) is shown behind it, and a hamburger
+   button (.mobile-menu-btn) appears in the header.
+   ========================================================================= */
+
+/* Overlay backdrop — covers the entire viewport behind the mobile sidebar.
+   Hidden by default; revealed via the "open" state in JS. */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;                         /* Shorthand for top/right/bottom/left: 0 */
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 40;
+  backdrop-filter: blur(2px);       /* Slight blur for depth separation */
+}
+
+/* Hamburger / mobile-menu button — hidden on desktop, shown on mobile */
+.mobile-menu-btn {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  padding: 0;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ----- Mobile breakpoint (≤ 768 px) ----- */
+@media (max-width: 768px) {
+  /* Show the hamburger icon */
+  .mobile-menu-btn {
+    display: flex;
+  }
+
+  /* Sidebar slides off-screen to the left by default.  Position fixed so
+     it overlays the content rather than pushing it.  Theme transitions are
+     preserved alongside the slide animation. */
+  .dashboard-sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease, background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease;
+    z-index: 50;
+  }
+
+  /* When the "open" class is toggled (via JS), slide the sidebar in */
+  .dashboard-sidebar.open {
+    transform: translateX(0);
+  }
+
+  /* Show the dark overlay behind the sidebar */
+  .sidebar-overlay {
+    display: block;
+  }
+
+  /* Hide the desktop navbar title on mobile to save header space */
+  .navbar-title {
+    display: none;
+  }
+}
+
+
+/* =========================================================================
+   SECTION 13 — FUTURISTIC SIDEBAR (Glass Sidebar)
+   =========================================================================
+   Enhanced sidebar skin that applies a deeper frosted-glass look to the
+   navigation panel.  Uses heavy backdrop-blur and very faint borders to
+   create a floating, translucent appearance over the page background.
+   ========================================================================= */
+
+/* Deep dark frosted glass background for the sidebar in dark mode */
+.glass-sidebar {
+  background: rgba(11, 17, 32, 0.7) !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-right: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Individual sidebar navigation links — smooth transition,
+   generous rounding, and horizontal margin for visual breathing room. */
+/* [CHANGE: Added transparent borders and standard transition to prevent layout shifts and smooth transitions] */
+.sidebar-link {
+  transition: background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1), 
+              border-left-color 0.25s cubic-bezier(0.4, 0, 0.2, 1), 
+              color 0.2s ease,
+              box-shadow 0.25s ease,
+              transform 0.3s cubic-bezier(0.25, 1, 0.5, 1) !important;
+  border-radius: 12px;
+  margin: 4px 12px;
+  border-left: 3px solid transparent !important;
+  border-right: 3px solid transparent !important; /* Keeps padding and text alignment centered */
+}
+
+/* Hover — subtle background tint and a 4 px rightward nudge */
+/* [CHANGE: Restored original hover styles with custom smooth transitions] */
+.sidebar-link:hover {
+  background: rgba(255, 255, 255, 0.03) !important;
+  transform: translateX(4px) !important;
+}
+
+/* Active / selected link — gradient fill matching the brand palette, a
+   left-side accent bar, and a faint purple glow shadow to draw attention. */
+/* [CHANGE: Restored original clicked background and border behavior with smooth transition timing] */
+.sidebar-link-active {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(59, 130, 246, 0.1)) !important;
+  color: #c084fc !important;                     /* Light purple text */
+  border-left-color: #8B5CF6 !important;         /* Smoothly transition active left border color */
+  box-shadow: 0 0 15px rgba(139, 92, 246, 0.15);
+  font-weight: 600 !important;
+}
+
+
+/* =========================================================================
+   SECTION 14 — GLOWING BUTTONS
+   =========================================================================
+   Specialty button styles with neon glow effects, used on prominent CTAs
+   like "Generate with AI" or "Start Exam".
+   ========================================================================= */
+
+/* ----- Purple Glow Button ----- */
+/* Solid purple gradient fill with a purple box-shadow glow.
+   On hover the glow intensifies and the button lifts slightly. */
+.glow-purple-btn {
+  background: linear-gradient(135deg, #8B5CF6, #6D28D9) !important;
+  box-shadow: 0 0 15px rgba(139, 92, 246, 0.4);
+  transition: all 0.3s ease;
+  color: white !important;
+  border: none !important;
+}
+
+.glow-purple-btn:hover {
+  box-shadow: 0 0 25px rgba(139, 92, 246, 0.6);  /* Stronger glow */
+  transform: translateY(-1px);
+}
+
+/* ----- Teal Outline Button ----- */
+/* Ghost / outline style in teal (success colour).  Used for secondary
+   actions alongside the purple primary CTA. */
+.teal-outline-btn {
+  background: transparent !important;
+  border: 1px solid #10B981 !important;
+  color: #10B981 !important;
+  transition: all 0.3s ease;
+}
+
+.teal-outline-btn:hover {
+  background: rgba(16, 185, 129, 0.1) !important;  /* Faint teal fill */
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);    /* Teal glow */
+  transform: translateY(-1px);
+}
+
+
+/* =========================================================================
+   SECTION 15 — COUNTDOWN TIMER (Circular Ring)
+   =========================================================================
+   SVG-based circular countdown used on the student dashboard to display
+   time remaining for exams.  The ring consists of a faint background track
+   (.countdown-ring-bg), an animated gradient stroke (.countdown-ring-glow),
+   and a pulsing glow animation.
+   ========================================================================= */
+
+/* Outer container — centres the SVG ring and any inner text label */
+.countdown-ring-container {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Rotate the SVG so the stroke starts at the 12-o'clock position */
+.countdown-ring-circle {
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+}
+
+/* Background track — very faint circle outline */
+.countdown-ring-bg {
+  stroke: rgba(255, 255, 255, 0.05);
+}
+
+/* Foreground progress arc — uses an SVG gradient and a glowing drop-shadow.
+   stroke-dasharray controls the arc length (circumference of r=54 circle). */
+.countdown-ring-glow {
+  stroke: url(#ring-gradient);
+  filter: drop-shadow(0 0 6px rgba(139, 92, 246, 0.6));
+  stroke-dasharray: 339.292;  /* 2 × π × 54 ≈ 339.29 */
+  animation: countdown-pulse 4s infinite ease-in-out;
+}
+
+/* Pulsing glow — alternates between a soft purple and a brighter blue
+   drop-shadow every 4 seconds to draw subtle attention. */
+@keyframes countdown-pulse {
+  0%, 100% { filter: drop-shadow(0 0 4px rgba(139, 92, 246, 0.5)); }
+  50%      { filter: drop-shadow(0 0 12px rgba(59, 130, 246, 0.8)); }
+}
+
+
+/* =========================================================================
+   SECTION 16 — WELCOME BANNER WATERMARK
+   =========================================================================
+   A decorative background icon/image positioned behind the welcome banner
+   on the student dashboard.  It is offset, rotated, and heavily
+   transparent so it acts as a subtle visual accent without interfering
+   with the foreground content.
+   ========================================================================= */
+
+.banner-watermark {
+  position: absolute;
+  right: -30px;
+  bottom: -40px;
+  opacity: 0.12;            /* Very faint — acts as a watermark */
+  pointer-events: none;     /* Click-through so it doesn't block interaction */
+  transform: rotate(-15deg);
+}
+
+
+/* =========================================================================
+   SECTION 17 — RECHARTS CUSTOM TOOLTIP
+   =========================================================================
+   Overrides the default Recharts tooltip popup with a dark glassmorphism
+   style matching the QGenix aesthetic.  The tooltip appears when hovering
+   over data points in charts.
+   ========================================================================= */
+
+/* Tooltip container — dark translucent panel with blur and a deep shadow */
+.custom-recharts-tooltip {
+  background: rgba(15, 23, 42, 0.9) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 8px;
+  padding: 8px 12px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(12px);
+}
+
+/* Tooltip title/label — bold white text at the top of the tooltip */
+.custom-recharts-tooltip-label {
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 4px;
+}
+
+
+/* =========================================================================
+   SECTION 18 — SIDEBAR LOGO TEXT
+   =========================================================================
+   The "QGenix" brand text in the sidebar header uses a gradient fill.
+   Dark mode: white → silver for a sleek metallic look.
+   Light mode: navy → indigo for strong contrast on white backgrounds.
+   ========================================================================= */
+
+/* Dark mode — white-to-silver gradient text */
+.sidebar-logo-text {
+  background: linear-gradient(135deg, #ffffff, #94a3b8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Light mode — high-contrast navy-to-indigo gradient so the logo
+   remains legible on the bright sidebar background. */
+body.light-mode .sidebar-logo-text {
+  background: linear-gradient(135deg, #0f172a, #4f46e5) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+}
+
+
+/* =========================================================================
+   SECTION 19 — LIGHT-MODE OVERRIDES (Sidebar, Widgets, Charts)
+   =========================================================================
+   Targeted overrides that adapt dark-mode-specific styles for the light
+   theme.  These selectors use body.light-mode as a parent qualifier so
+   they only apply when the user has toggled to light mode.
+   ========================================================================= */
+
+/* ----- Sidebar ----- */
+
+/* Sidebar glass becomes translucent white with softer borders */
+body.light-mode .glass-sidebar {
+  background: rgba(255, 255, 255, 0.75) !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-right: 1px solid rgba(0, 0, 0, 0.06) !important;
+}
+
+/* Sidebar link hover — very faint dark tint instead of white */
+/* [CHANGE: Restored original light mode hover styling] */
+body.light-mode .sidebar-link:hover {
+  background: rgba(0, 0, 0, 0.02) !important;
+}
+
+/* Active link — lighter purple gradient, deeper purple text colour,
+   and reduced shadow intensity so it doesn't overpower the bright bg. */
+/* [CHANGE: Restored original light mode active styles for seamless color fade] */
+body.light-mode .sidebar-link-active {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(59, 130, 246, 0.06)) !important;
+  color: #6D28D9 !important;
+  border-left-color: #8B5CF6 !important;
+  border-right: none !important;
+  box-shadow: 0 4px 15px rgba(139, 92, 246, 0.06);
+}
+
+/* ----- Countdown Ring (light mode) ----- */
+
+/* Background track uses dark-tinted stroke instead of white-tinted */
+body.light-mode .countdown-ring-bg {
+  stroke: rgba(0, 0, 0, 0.05);
+}
+
+/* Reduce glow intensity — purple shadow is more subtle on white pages */
+body.light-mode .countdown-ring-glow {
+  filter: drop-shadow(0 0 6px rgba(139, 92, 246, 0.3));
+}
+
+/* Lighter pulsing animation — smaller shadow spread for the bright bg */
+@keyframes countdown-pulse-light {
+  0%, 100% { filter: drop-shadow(0 0 3px rgba(139, 92, 246, 0.2)); }
+  50%      { filter: drop-shadow(0 0 8px rgba(139, 92, 246, 0.4)); }
+}
+
+/* Swap the countdown glow to the lighter animation in light mode */
+body.light-mode .countdown-ring-glow {
+  animation: countdown-pulse-light 4s infinite ease-in-out;
+}
+
+/* ----- Chart Tooltip (light mode) ----- */
+
+/* Tooltip switches to near-opaque white with soft borders and shadows */
+body.light-mode .custom-recharts-tooltip {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08);
+}
+
+/* Tooltip label text becomes dark navy for contrast on white bg */
+body.light-mode .custom-recharts-tooltip-label {
+  color: #0F172A;
+}
+
+
+/* =========================================================================
+   SECTION 20 — PREMIUM CARD (Glassmorphism Override Layer)
+   =========================================================================
+   These rules run AFTER AnimatedBackground.css and act as a global
+   override layer, syncing transition timing and visual spring values for
+   .premium-card across all pages.
+
+   The premium card is the signature QGenix UI element — a liquid-glass
+   panel with:
+     • Heavy backdrop-blur + saturation boost
+     • Multi-layer inset highlights simulating refracted light
+     • Hover micro-interaction: lift + scale + border glow
+     • Pseudo-element overlays for inner glow (::after) and border
+       mask (::before)
+
+   Dark mode and light mode each have their own tuned set of values.
+   ========================================================================= */
+
+/* ---------- 20a. Dark Mode — Liquid Glassy Card ---------- */
+
+.premium-card {
+  position: relative;
+  overflow: hidden;  /* Clips the ::after inner glow so it doesn't bleed out */
+
+  /* Highly transparent dark gradient base — lets the animated background
+     show through while maintaining card legibility. */
+  background: linear-gradient(
+    135deg,
+    rgba(10, 20, 42, 0.38) 0%,
+    rgba(6, 12, 28, 0.48) 100%
+  ) !important;
+
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 20px !important;
+
+  /* Heavy blur + saturation boost for the "liquid glass" effect */
+  backdrop-filter: blur(40px) saturate(220%) !important;
+  -webkit-backdrop-filter: blur(40px) saturate(220%) !important;
+
+  /* GPU-hint for smooth hover transforms */
+  will-change: transform;
+
+  /* Spring-like cubic-bezier transitions for lift and glow */
+  transition:
+    transform    0.45s cubic-bezier(0.25, 1, 0.5, 1),
+    box-shadow   0.45s cubic-bezier(0.25, 1, 0.5, 1),
+    border-color 0.3s ease !important;
+
+  /* Multi-layer box-shadow stack:
+       1. Top highlight — simulates light hitting the top edge
+       2. Inner diffuse glow — adds depth inside the card
+       3. Bottom subtle line — faint underside highlight
+       4. External drop shadow — grounds the card against the background */
+  box-shadow:
+    inset 0 1.5px 0   rgba(255, 255, 255, 0.14),
+    inset 0 12px 24px rgba(255, 255, 255, 0.02),
+    inset 0 -1px 0    rgba(255, 255, 255, 0.04),
+    0 8px 32px -8px   rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Dark-mode hover — subtle lift (4 px) + minimal scale (1.008) for an
+   elegant micro-interaction.  Border shifts to blue and the shadow
+   layers intensify. */
+.premium-card:hover {
+  transform: translateY(-4px) scale(1.008) !important;
+  border-color: rgba(99, 170, 255, 0.35) !important;
+  box-shadow:
+    inset 0 1.5px 0   rgba(255, 255, 255, 0.20),
+    inset 0 16px 32px rgba(255, 255, 255, 0.04),
+    0 16px 40px -12px rgba(0, 0, 0, 0.55),
+    0 0 30px -5px     rgba(40, 110, 240, 0.2) !important;
+}
+
+
+/* ---------- 20b. Light Mode — Frosted Sky-Glass Card ---------- */
+
+/* Light-mode base — watery translucent white glass.  The animated
+   background sky flows through the card cleanly. */
+body.light-mode .premium-card {
+  background: rgba(255, 255, 255, 0.28) !important;
+
+  /* Border set to transparent — the ::before pseudo-element handles the
+     visible gradient border mask instead. */
+  border: 1px solid transparent !important;
+
+  /* Slightly less blur than dark mode but same saturation boost */
+  backdrop-filter: blur(32px) saturate(220%) !important;
+  -webkit-backdrop-filter: blur(32px) saturate(220%) !important;
+
+  /* Multi-layer inset highlights tuned for a bright environment */
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.85),
+    inset 0 12px 24px rgba(255, 255, 255, 0.15),
+    0 8px 30px -10px rgba(100, 160, 220, 0.15) !important;
+}
+
+/* Light-mode glassy border mask — a white-to-semi-white gradient overlay
+   positioned with ::before to simulate a frosted border edge. */
+body.light-mode .premium-card::before {
+  opacity: 0.85;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.85) 0%,
+    rgba(255, 255, 255, 0.45) 100%
+  ) !important;
+  transition: opacity 0.4s ease, background 0.4s ease !important;
+}
+
+/* Remove the ::after inner blue glow in light mode — keeps cards bright
+   and clean rather than showing a dark-mode-only decorative element. */
+body.light-mode .premium-card::after {
+  display: none !important;
+}
+
+/* Light-mode hover — increases the white opacity for a "brightening"
+   effect, lifts the card, and deepens the sky-blue shadow. */
+body.light-mode .premium-card:hover {
+  background: rgba(255, 255, 255, 0.42) !important;
+  border-color: transparent !important;
+  transform: translateY(-4px) scale(1.008) !important;
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.95),
+    inset 0 16px 32px rgba(255, 255, 255, 0.22),
+    0 16px 40px -12px rgba(100, 160, 220, 0.28),
+    0 0 25px -8px rgba(150, 200, 250, 0.22) !important;
+}
+
+/* Light-mode gradient border reveal on hover — the ::before overlay
+   transitions from neutral white to a purple → indigo → blue gradient,
+   making the card border "light up" when hovered. */
+body.light-mode .premium-card:hover::before {
+  opacity: 1;
+  background: linear-gradient(
+    135deg,
+    rgba(139, 92, 246, 0.45) 0%,   /* Soft Purple */
+    rgba(99, 102, 241, 0.4) 50%,   /* Soft Indigo */
+    rgba(59, 130, 246, 0.45) 100%  /* Soft Blue */
+  ) !important;
+}
+
+/* =========================================================================
+   SECTION 21 — NAVBAR SEARCH & ACTIONS GLOW
+   =========================================================================
+   Special custom classes to provide interactive feedback for the top navbar
+   search bar input and circular action buttons (ThemeToggle, Notifications, Logout).
+   ========================================================================= */
+
+.navbar-btn-hover:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(139, 92, 246, 0.4) !important;
+  box-shadow: 0 0 15px rgba(139, 92, 246, 0.3) !important;
+  color: #fff !important;
+}
+
+body.light-mode .navbar-btn-hover:hover {
+  background: rgba(0, 0, 0, 0.04) !important;
+  border-color: rgba(139, 92, 246, 0.3) !important;
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.15) !important;
+  color: var(--text-primary) !important;
+}
+
+.navbar-search-input:focus {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-color: rgba(139, 92, 246, 0.4) !important;
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.15), inset 0 1px 2px rgba(0, 0, 0, 0.2) !important;
+}
+
+body.light-mode .navbar-search-input {
+  background: rgba(0, 0, 0, 0.03) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  color: var(--text-primary) !important;
+}
+
+body.light-mode .navbar-search-input:focus {
+  background: rgba(0, 0, 0, 0.05) !important;
+  border-color: rgba(139, 92, 246, 0.3) !important;
+  box-shadow: 0 0 10px rgba(139, 92, 246, 0.1), inset 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Theme toggle button specific styling in top navbar */
+.navbar-theme-toggle-wrapper button {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+  color: var(--text-primary) !important;
+  transition: all 0.3s ease !important;
+}
+
+.navbar-theme-toggle-wrapper button:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(139, 92, 246, 0.4) !important;
+  box-shadow: 0 0 15px rgba(139, 92, 246, 0.3) !important;
+  color: #fff !important;
+}
+
+body.light-mode .navbar-theme-toggle-wrapper button {
+  background: rgba(0, 0, 0, 0.02) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: none !important;
+  color: var(--text-primary) !important;
+}
+
+body.light-mode .navbar-theme-toggle-wrapper button:hover {
+  background: rgba(0, 0, 0, 0.04) !important;
+  border-color: rgba(139, 92, 246, 0.3) !important;
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.15) !important;
+  color: var(--text-primary) !important;
+}
+
+/* =========================================================================
+   SECTION 22 — CENTRALIZED PREMIUM GLASS CTA BUTTON (btn-glass-cta)
+   =========================================================================
+   Styles all CTA and action buttons (Details, Next, Previous, and Downloads) 
+   to match the futuristic dark glassmorphic branding of QGenix.
+   Includes smooth micro-interactions, subtle borders, custom font color, and neon glows.
+   
+   [Bengali Note]: প্রিমিয়াম ডার্ক গ্লাসমরফিজম সিটিএ বাটন স্টাইল।
+   ডিফল্ট বাটনগুলোকে ডার্ক গ্লাসের টেক্সচার, বেগুনী রঙের গ্লো এবং মসৃণ অ্যানিমেশন দেওয়ার জন্য এটি ব্যবহার করা হয়েছে।
+   ========================================================================= */
+
+.btn-glass-cta {
+  position: relative;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: #c084fc !important; /* Premium violet-toned text to highlight key actions */
+  font-weight: 600 !important;
+  font-family: var(--font-sans) !important;
+  cursor: pointer !important;
+  text-decoration: none !important;
+  transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+}
+
+/* Premium violet-blue hover gradient, scale-up, transform, and neon shadow glow */
+.btn-glass-cta:hover:not(:disabled) {
+  background: rgba(139, 92, 246, 0.15) !important;
+  border-color: rgba(139, 92, 246, 0.45) !important;
+  color: #ffffff !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 25px rgba(139, 92, 246, 0.3), 0 0 15px rgba(139, 92, 246, 0.2) !important;
+}
+
+/* Active pressed feedback */
+.btn-glass-cta:active:not(:disabled) {
+  transform: translateY(0) scale(0.96) !important;
+}
+
+/* Disabled styling for page navigation (e.g. inactive pagination buttons) */
+.btn-glass-cta:disabled {
+  opacity: 0.35 !important;
+  cursor: not-allowed !important;
+  color: var(--text-muted) !important;
+  background: rgba(255, 255, 255, 0.01) !important;
+  border-color: rgba(255, 255, 255, 0.03) !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+/* ---------- 22a. Light Mode Overrides for Glass Buttons ---------- */
+/* Swaps dark translucent styles for soft violet border layers and high-contrast texts. */
+/* [Bengali Note]: লাইট মোডের জন্য গ্লাস বাটনের মানানসই রঙের ওভাররাইড ও বেগুনী বর্ডার */
+body.light-mode .btn-glass-cta {
+  background: rgba(139, 92, 246, 0.04) !important;
+  border: 1px solid rgba(139, 92, 246, 0.12) !important;
+  color: #6D28D9 !important; /* Premium deep violet text for crisp readability in light mode */
+  box-shadow: 0 2px 6px rgba(139, 92, 246, 0.05) !important;
+}
+
+body.light-mode .btn-glass-cta:hover:not(:disabled) {
+  background: rgba(139, 92, 246, 0.1) !important;
+  border-color: rgba(139, 92, 246, 0.35) !important;
+  color: #5B21B6 !important;
+  box-shadow: 0 6px 15px rgba(139, 92, 246, 0.1) !important;
+}
+
+body.light-mode .btn-glass-cta:disabled {
+  background: rgba(0, 0, 0, 0.02) !important;
+  border-color: rgba(0, 0, 0, 0.04) !important;
+  color: var(--text-muted) !important;
+}
+
+/* =========================================================================
+   SECTION 23 — COLOR UTILITIES FOR ICONS & DECORATIONS
+   =========================================================================
+   Provides standard fallback colors for SVG icons since Tailwind is not configured.
+   
+   [Bengali Note]: আইকন এবং অন্যান্য টেক্সট বা সাজসজ্জার কালার ইফেক্ট এর জন্য এই ইউটিলিটিগুলো যোগ করা হলো।
+   ========================================================================= */
+.text-violet-500 { color: #8B5CF6 !important; }
+.text-violet-400 { color: #A78BFA !important; }
+.text-rose-400 { color: #FB7185 !important; }
+.text-cyan-400 { color: #22D3EE !important; }
+.text-emerald-400 { color: #34D399 !important; }
+
+/* =========================================================================
+   SECTION 24 — CUSTOM GAP UTILITIES FOR FLEXBOX/GRID LAYOUTS
+   =========================================================================
+   Adds custom flex/grid gaps matching Tailwind specifications to resolve
+   icon-to-text spacing across the application.
+   
+   [Bengali Note]: আইকন ও লেখার মাঝখানের দূরত্ব বা গ্যাপ নিয়ন্ত্রণের জন্য এই কাস্টম ক্লাসগুলো ডিফাইন করা হলো।
+   ========================================================================= */
+.gap-1\.5 { gap: 6px !important; }
+.gap-3 { gap: 12px !important; }
+
+/* =========================================================================
+   SECTION 25 — SIDEBAR SCROLLBAR STYLING (.sidebar-scroll)
+   =========================================================================
+   Adds custom scrollbar styles for the sidebar navigation container.
+   Ensures the scrollbar is extremely thin and matches the glassmorphic theme.
+   
+   [Bengali Note]: সাইডবার মেনু স্ক্রল করার জন্য একটি কাস্টম চিকন ও মানানসই স্ক্রলবার স্টাইল এখানে ডিফাইন করা হয়েছে।
+   ========================================================================= */
+.sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+/* Chrome, Edge, Safari scrollbar customizations */
+.sidebar-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Light mode overrides for scrollbar thumb */
+body.light-mode .sidebar-scroll {
+  scrollbar-color: rgba(0, 0, 0, 0.08) transparent;
+}
+
+body.light-mode .sidebar-scroll::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+body.light-mode .sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* =========================================================================
+   SECTION 26 — GLOBAL HIGH-SPECIFICITY OVERRIDES FOR LIGHT-MODE GLASS CARDS
+   =========================================================================
+   Forces all page-level cards to use highly opaque, premium, and readable 
+   soft-white backgrounds with branded subtle borders and glowing shadows.
+   This resolves low-contrast issues and eye strain caused by 0.28 opacity
+   local card styling without modifying each individual JSX page.
+   ========================================================================= */
+html body.light-mode .glass-card-students,
+html body.light-mode .glass-card-routine,
+html body.light-mode .glass-card-results,
+html body.light-mode .glass-card-profile,
+html body.light-mode .profile-glass-card,
+html body.light-mode .glass-card-notices,
+html body.light-mode .glass-card-exams,
+html body.light-mode .glass-card-courses,
+html body.light-mode .glass-card-assignments,
+html body.light-mode .glass-card-resources,
+html body.light-mode .glass-card-liquid,
+html body.light-mode .ai-glass-card,
+html body.light-mode .glass-panel,
+html body.light-mode .premium-card,
+html body.light-mode .glass-detail-modal,
+html body.light-mode .student-modal-card,
+html body.light-mode .routine-modal-card {
+  background: rgba(255, 255, 255, 0.92) !important;
+  backdrop-filter: blur(24px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+  border: 1px solid rgba(139, 92, 246, 0.14) !important;
+  box-shadow: 
+    0 10px 30px -8px rgba(139, 92, 246, 0.08),
+    0 4px 12px -2px rgba(0, 0, 0, 0.03) !important;
+}
+
+html body.light-mode .glass-card-students:hover,
+html body.light-mode .glass-card-routine:hover,
+html body.light-mode .glass-card-results:hover,
+html body.light-mode .glass-card-notices:hover,
+html body.light-mode .glass-card-exams:hover,
+html body.light-mode .glass-card-courses:hover,
+html body.light-mode .glass-card-assignments:hover,
+html body.light-mode .glass-card-resources:hover,
+html body.light-mode .glass-card-liquid:hover,
+html body.light-mode .ai-glass-card:hover,
+html body.light-mode .premium-card:hover {
+  background: #ffffff !important;
+  border-color: rgba(139, 92, 246, 0.35) !important;
+  box-shadow: 
+    0 16px 40px -10px rgba(139, 92, 246, 0.14),
+    0 0 25px -5px rgba(139, 92, 246, 0.1) !important;
+  transform: translateY(-3px) !important;
+}
+
+/* Light-mode table row and hover styling for lists, logs, and rosters */
+html body.light-mode .grade-row:hover,
+html body.light-mode .submission-row:hover,
+html body.light-mode .resource-row-item:hover,
+html body.light-mode .notice-list-item:hover,
+html body.light-mode .routine-row:hover,
+html body.light-mode .custom-dashboard-table tr:hover {
+  background: rgba(139, 92, 246, 0.04) !important;
+}
+
+/* Light-mode search input border fixes */
+html body.light-mode .input-field {
+  background: #ffffff !important;
+  border: 1px solid rgba(0, 0, 0, 0.12) !important;
+  color: #0f172a !important;
+}
+
+html body.light-mode .input-field:focus {
+  border-color: #8B5CF6 !important;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15) !important;
+}
+
+
+
+
+

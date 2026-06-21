@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- QGenix brand favicon — purple-blue gradient with brain circuit icon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="QGenix — AI-Powered Academic Management Platform for students, teachers, and admins." />
+    <!-- Browser tab title -->
+    <title>QGenix</title>
+  </head>
+  <body>
+    <!--
+      Theme Initializer Script
+      ========================
+      This inline script runs SYNCHRONOUSLY before React boots.
+      It reads the saved theme preference from localStorage and
+      immediately applies the correct CSS class to <body>.
+
+      Why inline here (not in React)?
+      - React state initializes AFTER the JS bundle loads & parses.
+      - Without this, the page briefly renders in dark mode even if
+        the user had light mode saved — causing a visible "flash".
+      - This blocking script eliminates that flash completely.
+    -->
+    <script>
+      (function () {
+        // Read the saved theme from localStorage.
+        // Returns null if nothing was saved yet (first visit → dark mode default).
+        var savedTheme = localStorage.getItem('qgenix-theme');
+
+        // If the user previously selected light mode, apply the class immediately.
+        if (savedTheme === 'light') {
+          document.body.classList.add('light-mode');
+        }
+      })();
+    </script>
+
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

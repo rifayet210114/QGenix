@@ -1,0 +1,1439 @@
+/* =============================================================================
+   LOGIN.CSS — QGenix Authentication Page Stylesheet
+   =============================================================================
+   This stylesheet powers the Login / Sign-Up page for the QGenix AI-powered
+   academic management platform. It implements a split-view layout:
+     • Left panel  — branding, tagline, and feature highlights (desktop only)
+     • Right panel — glassmorphic auth card with role selector, form, social login
+   
+   Design language:
+     - Dark mode by default (#050b18 deep navy), with full light-mode overrides
+     - "Liquid Glassmorphism" — heavy backdrop-filter blur + translucent
+       gradients, border-mask tricks, and multi-layer box-shadows for depth
+     - Animated mesh gradient + grid overlay + neural-network SVG pattern
+       for a richly layered, living background
+     - Purple/indigo accent palette (#8b5cf6 / #6366f1)
+     - Smooth cubic-bezier transitions on every interactive element
+   
+   File structure:
+     1.  Auth Container (root layout)
+     2.  Back Button
+     3.  Advanced Background System (mesh, grid, neural net, beams, particles)
+     4.  Left-Side Branding Panel
+     5.  Right-Side Auth Wrapper
+     6.  Auth Card (glassmorphic card + spotlight glow)
+     7.  Auth Header (title + mobile logo)
+     8.  Role Selector Tabs (Student / Teacher / Admin)
+     9.  Form Inputs (frosted glass + floating labels)
+     10. Form Actions (remember-me checkbox, forgot-password link)
+     11. Submit Button (neon bloom hybrid)
+     12. Divider
+     13. Social Login Buttons
+     14. Auth Footer & Security Badge
+     15. Responsive Breakpoints
+     16. Light Mode Overrides (complete re-skin)
+     17. Theme Transition Smoothing
+   ============================================================================= */
+
+
+/* =======================================================================
+   1. AUTH CONTAINER — Root layout for the entire login page
+   =======================================================================
+   Uses a horizontal flexbox to create a two-column split view:
+     - Left column: branding (hidden on mobile, shown ≥1024px)
+     - Right column: auth form card
+   The container spans the full viewport height and hides overflow to
+   prevent background animations from causing scrollbars.
+   ======================================================================= */
+.auth-container {
+  display: flex;
+  min-height: 100vh;
+  background-color: #050b18; /* Deep navy blue — dark mode base */
+  color: #f8fafc;
+  font-family: 'Inter', sans-serif;
+  overflow: hidden;              /* Prevent scrollbars from animated bg layers */
+  position: relative;            /* Stacking context for background system */
+}
+
+
+/* =======================================================================
+   2. BACK BUTTON — Fixed navigation back to the previous page
+   =======================================================================
+   Positioned at the top-left corner with a high z-index so it floats
+   above all background layers. Uses its own glassmorphic treatment
+   (semi-transparent bg + backdrop-filter blur) for visual consistency.
+   ======================================================================= */
+.back-button {
+  position: absolute;
+  top: 2rem;
+  left: 2rem;
+  z-index: 50;                    /* Above all background layers and card */
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(15, 23, 42, 0.4);       /* Frosted dark panel */
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);      /* Safari support */
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 10px 16px;
+  border-radius: 12px;
+  color: #cbd5e1;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: inherit;
+}
+
+/* Hover: brighten background, add purple border hint, nudge left */
+.back-button:hover {
+  background: rgba(30, 41, 59, 0.6);
+  color: #ffffff;
+  border-color: rgba(139, 92, 246, 0.4);    /* Subtle purple accent on hover */
+  transform: translateX(-4px);               /* Visual "going back" cue */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Active: soften the translateX for tactile click feedback */
+.back-button:active {
+  transform: translateX(-2px);
+}
+
+/* Mobile: tighten position, hide label text (keep icon only) */
+@media (max-width: 480px) {
+  .back-button {
+    top: 1rem;
+    left: 1rem;
+    padding: 8px 12px;
+  }
+  .back-text {
+    display: none;                /* Show only the back arrow icon on small screens */
+  }
+}
+
+
+/* =======================================================================
+   3. ADVANCED BACKGROUND SYSTEM
+   =======================================================================
+   A multi-layered animated background that creates depth and atmosphere.
+   All layers sit behind the content (pointer-events: none) and are
+   absolutely positioned within the auth-container.
+
+   Layers (bottom → top):
+     3a. Mesh Gradient — large radial gradients that slowly drift
+     3b. Grid Overlay  — subtle CSS grid lines fading at edges
+     3c. Neural Network — repeating SVG pattern of nodes/edges
+     3d. Light Beams    — vertical light streaks that pulse
+     3e. Particles      — floating circular dots (JS-driven positions)
+   ======================================================================= */
+
+/* --- 3.0 Background wrapper — fills viewport, no pointer interaction --- */
+.bg-system {
+  position: absolute;
+  inset: 0;                       /* Shorthand: top/right/bottom/left = 0 */
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;           /* Clicks pass through to elements below */
+}
+
+/* --- 3a. Animated Mesh Gradient ---
+   Three overlapping radial-gradient ellipses in purple/indigo/emerald.
+   The layer is oversized (140%) so it can scale and rotate without
+   revealing hard edges. A heavy blur (60px) produces a soft, organic feel.
+   The meshShift keyframe slowly scales, rotates, and translates the
+   layer for a "breathing" background effect.
+*/
+.mesh-gradient {
+  position: absolute;
+  inset: -20%;                    /* Extend beyond viewport edges */
+  width: 140%;
+  height: 140%;
+  background-image: 
+    radial-gradient(ellipse at 15% 50%, rgba(139, 92, 246, 0.18) 0%, transparent 50%),   /* Purple — left-center */
+    radial-gradient(ellipse at 85% 30%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),   /* Indigo — top-right */
+    radial-gradient(ellipse at 50% 80%, rgba(16, 185, 129, 0.05) 0%, transparent 50%);   /* Emerald — bottom-center (subtle) */
+  filter: blur(60px);             /* Very soft color blobs */
+  animation: meshShift 25s ease-in-out infinite alternate;
+  transform-origin: center;
+}
+
+/* Keyframe: gentle scale + rotation + translation for organic motion */
+@keyframes meshShift {
+  0% { transform: scale(1) rotate(0deg) translate(0, 0); }
+  50% { transform: scale(1.05) rotate(2deg) translate(2%, 2%); }
+  100% { transform: scale(1.1) rotate(-1deg) translate(-2%, -2%); }
+}
+
+/* --- 3b. Grid Overlay ---
+   Fine 60px-spaced CSS grid lines at very low opacity (0.02).
+   A radial mask-image fades the grid out toward the edges so it only
+   appears prominently in the center of the viewport.
+*/
+.grid-overlay {
+  position: absolute;
+  inset: 0;
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),       /* Horizontal lines */
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px); /* Vertical lines */
+  background-size: 60px 60px;
+  /* Radial mask: visible at center, fades to transparent at edges */
+  mask-image: radial-gradient(ellipse at center, rgba(0,0,0,1) 10%, rgba(0,0,0,0) 80%);
+  -webkit-mask-image: radial-gradient(ellipse at center, rgba(0,0,0,1) 10%, rgba(0,0,0,0) 80%);
+}
+
+/* --- 3c. Neural Network Lines ---
+   A repeating SVG pattern that draws abstract node-and-edge shapes,
+   evoking a neural network / AI aesthetic. The pattern tiles at 300px
+   and slowly drifts upward + rotates via the "drift" keyframe.
+   Oversized (200%) so edges are never visible during animation.
+*/
+.neural-network {
+  position: absolute;
+  inset: -50%;
+  width: 200%;
+  height: 200%;
+  background-image: url("data:image/svg+xml,%3Csvg width='200' height='200' viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M20 20 L80 60 L150 30 L120 100 L180 160 L100 180 L40 120 Z' stroke='rgba(139, 92, 246, 0.06)' fill='none' stroke-width='0.5'/%3E%3Cpath d='M80 60 L120 100 L40 120' stroke='rgba(99, 102, 241, 0.05)' fill='none' stroke-width='0.5'/%3E%3Ccircle cx='20' cy='20' r='1.5' fill='rgba(139, 92, 246, 0.2)'/%3E%3Ccircle cx='80' cy='60' r='2' fill='rgba(99, 102, 241, 0.2)'/%3E%3Ccircle cx='150' cy='30' r='1.5' fill='rgba(139, 92, 246, 0.2)'/%3E%3Ccircle cx='120' cy='100' r='2.5' fill='rgba(99, 102, 241, 0.3)'/%3E%3Ccircle cx='180' cy='160' r='1.5' fill='rgba(139, 92, 246, 0.2)'/%3E%3Ccircle cx='100' cy='180' r='2' fill='rgba(99, 102, 241, 0.2)'/%3E%3Ccircle cx='40' cy='120' r='2' fill='rgba(139, 92, 246, 0.2)'/%3E%3C/svg%3E");
+  background-size: 300px 300px;
+  animation: drift 60s linear infinite;  /* Slow continuous scroll */
+  opacity: 0.6;
+}
+
+/* Keyframe: translate upward by one tile height + slight rotation for parallax feel */
+@keyframes drift {
+  from { transform: translateY(0) rotate(0deg); }
+  to { transform: translateY(-300px) rotate(5deg); }
+}
+
+/* --- 3d. Vertical Light Beams ---
+   Two thin vertical bands of purple/indigo light placed at ~20% and ~70%
+   across the viewport width. A vertical gradient darkens toward the bottom.
+   A mask-image fades the beams at top and bottom edges.
+   The pulseBeams keyframe oscillates opacity for a breathing glow.
+*/
+.light-beams {
+  position: absolute;
+  inset: 0;
+  background: 
+    linear-gradient(90deg, 
+      transparent 0%, transparent 15%, 
+      rgba(139, 92, 246, 0.03) 20%,         /* Left beam — purple */
+      transparent 25%, transparent 65%, 
+      rgba(99, 102, 241, 0.04) 70%,          /* Right beam — indigo */
+      transparent 75%, transparent 100%),
+    linear-gradient(180deg, transparent 0%, rgba(15, 23, 42, 0.8) 100%);  /* Bottom fade */
+  animation: pulseBeams 10s infinite alternate ease-in-out;
+  /* Vertical mask: fade out at top and bottom, full visibility in the middle */
+  mask-image: linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, rgba(0,0,0,1) 50%, rgba(0,0,0,0) 100%);
+  -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, rgba(0,0,0,1) 50%, rgba(0,0,0,0) 100%);
+}
+
+/* Keyframe: gentle opacity pulse between 50% and 100% */
+@keyframes pulseBeams {
+  0% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+/* --- 3e. Floating Particles ---
+   Small circular dots that float upward. Individual particle positions,
+   sizes, and animation durations are set via inline styles / JS.
+   CSS custom properties --p-opacity and --p-drift control per-particle
+   visibility and horizontal displacement.
+*/
+.particles-container {
+  position: absolute;
+  inset: 0;
+  z-index: 4;                    /* Above other bg layers */
+}
+
+.particle {
+  position: absolute;
+  background: #fff;
+  border-radius: 50%;            /* Perfect circle */
+  animation: floatParticle linear infinite;
+}
+
+/* Keyframe: fade in, float upward with horizontal drift, fade out */
+@keyframes floatParticle {
+  0% { transform: translateY(0) translateX(0); opacity: 0; }
+  20% { opacity: var(--p-opacity); }     /* Fade in by 20% of the cycle */
+  80% { opacity: var(--p-opacity); }     /* Hold visible until 80% */
+  100% { transform: translateY(-150px) translateX(var(--p-drift)); opacity: 0; } /* Drift and fade out */
+}
+
+
+/* =======================================================================
+   4. LEFT-SIDE BRANDING PANEL
+   =======================================================================
+   The branding column occupies the left side of the split layout.
+   Hidden on mobile (display: none by default); shown at ≥1024px as a
+   flex column with vertically centered content. Contains:
+     - Logo (icon + text)
+     - Tagline (gradient text)
+     - Feature list (animated slide-in items)
+   ======================================================================= */
+.auth-branding {
+  flex: 1.2;                      /* Slightly wider than the form column */
+  display: none;                  /* Hidden on mobile / tablet */
+  position: relative;
+  overflow: hidden;
+  padding: 4rem;
+  background: transparent;        /* Inherits the bg-system layers behind it */
+  border-right: 1px solid rgba(255, 255, 255, 0.03);  /* Very faint separator */
+  z-index: 10;                    /* Above background layers */
+}
+
+/* Desktop: show branding panel with vertical centering */
+@media (min-width: 1024px) {
+  .auth-branding {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+}
+
+/* Content wrapper — constrains width, centers horizontally */
+.branding-content {
+  position: relative;
+  z-index: 20;                    /* Above the text-glow-bg */
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+/* --- Text Glow Background ---
+   A large, blurred radial gradient circle placed behind the branding text.
+   Creates a soft indigo halo that pulses slowly (slowPulse keyframe).
+*/
+.text-glow-bg {
+  position: absolute;
+  top: 10%;
+  left: 0;
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.1) 0%, transparent 60%);
+  filter: blur(40px);
+  z-index: -1;                    /* Behind branding text */
+  animation: slowPulse 8s infinite alternate;
+}
+
+/* Keyframe: scale and opacity pulse for the glow halo */
+@keyframes slowPulse {
+  0% { opacity: 0.5; transform: scale(0.9); }
+  100% { opacity: 1; transform: scale(1.1); }
+}
+
+/* --- Logo Container --- */
+.logo-container {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 2.5rem;
+}
+
+/* Logo icon — purple with a glowing drop-shadow */
+.logo-icon {
+  color: #8b5cf6;
+  width: 44px;
+  height: 44px;
+  filter: drop-shadow(0 0 16px rgba(139, 92, 246, 0.6));  /* Neon glow */
+}
+
+/* Logo text — large, bold, Outfit font */
+.logo-text {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  font-family: 'Outfit', sans-serif;
+  color: #ffffff;
+}
+
+/* --- Branding Tagline ---
+   Large headline with a gradient text fill (white → light indigo).
+   Uses the background-clip: text technique for gradient text rendering.
+*/
+.branding-tagline {
+  font-size: 3.25rem;
+  font-weight: 700;
+  line-height: 1.15;
+  margin-bottom: 3rem;
+  background: linear-gradient(135deg, #ffffff 0%, #a5b4fc 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-family: 'Outfit', sans-serif;
+  text-shadow: 0 10px 30px rgba(99, 102, 241, 0.2);  /* Soft glow beneath text */
+}
+
+/* --- Feature List ---
+   Vertical stack of feature highlight items, each with an icon + label.
+*/
+.feature-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* Individual feature item — glassmorphic card with slide-in entrance */
+.feature-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 1.15rem;
+  font-weight: 500;
+  color: #e2e8f0;
+  background: rgba(15, 23, 42, 0.4);          /* Frosted dark panel */
+  padding: 16px 24px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 0;                                  /* Start invisible for entrance animation */
+  animation: slideInRight 0.8s ease-out forwards;
+}
+
+/* Hover: slide right, brighten, add purple border and shadow */
+.feature-item:hover {
+  transform: translateX(10px);
+  background: rgba(30, 41, 59, 0.5);
+  border-color: rgba(139, 92, 246, 0.3);
+  box-shadow: 0 10px 30px -10px rgba(139, 92, 246, 0.2);
+}
+
+/* Feature item icon — purple with neon glow */
+.feature-item svg {
+  color: #8b5cf6;
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 8px rgba(139, 92, 246, 0.5));
+}
+
+/* Keyframe: slide in from the left and fade in */
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(-30px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+
+/* =======================================================================
+   5. RIGHT-SIDE AUTH WRAPPER
+   =======================================================================
+   The right column that holds the auth card. Centers the card both
+   horizontally and vertically using flexbox. Sits above the background
+   system (z-index: 10).
+   ======================================================================= */
+.auth-form-wrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  position: relative;
+  z-index: 10;
+}
+
+
+/* =======================================================================
+   6. AUTH CARD — Liquid Glassmorphic Login Card
+   =======================================================================
+   The centrepiece of the page: a floating, translucent card with:
+     • Heavy backdrop-filter blur (40px) + saturation boost (220%)
+     • Multi-layer box-shadow for depth (inset highlight, ambient glow,
+       deep drop shadow, and a faint purple bloom)
+     • A ::before pseudo-element that creates a gradient border outline
+       using the mask-composite "exclude" trick (draws only the 1px border)
+     • Entrance animation: fade in + slide up + scale
+   ======================================================================= */
+
+/* --- 6a. Card Spotlight Glow ---
+   An oversized blurred layer centered behind the card, providing two
+   radial purple/indigo spotlights. The spotlightPulse keyframe gently
+   scales and rotates them for an ambient "breathing" effect.
+*/
+.card-spotlight {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 140%;
+  height: 140%;
+  background: radial-gradient(circle at 35% 35%, rgba(139, 92, 246, 0.16) 0%, transparent 60%),   /* Top-left purple */
+              radial-gradient(circle at 65% 65%, rgba(99, 102, 241, 0.14) 0%, transparent 60%);    /* Bottom-right indigo */
+  filter: blur(70px);
+  z-index: 0;
+  pointer-events: none;
+  animation: spotlightPulse 16s ease-in-out infinite alternate;
+}
+
+/* Keyframe: scale and rotate the dual spotlight layer */
+@keyframes spotlightPulse {
+  0% { transform: translate(-50%, -50%) scale(0.92) rotate(0deg); }
+  100% { transform: translate(-50%, -50%) scale(1.08) rotate(10deg); }
+}
+
+/* --- 6b. Auth Card Itself ---
+   The main card panel. The !important flags are used to override any
+   component-library or framework defaults that might clash.
+*/
+.auth-card {
+  width: 100%;
+  max-width: 460px;
+  /* Liquid glass background: very dark translucent gradient */
+  background: linear-gradient(135deg, rgba(8, 12, 28, 0.42) 0%, rgba(4, 8, 20, 0.62) 100%) !important;
+  /* Heavy blur + saturation for glassmorphism */
+  backdrop-filter: blur(40px) saturate(220%) !important;
+  -webkit-backdrop-filter: blur(40px) saturate(220%) !important;
+  /* Transparent border — the ::before pseudo handles the visible gradient border */
+  border: 1px solid transparent !important;
+  border-radius: 28px !important;
+  padding: 3rem;
+  /* Multi-layer shadows:
+       1. Inset top highlight — simulates light hitting the glass edge
+       2. Inset diffuse white — subtle inner glow
+       3. Deep drop shadow — card floats above background
+       4. Purple ambient bloom — ties card to the accent palette */
+  box-shadow: 
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.15), 
+    inset 0 12px 24px rgba(255, 255, 255, 0.02),
+    0 25px 60px -15px rgba(0, 0, 0, 0.7),
+    0 0 50px -10px rgba(139, 92, 246, 0.12) !important;
+  animation: cardFadeIn 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  position: relative;
+  z-index: 1;
+}
+
+/* --- 6c. Liquid Glass Border Outline Mask ---
+   Uses the "mask-composite: exclude" technique:
+   A gradient fills the entire ::before pseudo, but the mask reveals
+   only the 1px border ring by subtracting the content-box from the
+   padding-box. This produces a thin, iridescent gradient border that
+   is impossible to achieve with border-image alone on rounded corners.
+*/
+.auth-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;                  /* Controls the border thickness */
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.22) 0%,
+    rgba(139, 92, 246, 0.25) 35%,
+    rgba(99, 102, 241, 0.18) 65%,
+    rgba(255, 255, 255, 0.06) 100%
+  );
+  /* Mask trick: content-box mask XOR'd with the full mask → only border shows */
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  opacity: 0.75;
+  z-index: 2;
+}
+
+/* Keyframe: card entrance — fade in, slide up 40px, and scale from 96% to 100% */
+@keyframes cardFadeIn {
+  from { opacity: 0; transform: translateY(40px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+
+/* =======================================================================
+   7. AUTH HEADER — Card title and mobile-only logo
+   =======================================================================
+   Centers the "Welcome back" heading and subtitle within the card.
+   On mobile, also shows a logo icon (hidden on desktop where the
+   branding panel is visible).
+   ======================================================================= */
+.auth-header {
+  text-align: center;
+  margin-bottom: 2.5rem;
+}
+
+/* Mobile logo — icon-only square with gradient bg and purple border */
+.mobile-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  border-radius: 16px;
+  color: #a78bfa;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+/* Desktop: hide mobile logo (branding panel is visible instead) */
+@media (min-width: 1024px) {
+  .mobile-logo { display: none; }
+}
+
+/* Heading: "Welcome back" or "Sign In" */
+.auth-header h2 {
+  font-size: 1.85rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #ffffff;
+  font-family: 'Outfit', sans-serif;
+  text-shadow: 0 2px 10px rgba(0,0,0,0.5);  /* Depth effect */
+}
+
+/* Subtitle: descriptive text below the heading */
+.auth-header p {
+  color: #94a3b8;                /* Muted slate — secondary text */
+  font-size: 1rem;
+}
+
+
+/* =======================================================================
+   8. ROLE SELECTOR TABS — Student / Teacher / Admin
+   =======================================================================
+   A pill-shaped tab bar that lets users pick their login role.
+   The active tab is indicated by a sliding capsule (.role-slider) that
+   transitions via translateX to the correct 1/3 position.
+
+   Structure:
+     .role-selector        — outer pill container (inset shadow)
+       .role-selector::before — gradient border outline mask
+       .role-slider         — animated sliding highlight capsule
+       button × 3           — individual tab buttons (Student, Teacher, Admin)
+   ======================================================================= */
+.role-selector {
+  display: flex;
+  position: relative;
+  background: rgba(4, 8, 20, 0.5) !important;         /* Deep translucent base */
+  border: 1px solid transparent !important;
+  border-radius: 16px !important;
+  padding: 5px;
+  margin-bottom: 2.5rem;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.5) !important;  /* Recessed look */
+}
+
+/* Gradient border outline for the selector container (same mask technique as auth-card) */
+.role-selector::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* --- Sliding Active Tab Capsule ---
+   Absolutely positioned within the selector. Its width is exactly 1/3
+   of the container (minus padding). The transform shifts it to the
+   correct column based on which role is active.
+*/
+.role-slider {
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  width: calc(33.333% - 4px);
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.22) 0%, rgba(139, 92, 246, 0.22) 100%) !important;
+  border-radius: 12px !important;
+  transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);  /* Springy slide */
+  border: 1px solid rgba(139, 92, 246, 0.4) !important;
+  box-shadow: 0 0 16px rgba(139, 92, 246, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
+}
+
+/* Slide positions: each role shifts by 100% of the capsule width */
+.role-slider.active-student { transform: translateX(0); }       /* Column 1 */
+.role-slider.active-teacher { transform: translateX(100%); }    /* Column 2 */
+.role-slider.active-admin { transform: translateX(200%); }      /* Column 3 */
+
+/* Tab buttons — transparent, positioned above the slider */
+.role-selector button {
+  flex: 1;
+  position: relative;
+  z-index: 1;                     /* Above the slider capsule */
+  background: transparent;
+  border: none;
+  color: #94a3b8;                 /* Muted when inactive */
+  padding: 0.75rem 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.3s cubic-bezier(0.25, 1, 0.5, 1), text-shadow 0.3s ease;
+  border-radius: 12px;
+}
+
+/* Hover: slightly brighter text */
+.role-selector button:hover {
+  color: #cbd5e1;
+}
+
+/* Active tab: white text with purple glow */
+.role-selector button.active {
+  color: #ffffff;
+  text-shadow: 0 0 12px rgba(167, 139, 250, 0.6);  /* Neon text glow */
+}
+
+
+/* =======================================================================
+   9. FORM INPUTS — Frosted Glass Fields with Floating Labels
+   =======================================================================
+   Each input is wrapped in an .input-group that positions a <label>
+   on top of the <input>. The label acts as a placeholder when the
+   input is empty and unfocused, then floats up above the field when
+   the input is focused or has content (using :focus and
+   :not(:placeholder-shown) pseudo-classes).
+   ======================================================================= */
+.input-group {
+  position: relative;              /* Anchor for the floating label */
+  margin-bottom: 1.75rem;
+}
+
+/* Input field — frosted dark glass with inner shadow */
+.input-group input {
+  width: 100%;
+  background: rgba(6, 12, 28, 0.45) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 14px !important;
+  padding: 1.1rem 1.25rem;
+  color: #ffffff;
+  font-size: 1rem;
+  font-family: inherit;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4) !important;  /* Recessed feel */
+  backdrop-filter: blur(8px);
+  transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1) !important;
+}
+
+/* Hover: brighten border and background slightly */
+.input-group input:hover {
+  border-color: rgba(255, 255, 255, 0.18) !important;
+  background: rgba(10, 20, 42, 0.5) !important;
+}
+
+/* Focus: purple border glow + deeper background */
+.input-group input:focus {
+  outline: none;
+  border-color: rgba(167, 139, 250, 0.6) !important;
+  background: rgba(10, 20, 42, 0.65) !important;
+  box-shadow: 0 0 22px -3px rgba(139, 92, 246, 0.28), inset 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* --- Floating Label ---
+   Starts centered vertically inside the input. When the input gains
+   focus or contains text, the label transitions to the top edge.
+*/
+.input-group label {
+  position: absolute;
+  left: 1.25rem;
+  top: 50%;
+  transform: translateY(-50%);    /* Vertically center within input */
+  color: #64748b;                 /* Muted placeholder color */
+  pointer-events: none;           /* Clicks pass through to the input */
+  transition: all 0.25s cubic-bezier(0.25, 1, 0.5, 1);
+  font-size: 1rem;
+}
+
+/* Floated state: label moves to the top border, shrinks, gets a bg pill */
+.input-group input:focus ~ label,
+.input-group input:not(:placeholder-shown) ~ label {
+  top: 0;
+  transform: translateY(-50%) scale(0.82);
+  transform-origin: left top;
+  background: rgba(11, 15, 30, 0.95) !important;   /* Opaque pill behind text */
+  padding: 0 8px;
+  border-radius: 4px;
+  color: #a78bfa;                /* Purple when focused */
+  font-weight: 600;
+}
+
+/* When field has content but is NOT focused — muted label color */
+.input-group input:not(:focus):not(:placeholder-shown) ~ label {
+  color: #94a3b8;
+}
+
+/* --- Password Visibility Toggle Button --- */
+.password-toggle {
+  position: absolute;
+  right: 1.25rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s ease;
+  z-index: 5;                    /* Above the input */
+}
+
+.password-toggle:hover {
+  color: #e2e8f0;
+}
+
+
+/* =======================================================================
+   10. FORM ACTIONS — Remember Me & Forgot Password
+   =======================================================================
+   A row between the inputs and the submit button containing a custom
+   checkbox ("Remember me") on the left and a "Forgot password?" link
+   on the right.
+   ======================================================================= */
+.form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2.25rem;
+  font-size: 0.9rem;
+}
+
+/* --- Remember Me Checkbox Label --- */
+.remember-me {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #cbd5e1;
+  cursor: pointer;
+  user-select: none;              /* Prevent text selection on click */
+}
+
+/* Custom checkbox — replaces native appearance with a styled square */
+.remember-me input[type="checkbox"] {
+  appearance: none;               /* Remove native checkbox style */
+  width: 18px;
+  height: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border-radius: 6px !important;
+  background: rgba(255, 255, 255, 0.03) !important;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.25s cubic-bezier(0.25, 1, 0.5, 1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* Checkbox hover: purple border hint */
+.remember-me input[type="checkbox"]:hover {
+  border-color: rgba(139, 92, 246, 0.5) !important;
+  background: rgba(139, 92, 246, 0.05) !important;
+}
+
+/* Checkbox checked: solid purple gradient with neon glow */
+.remember-me input[type="checkbox"]:checked {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important;
+  border-color: #8b5cf6 !important;
+  box-shadow: 0 0 14px rgba(139, 92, 246, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+}
+
+/* Checkmark — drawn with CSS borders rotated 45deg */
+.remember-me input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 2px;
+  width: 4px;
+  height: 9px;
+  border: solid white;
+  border-width: 0 2px 2px 0;     /* Only right and bottom borders → checkmark shape */
+  transform: rotate(45deg);
+}
+
+/* --- Forgot Password Link --- */
+.forgot-password {
+  color: #a78bfa;                 /* Purple accent */
+  text-decoration: none;
+  transition: color 0.2s ease;
+  font-weight: 500;
+}
+
+.forgot-password:hover {
+  color: #c4b5fd;                 /* Lighter purple */
+  text-decoration: underline;
+}
+
+
+/* =======================================================================
+   11. SUBMIT BUTTON — Fluid Glass + Neon Bloom Hybrid
+   =======================================================================
+   The primary CTA button. Combines a gradient background with a
+   backdrop-filter blur, multiple shadow layers (ambient purple glow +
+   inset highlight), and two pseudo-element overlays:
+     ::after  — top-to-bottom white gradient overlay for "glossy" look
+     ::before — horizontal light sweep that slides across on hover
+   ======================================================================= */
+.btn-submit {
+  width: 100%;
+  padding: 1.1rem;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  /* Indigo → purple gradient at 85% opacity — lets blur show through slightly */
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.85) 0%, rgba(139, 92, 246, 0.85) 100%) !important;
+  color: white;
+  font-size: 1.05rem;
+  font-weight: 600;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;               /* Clip the ::before sweep animation */
+  backdrop-filter: blur(8px);
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  /* Shadows: deep purple glow + inset top highlight */
+  box-shadow: 0 8px 30px -6px rgba(139, 92, 246, 0.5), inset 0 1.5px 0 rgba(255, 255, 255, 0.25) !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ::after — glossy overlay gradient (top = white, bottom = transparent) */
+.btn-submit::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.18), transparent);
+  pointer-events: none;
+}
+
+/* ::before — horizontal light sweep, starts off-screen left */
+.btn-submit::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;                   /* Hidden off the left edge */
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
+  transition: left 0.6s ease;
+}
+
+/* Hover: lift up, expand glow, intensify colors */
+.btn-submit:hover {
+  transform: translateY(-3px) scale(1.01) !important;
+  box-shadow: 
+    0 14px 35px -6px rgba(139, 92, 246, 0.65),   /* Deeper purple glow */
+    0 0 22px rgba(139, 92, 246, 0.35),             /* Wider bloom */
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.35) !important;
+  /* Slightly brighter gradient */
+  background: linear-gradient(135deg, rgba(110, 113, 245, 0.9) 0%, rgba(149, 107, 247, 0.9) 100%) !important;
+}
+
+/* Hover: sweep the light band from left → right */
+.btn-submit:hover::before {
+  left: 100%;
+}
+
+/* Active / pressed: flatten slightly for tactile feedback */
+.btn-submit:active {
+  transform: translateY(-1px) scale(0.99) !important;
+  box-shadow: 0 4px 15px -6px rgba(139, 92, 246, 0.5) !important;
+}
+
+/* --- Loading Spinner (inside submit button) --- */
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: white;        /* Only top segment is white → spinning arc */
+  animation: spin 0.8s linear infinite;
+  position: absolute;
+  right: 1.5rem;
+}
+
+/* Keyframe: continuous 360° rotation */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Loading state: shift button text left to make room for the spinner */
+.btn-submit.loading span {
+  opacity: 0.9;
+  transform: translateX(-10px);
+  transition: transform 0.3s ease;
+}
+
+
+/* =======================================================================
+   12. DIVIDER — "or continue with" separator
+   =======================================================================
+   A horizontal line with centered text, implemented with flex +
+   ::before/::after pseudo-elements as the lines.
+   ======================================================================= */
+.divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 2.25rem 0;
+  color: #64748b;
+  font-size: 0.85rem;
+}
+
+/* Left and right lines */
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Text padding between lines */
+.divider span {
+  padding: 0 1rem;
+}
+
+
+/* =======================================================================
+   13. SOCIAL LOGIN BUTTONS — Google / GitHub / Microsoft etc.
+   =======================================================================
+   A 3-column grid of glassmorphic icon buttons for third-party auth.
+   Each button has its own frosted glass treatment with inset highlight
+   and subtle depth shadow.
+   ======================================================================= */
+.social-login {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);  /* 3 equal columns */
+  gap: 14px;
+  margin-bottom: 2.5rem;
+}
+
+/* Individual social button — translucent glass card */
+.social-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 0.85rem;
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-radius: 12px;
+  color: #cbd5e1;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  backdrop-filter: blur(10px) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  transition: all 0.35s cubic-bezier(0.25, 1, 0.5, 1) !important;
+}
+
+/* Hover: brighten, add purple border, lift up with enhanced shadow */
+.social-btn:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(139, 92, 246, 0.3) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.1), 
+    0 8px 20px rgba(0, 0, 0, 0.25), 
+    0 0 15px rgba(99, 102, 241, 0.15) !important;
+  color: #ffffff;
+}
+
+/* Active: reset lift for click feedback */
+.social-btn:active {
+  transform: translateY(0) !important;
+}
+
+/* Social button icon sizing */
+.social-btn svg {
+  width: 20px;
+  height: 20px;
+  transition: transform 0.2s ease;
+}
+
+/* Hover: slightly enlarge icon */
+.social-btn:hover svg {
+  transform: scale(1.1);
+}
+
+
+/* =======================================================================
+   14. AUTH FOOTER & SECURITY BADGE
+   =======================================================================
+   Bottom of the auth card: "Don't have an account? Sign up" link
+   and a small security badge ("256-bit encrypted").
+   ======================================================================= */
+.auth-footer {
+  text-align: center;
+}
+
+.auth-footer p {
+  color: #94a3b8;
+  font-size: 0.95rem;
+  margin-bottom: 1.75rem;
+}
+
+/* Sign-up / Sign-in toggle link */
+.auth-footer a {
+  color: #a78bfa;                 /* Purple accent */
+  font-weight: 500;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.auth-footer a:hover {
+  color: #c4b5fd;
+  text-decoration: underline;
+}
+
+/* Security badge — small pill at the bottom with lock icon */
+.security-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #64748b;
+  font-size: 0.8rem;
+  padding: 8px 16px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+
+/* =======================================================================
+   15. RESPONSIVE BREAKPOINTS
+   =======================================================================
+   Adapt the auth card and social buttons for smaller viewports.
+   ======================================================================= */
+
+/* Tablets and small laptops: reduce card padding */
+@media (max-width: 768px) {
+  .auth-card {
+    padding: 2.5rem 2rem;
+  }
+}
+
+/* Mobile phones: tighter padding, smaller border-radius, stack social buttons */
+@media (max-width: 480px) {
+  .auth-form-wrapper {
+    padding: 1rem;
+  }
+  
+  .auth-card {
+    padding: 2.25rem 1.5rem;
+    border-radius: 20px;          /* Slightly less rounded on small screens */
+  }
+  
+  /* Stack social buttons vertically instead of 3-column grid */
+  .social-login {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
+
+/* =======================================================================
+   16. LIGHT MODE OVERRIDES
+   =======================================================================
+   When <body> has the .light-mode class, every component is re-skinned
+   for a bright, paper-white aesthetic. Key changes:
+     • Page background: #f0f4ff (soft blue-white)
+     • Card: white/translucent instead of dark glass
+     • Text: dark slate tones (#0f172a, #1e293b, #334155)
+     • Accents: shift from purple (#8b5cf6) to indigo (#6366f1)
+     • Shadows: softer, with indigo tinting instead of black
+     • Background effects (mesh, grid, beams): reduced opacity
+
+   Each override block mirrors a dark-mode section above.
+   ======================================================================= */
+
+/* --- 16a. Page Background --- */
+body.light-mode .auth-container {
+  background-color: #f0f4ff;      /* Soft blue-white */
+  color: #1e293b;                  /* Dark slate text */
+}
+
+/* --- 16b. Background System --- */
+
+/* Mesh gradient: lower opacity, softer color blobs */
+body.light-mode .mesh-gradient {
+  background-image:
+    radial-gradient(ellipse at 15% 50%, rgba(99, 102, 241, 0.12) 0%, transparent 50%),
+    radial-gradient(ellipse at 85% 30%, rgba(139, 92, 246, 0.10) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 80%, rgba(16, 185, 129, 0.04) 0%, transparent 50%);
+}
+
+/* Grid overlay: use dark lines on light background */
+body.light-mode .grid-overlay {
+  background-image:
+    linear-gradient(rgba(0, 0, 0, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.04) 1px, transparent 1px);
+}
+
+/* Light beams: lighter wash at the bottom */
+body.light-mode .light-beams {
+  background:
+    linear-gradient(90deg,
+      transparent 0%, transparent 15%,
+      rgba(99, 102, 241, 0.04) 20%,
+      transparent 25%, transparent 65%,
+      rgba(139, 92, 246, 0.05) 70%,
+      transparent 75%, transparent 100%),
+    linear-gradient(180deg, transparent 0%, rgba(220, 230, 255, 0.5) 100%);
+}
+
+/* --- 16c. Back Button --- */
+body.light-mode .back-button {
+  background: rgba(255, 255, 255, 0.7);       /* White frosted glass */
+  border-color: rgba(99, 102, 241, 0.2);
+  color: #475569;
+}
+
+body.light-mode .back-button:hover {
+  background: rgba(255, 255, 255, 0.95);
+  color: #1e293b;
+  border-color: rgba(99, 102, 241, 0.5);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+}
+
+/* --- 16d. Left Branding Section --- */
+body.light-mode .auth-branding {
+  border-right-color: rgba(0, 0, 0, 0.06);    /* Dark separator on light bg */
+}
+
+body.light-mode .logo-text {
+  color: #1e293b;
+}
+
+/* Tagline: dark-to-indigo gradient text */
+body.light-mode .branding-tagline {
+  background: linear-gradient(135deg, #1e293b 0%, #6366f1 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Feature items: white glass cards */
+body.light-mode .feature-item {
+  color: #334155;
+  background: rgba(255, 255, 255, 0.6);
+  border-color: rgba(99, 102, 241, 0.12);
+}
+
+body.light-mode .feature-item:hover {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(99, 102, 241, 0.3);
+  box-shadow: 0 10px 30px -10px rgba(99, 102, 241, 0.2);
+}
+
+/* --- 16e. Card Spotlight --- */
+/* Tone down the glow dramatically for light mode */
+body.light-mode .card-spotlight {
+  background: radial-gradient(circle at center, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.04) 40%, transparent 70%) !important;
+}
+
+/* --- 16f. Auth Card --- */
+/* White translucent glass with soft indigo-tinted shadow */
+body.light-mode .auth-card {
+  background: rgba(255, 255, 255, 0.72) !important;
+  border-color: transparent !important;
+  box-shadow: 
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.95),       /* Bright top highlight */
+    inset 0 12px 24px rgba(255, 255, 255, 0.15),
+    0 25px 50px -12px rgba(99, 102, 241, 0.08) !important;
+}
+
+/* Border mask: brighter gradient for light mode */
+body.light-mode .auth-card::before {
+  opacity: 0.85;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(99, 102, 241, 0.22) 50%,
+    rgba(255, 255, 255, 0.55) 100%
+  ) !important;
+}
+
+/* --- 16g. Role Selector --- */
+body.light-mode .role-selector {
+  background: rgba(0, 0, 0, 0.04) !important;          /* Very light grey recessed bg */
+  border-color: transparent !important;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06) !important;
+}
+
+body.light-mode .role-selector::before {
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.06) 0%, rgba(0, 0, 0, 0.02) 100%) !important;
+}
+
+/* Active capsule: white pill with indigo border */
+body.light-mode .role-slider {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border: 1px solid rgba(99, 102, 241, 0.25) !important;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.1), inset 0 1px 0 rgba(255,255,255,0.95) !important;
+}
+
+/* Tab text colors */
+body.light-mode .role-selector button {
+  color: #64748b !important;                  /* Muted grey for inactive */
+}
+
+body.light-mode .role-selector button.active {
+  color: #1e293b !important;                  /* Dark text for active */
+  text-shadow: none !important;               /* Remove neon glow in light mode */
+}
+
+/* --- 16h. Inputs --- */
+body.light-mode .input-group input {
+  background: rgba(255, 255, 255, 0.8) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  color: #1e293b !important;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.03) !important;
+}
+
+body.light-mode .input-group input:hover {
+  border-color: rgba(99, 102, 241, 0.3) !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+}
+
+body.light-mode .input-group input:focus {
+  border-color: rgba(99, 102, 241, 0.6) !important;
+  background: #ffffff !important;
+  box-shadow: 0 0 15px rgba(99, 102, 241, 0.12), inset 0 2px 4px rgba(0, 0, 0, 0.02) !important;
+}
+
+body.light-mode .input-group label {
+  color: #94a3b8 !important;
+}
+
+/* Floating label: white bg pill so text doesn't overlap the border */
+body.light-mode .input-group input:focus ~ label,
+body.light-mode .input-group input:not(:placeholder-shown) ~ label {
+  background: #ffffff !important;
+  color: #6366f1 !important;                  /* Indigo when floating */
+}
+
+body.light-mode .input-group input:not(:focus):not(:placeholder-shown) ~ label {
+  color: #64748b !important;
+}
+
+/* --- 16i. Auth Header --- */
+/* Heading: gradient text from near-black to indigo */
+body.light-mode .auth-header h2 {
+  color: #0f172a !important;
+  background: linear-gradient(135deg, #0f172a 0%, #4f46e5 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+  text-shadow: none !important;               /* Remove dark-mode text shadow */
+}
+
+body.light-mode .auth-header p {
+  color: #475569 !important;
+  font-weight: 500 !important;
+}
+
+/* --- 16j. Password Toggle --- */
+body.light-mode .password-toggle {
+  color: #64748b !important;
+}
+
+body.light-mode .password-toggle:hover {
+  color: #1e293b !important;
+}
+
+/* --- 16k. Remember Me Checkbox --- */
+body.light-mode .remember-me {
+  color: #334155 !important;
+  font-weight: 500 !important;
+  transition: color 0.2s ease !important;
+}
+
+body.light-mode .remember-me:hover {
+  color: #0f172a !important;
+}
+
+body.light-mode .remember-me input[type="checkbox"] {
+  border-color: rgba(0, 0, 0, 0.2) !important;
+  background: rgba(255, 255, 255, 0.8) !important;
+}
+
+body.light-mode .remember-me input[type="checkbox"]:hover {
+  border-color: rgba(99, 102, 241, 0.5) !important;
+}
+
+/* Checked: solid indigo instead of purple gradient */
+body.light-mode .remember-me input[type="checkbox"]:checked {
+  background: #6366f1 !important;
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.3) !important;
+}
+
+body.light-mode .remember-me input[type="checkbox"]:checked::after {
+  border-color: #ffffff !important;            /* White checkmark on indigo */
+}
+
+/* --- 16l. Forgot Password Link --- */
+body.light-mode .forgot-password {
+  color: #6366f1 !important;                   /* Indigo instead of light purple */
+  font-weight: 600 !important;
+  transition: color 0.2s ease, text-decoration 0.2s ease !important;
+}
+
+body.light-mode .forgot-password:hover {
+  color: #4f46e5 !important;                   /* Darker indigo */
+  text-decoration: underline !important;
+}
+
+/* --- 16m. Divider --- */
+body.light-mode .divider {
+  color: #475569 !important;
+  font-weight: 600 !important;
+}
+
+body.light-mode .divider::before,
+body.light-mode .divider::after {
+  border-bottom-color: rgba(0, 0, 0, 0.12) !important;  /* Darker lines on light bg */
+}
+
+/* --- 16n. Social Buttons --- */
+body.light-mode .social-btn {
+  background: rgba(255, 255, 255, 0.7) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  color: #475569 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 4px 10px rgba(0, 0, 0, 0.05) !important;
+}
+
+body.light-mode .social-btn:hover {
+  background: #ffffff !important;
+  border-color: rgba(99, 102, 241, 0.3) !important;
+  color: #1e293b !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 1), 0 8px 16px rgba(99, 102, 241, 0.08) !important;
+}
+
+/* --- 16o. Footer --- */
+body.light-mode .auth-footer p {
+  color: #64748b !important;
+}
+
+body.light-mode .auth-footer a {
+  color: #6366f1 !important;
+}
+
+body.light-mode .auth-footer a:hover {
+  color: #4f46e5 !important;
+}
+
+/* Security badge */
+body.light-mode .security-badge {
+  color: #94a3b8 !important;
+  background: rgba(0, 0, 0, 0.03) !important;
+  border-color: rgba(0, 0, 0, 0.06) !important;
+}
+
+
+/* =======================================================================
+   17. THEME TRANSITION SMOOTHING
+   =======================================================================
+   Applies a 0.4s transition to background-color, color, border-color,
+   and box-shadow on all key elements. This ensures that toggling between
+   dark and light mode produces a smooth, animated crossfade rather than
+   an abrupt snap.
+   ======================================================================= */
+.auth-container,
+.auth-card,
+.role-selector,
+.role-slider,
+.input-group input,
+.social-btn,
+.back-button,
+.feature-item,
+.auth-header h2,
+.auth-header p,
+.logo-text {
+  transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease;
+}

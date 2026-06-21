@@ -1,0 +1,758 @@
+/* ============================================================================
+   AnimatedBackground.css — QGenix Animated Background Styles
+   ============================================================================
+   Provides the full visual atmosphere for QGenix's landing page and dashboard.
+   This stylesheet is organized into the following sections:
+
+     1. BASE CONTAINER          — Full-viewport dark gradient backdrop
+     2. AMBIENT GLOW ORBS       — Large blurred color blobs (purple/indigo/cyan)
+     3. VERTICAL LIGHT RAYS     — Thin shimmering vertical lines
+     4. HERO SPOTLIGHT GLOW     — Central top radial highlight
+     5. CINEMATIC VIGNETTE      — Edge-darkening overlay
+     6. GLASS REFLECTION        — Floating glass-shimmer element
+     7. KEYFRAME ANIMATIONS     — All @keyframes for orbs, rays, reflections
+     8. INTERACTIVE CTA BUTTONS — Primary (gradient fill) & Secondary (ghost)
+     9. PREMIUM LIQUID GLASS CARD — Glassmorphism feature cards (dark mode)
+    10. LIGHT MODE OVERRIDES    — Sky-blue bokeh aesthetic for every element
+
+   Design philosophy:
+     - Dark mode  → Deep navy/purple base, neon violet/cyan accents, screen blend
+     - Light mode → Soft sky-blue gradient, white/pink bokeh orbs, airy & dreamy
+   ============================================================================ */
+
+
+/* ======================================================================
+   1. BASE CONTAINER — Full-viewport backdrop
+   ====================================================================== */
+/* Covers the entire viewport as an absolute-positioned layer behind all
+   page content. The dark gradient simulates a deep space / night-sky feel.
+   `pointer-events: none` ensures it never intercepts user clicks. */
+.bg-system-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  /* Dark navy base color — the deepest layer visible if gradients don't load */
+  background-color: #050816;
+  /* Two subtle radial gradients add depth to the top-left and top-center,
+     creating a vaulted-ceiling lighting impression */
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(10, 16, 32, 0.5) 0px, transparent 50%),
+    radial-gradient(at 50% 0%, rgba(7, 18, 37, 0.3) 0px, transparent 50%);
+  overflow: hidden;        /* Clips glow orbs and rays that extend beyond */
+  pointer-events: none;    /* Click-through — never blocks UI interaction */
+  z-index: 0;              /* Sits behind all page content */
+}
+
+
+/* ======================================================================
+   2. AMBIENT GLOW ORBS — Large blurred color blobs
+   ======================================================================
+   Three oversized circles with heavy Gaussian blur that drift slowly via
+   CSS animations. They create the ambient "mood lighting" effect.
+   `mix-blend-mode: screen` in dark mode makes the colors additive,
+   simulating light emission rather than paint layering. */
+
+/* Shared base styles for all three orbs */
+.glow-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(140px);         /* Extreme blur → soft, unfocused glow */
+  opacity: 0.55;
+  mix-blend-mode: screen;      /* Additive blending — colors glow like light */
+  pointer-events: none;
+  will-change: transform, opacity; /* GPU-hint for smooth animation */
+}
+
+/* Purple orb — positioned top-left, 600×600px
+   Gradient: bright violet center fading to transparent edges */
+.glow-orb-purple {
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.25) 0%, rgba(99, 102, 241, 0.05) 70%, transparent 100%);
+  top: -10%;
+  left: 10%;
+  animation: float-purple 25s infinite alternate ease-in-out;
+}
+
+/* Indigo orb — positioned bottom-right, largest at 700×700px
+   Slower 30s animation for variety in movement cadence */
+.glow-orb-indigo {
+  width: 700px;
+  height: 700px;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.22) 0%, rgba(139, 92, 246, 0.04) 70%, transparent 100%);
+  bottom: -10%;
+  right: 5%;
+  animation: float-indigo 30s infinite alternate ease-in-out;
+}
+
+/* Cyan/teal orb — positioned mid-right, 500×500px
+   Faster 20s cycle adds visual rhythm contrast */
+.glow-orb-cyan {
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(6, 182, 212, 0.15) 0%, rgba(99, 102, 241, 0.03) 70%, transparent 100%);
+  top: 30%;
+  right: 15%;
+  animation: float-cyan 20s infinite alternate ease-in-out;
+}
+
+
+/* ======================================================================
+   3. VERTICAL LIGHT RAYS — Thin shimmering vertical lines
+   ======================================================================
+   Three 1px-wide full-height lines that drift horizontally. They mimic
+   volumetric light shafts or laser scan lines. `screen` blend mode makes
+   them glow. Overall layer opacity is 0.15 to keep them very subtle. */
+
+/* Container for all three rays */
+.light-rays-layer {
+  position: absolute;
+  inset: 0;               /* Stretches to fill the entire container */
+  opacity: 0.15;           /* Very subtle — just barely visible */
+  mix-blend-mode: screen;  /* Additive glow blending */
+  pointer-events: none;
+}
+
+/* Individual ray — a vertical gradient that brightens in the middle
+   and fades out at top and bottom edges */
+.light-ray {
+  position: absolute;
+  top: 0;
+  width: 1px;
+  height: 100%;
+  background: linear-gradient(to bottom, 
+    transparent, 
+    rgba(99, 102, 241, 0.1) 20%,     /* Indigo glow starts */
+    rgba(139, 92, 246, 0.2) 50%,     /* Purple peak at center */
+    rgba(99, 102, 241, 0.1) 80%,     /* Indigo fades out */
+    transparent
+  );
+  filter: blur(1px);  /* Slight softening so the 1px line isn't too sharp */
+}
+
+/* Ray positioning & animation assignments — each ray sits at a different
+   horizontal position and drifts at a different speed/direction */
+.light-ray:nth-child(1) {
+  left: 20%;
+  animation: ray-drift-1 18s infinite linear;
+}
+
+.light-ray:nth-child(2) {
+  left: 50%;
+  animation: ray-drift-2 24s infinite linear;
+}
+
+.light-ray:nth-child(3) {
+  left: 80%;
+  animation: ray-drift-3 20s infinite linear;
+}
+
+
+/* ======================================================================
+   4. HERO SPOTLIGHT GLOW — Central top radial highlight
+   ======================================================================
+   A large, heavily-blurred elliptical gradient centered near the top of
+   the viewport. Creates a "spotlight" effect that draws attention to the
+   hero headline area. Currently defined in CSS but the element isn't
+   rendered in the JSX — available for future use. */
+.hero-spotlight {
+  position: absolute;
+  top: 15%;
+  left: 50%;
+  transform: translate(-50%, -50%);   /* Center horizontally & vertically */
+  width: 800px;
+  height: 500px;
+  background: radial-gradient(ellipse, rgba(139, 92, 246, 0.12) 0%, rgba(99, 102, 241, 0.02) 60%, transparent 80%);
+  filter: blur(80px);       /* Extremely soft glow */
+  pointer-events: none;
+  z-index: 1;
+}
+
+
+/* ======================================================================
+   5. CINEMATIC VIGNETTE — Edge-darkening overlay
+   ======================================================================
+   A radial gradient that is transparent in the center and darkens toward
+   the edges. This "vignette" technique draws the user's eye to center
+   content and adds cinematic depth. z-index 4 ensures it sits above
+   even the canvas layer. */
+.cinematic-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, transparent 35%, rgba(5, 8, 22, 0.8) 100%);
+  pointer-events: none;
+  z-index: 4;   /* Above the canvas (z-index 3) */
+}
+
+
+/* ======================================================================
+   6. FLOATING GLASS REFLECTION — Decorative glass shimmer
+   ======================================================================
+   A rotated, blurred, semi-transparent rectangle that floats across the
+   background. Simulates a floating glass panel or lens flare reflection.
+   The slow 35s animation gives it a dreamy, drifting quality. */
+.glass-reflection {
+  position: absolute;
+  width: 300px;
+  height: 300px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, transparent 50%);
+  transform: rotate(-30deg);           /* Tilted for visual interest */
+  border-radius: 40px;                 /* Rounded corners for a soft shape */
+  pointer-events: none;
+  z-index: 2;                          /* Between glow orbs and canvas */
+  filter: blur(10px);                  /* Softened edges */
+  animation: float-reflection 35s infinite alternate ease-in-out;
+}
+
+
+/* ======================================================================
+   7. KEYFRAME ANIMATIONS — Movement definitions for CSS-animated elements
+   ====================================================================== */
+
+/* --- Glow orb drift animations (dark mode) ---
+   Each orb follows a 3-point path (0% → 50% → 100%) with slight scale
+   pulsing. The `alternate` direction on the animation makes them ping-pong
+   back and forth for infinite organic motion. */
+
+/* Purple orb — drifts right/down then left/up */
+@keyframes float-purple {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(8%  , 12%) scale(1.1);
+  }
+  100% {
+    transform: translate(-5%, -8%) scale(0.95);
+  }
+}
+
+/* Indigo orb — drifts left/up then right/down */
+@keyframes float-indigo {
+  0% {
+    transform: translate(0, 0) scale(0.9);
+  }
+  50% {
+    transform: translate(-10%, 8%) scale(1.15);
+  }
+  100% {
+    transform: translate(6%, -10%) scale(1);
+  }
+}
+
+/* Cyan orb — drifts left/up then right/down with subtle scale */
+@keyframes float-cyan {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(-6%, -12%) scale(0.9);
+  }
+  100% {
+    transform: translate(8%, 5%) scale(1.05);
+  }
+}
+
+/* Glass reflection — slowly floats from upper-left to lower-center
+   with a slight rotation change for realism */
+@keyframes float-reflection {
+  0% {
+    top: 15%;
+    left: 10%;
+    transform: rotate(-30deg) translate(0, 0);
+  }
+  100% {
+    top: 40%;
+    left: 25%;
+    transform: rotate(-25deg) translate(50px, 50px);
+  }
+}
+
+/* --- Light ray drift animations ---
+   Each ray oscillates horizontally with varying scaleX (width pulsing)
+   and opacity (brightness pulsing). Linear timing for smooth, continuous
+   movement without acceleration pauses. */
+
+/* Ray 1 — 18s cycle, moderate range */
+@keyframes ray-drift-1 {
+  0% { transform: translateX(-50px) scaleX(1); opacity: 0.3; }
+  50% { transform: translateX(50px) scaleX(1.5); opacity: 0.7; }
+  100% { transform: translateX(-50px) scaleX(1); opacity: 0.3; }
+}
+
+/* Ray 2 — 24s cycle (slowest), opposite phase */
+@keyframes ray-drift-2 {
+  0% { transform: translateX(30px) scaleX(1.2); opacity: 0.5; }
+  50% { transform: translateX(-30px) scaleX(0.8); opacity: 0.3; }
+  100% { transform: translateX(30px) scaleX(1.2); opacity: 0.5; }
+}
+
+/* Ray 3 — 20s cycle, medium range */
+@keyframes ray-drift-3 {
+  0% { transform: translateX(-40px) scaleX(0.9); opacity: 0.4; }
+  50% { transform: translateX(40px) scaleX(1.3); opacity: 0.6; }
+  100% { transform: translateX(-40px) scaleX(0.9); opacity: 0.4; }
+}
+
+
+/* ======================================================================
+   8. INTERACTIVE CTA BUTTONS — Primary & Secondary variants
+   ======================================================================
+   Two button variants used throughout the QGenix landing page.
+   - Primary  : Filled gradient (purple → indigo) with shimmer sweep
+   - Secondary : Ghost/outline style with transparent background
+   Both are designed to remain readable in dark AND light mode.
+   ====================================================================== */
+
+/* --- Primary CTA (e.g. "Get Started", "Start Free Trial") ------------- */
+/* Filled gradient button with a shimmer hover effect */
+.hero-cta-primary {
+  position: relative;
+  overflow: hidden;  /* Clips the shimmer sweep pseudo-element inside the button */
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); /* Smooth spring-like easing */
+  box-shadow: 0 0 0 0 rgba(99, 102, 241, 0);          /* Invisible shadow — expands on hover */
+  /* Force white text so it's always readable on the colored gradient bg */
+  color: #ffffff !important;
+}
+
+/* Primary CTA hover — lifts up with a neon purple/indigo glow */
+.hero-cta-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 25px rgba(139, 92, 246, 0.45), 0 0 50px rgba(99, 102, 241, 0.2);
+  /* Maintain white text even if light-mode tries to override */
+  color: #ffffff !important;
+}
+
+/* Shimmer sweep effect — a translucent white gradient that slides across
+   the button surface on hover. Opacity is kept at 0.12 (not 0.2) to avoid
+   washing out the button text during the animation. */
+.hero-cta-primary::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.12), transparent);
+  transform: translateX(-100%);        /* Hidden off the left edge by default */
+  transition: transform 0.6s ease;
+  /* No z-index needed — pseudo-elements render below text content by default
+     when no stacking context is explicitly set on the parent */
+  pointer-events: none;
+}
+
+/* On hover, slide the shimmer from left to right across the button */
+.hero-cta-primary:hover::after {
+  transform: translateX(100%);
+}
+
+/* --- Secondary CTA (e.g. "Login", "Explore Features") ----------------- */
+/* Ghost/outline button — transparent background with a visible border */
+.hero-cta-secondary {
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+/* DARK MODE hover state for secondary CTA:
+   Background becomes dark navy, border glows purple, text stays white.
+   This ensures readability against the dark background. */
+.hero-cta-secondary:hover {
+  background: rgba(30, 41, 59, 0.85) !important;      /* Dark navy fill */
+  border-color: rgba(139, 92, 246, 0.5) !important;   /* Purple border glow */
+  box-shadow: 0 0 15px rgba(99, 102, 241, 0.2);       /* Soft indigo outer glow */
+  transform: translateY(-1px);                         /* Subtle lift */
+  color: #ffffff !important;  /* Force white text on dark hover background */
+}
+
+
+/* ======================================================================
+   9. PREMIUM LIQUID GLASS CARD — Glassmorphism feature cards (Dark Mode)
+   ======================================================================
+   The signature card style for QGenix feature sections. Designed to look
+   like fluid/liquid glass with:
+     - Extremely high transparency (0.38–0.48 opacity background)
+     - Strong backdrop-filter (40px blur) to reveal the background fluidly
+     - Specular refraction highlights at the top-left edge
+     - A bottom-center organic liquid glow (water-blue radial gradient)
+     - Shimmer border via ::before pseudo-element with mask-composite trick
+     - Subtle hover animation: lift + scale + enhanced glow
+   ====================================================================== */
+.premium-card {
+  position: relative;
+  overflow: hidden;  /* Clips internal reflections, shimmer border, and liquid glow */
+
+  /* Highly transparent glass base — lets the animated background colors
+     flow through the card surface for a true "glass" effect */
+  background: linear-gradient(
+    135deg,
+    rgba(10, 20, 42, 0.38) 0%,     /* Slightly lighter top-left */
+    rgba(6, 12, 28, 0.48) 100%     /* Slightly darker bottom-right */
+  ) !important;
+
+  /* Specular liquid edge — thin white border simulates glass edge refraction */
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 20px !important;
+
+  /* Ultra-high blur for fluid glass refraction effect.
+     saturate(220%) enriches the colors seen through the blur. */
+  backdrop-filter: blur(40px) saturate(220%) !important;
+  -webkit-backdrop-filter: blur(40px) saturate(220%) !important;
+
+  /* Spring-like cubic-bezier transitions for buttery-smooth hover effects */
+  transition:
+    transform    0.45s cubic-bezier(0.25, 1, 0.5, 1),
+    box-shadow   0.45s cubic-bezier(0.25, 1, 0.5, 1),
+    border-color 0.3s  ease !important;
+
+  /* GPU compositing hint for smooth transform animations */
+  will-change: transform;
+
+  /* Layered box-shadow stack creating specular glass highlights:
+     1. Top specular edge   — bright 1.5px white line at the top
+     2. Fluid light refraction — soft internal white glow from above
+     3. Bottom specular edge — faint white line at the bottom
+     4. Drop shadow         — deep ambient shadow beneath the card */
+  box-shadow:
+    inset 0 1.5px 0   rgba(255, 255, 255, 0.14), /* Top specular reflection */
+    inset 0 12px 24px rgba(255, 255, 255, 0.02), /* Fluid light refraction */
+    inset 0 -1px 0    rgba(255, 255, 255, 0.04), /* Bottom specular edge */
+    0 8px 32px -8px   rgba(0, 0, 0, 0.4) !important; /* Drop shadow */
+}
+
+/* Specular bottom glow — a radial gradient pseudo-element positioned below
+   the card that creates the "liquid light pool" effect at the bottom edge.
+   Water-blue color palette gives it an organic, fluid feel. */
+.premium-card::after {
+  content: '';
+  position: absolute;
+  bottom: -35%;            /* Positioned partially below the card */
+  left: 50%;
+  transform: translateX(-50%);  /* Centered horizontally */
+  width: 75%;
+  height: 75%;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(60, 130, 255, 0.20) 0%,     /* Bright blue center */
+    rgba(30, 70, 200, 0.08) 45%,     /* Fading mid-zone */
+    transparent 75%                   /* Fully transparent edge */
+  );
+  pointer-events: none;
+  transition: opacity 0.5s ease, transform 0.5s ease;
+  opacity: 1;
+  z-index: 0;  /* Behind card content but within the card's overflow clipping */
+}
+
+/* Card hover state — subtle lift + scale for a premium micro-interaction.
+   translateY(-4px) + scale(1.008) keeps the animation elegant and tight. */
+.premium-card:hover {
+  transform: translateY(-4px) scale(1.008) !important;
+  border-color: rgba(99, 170, 255, 0.35) !important;  /* Blue-tinted border glow */
+  /* Enhanced specular highlights and deeper shadow on hover */
+  box-shadow:
+    inset 0 1.5px 0   rgba(255, 255, 255, 0.20),      /* Brighter top edge */
+    inset 0 16px 32px rgba(255, 255, 255, 0.04),       /* Stronger refraction */
+    0 16px 40px -12px rgba(0, 0, 0, 0.55),             /* Deeper drop shadow */
+    0 0 30px -5px     rgba(40, 110, 240, 0.2) !important; /* Blue ambient glow */
+}
+
+/* Bottom glow lifts and scales slightly on hover for a "breathing" effect */
+.premium-card:hover::after {
+  transform: translateX(-50%) translateY(-5px) scale(1.08);
+}
+
+/* Shimmer border — uses the CSS mask-composite trick to create a gradient
+   border effect. A ::before pseudo-element filled with a diagonal gradient
+   is masked so only the 1px border region is visible. The result is a
+   rainbow-like gradient border that's invisible at rest (opacity: 0.4) and
+   fully reveals on hover (opacity: 1). */
+.premium-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;  /* Match the parent card's 20px radius */
+  padding: 1px;            /* Width of the visible border */
+  /* Diagonal gradient: white → blue → indigo → white corners */
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.22) 0%,
+    rgba(80, 140, 255, 0.25) 35%,
+    rgba(99, 102, 241, 0.18) 65%,
+    rgba(255, 255, 255, 0.08) 100%
+  );
+  /* Mask-composite trick: two mask layers (content-box + border-box)
+     with XOR compositing leaves only the 1px padding gap visible */
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  opacity: 0.4;            /* Faint at rest */
+  transition: opacity 0.4s ease;
+  z-index: 1;              /* Above the card background but below card content */
+}
+
+/* Shimmer border fully revealed on hover */
+.premium-card:hover::before {
+  opacity: 1;
+}
+
+
+/* ======================================================================
+   10. LIGHT MODE OVERRIDES — Soft Sky-Blue Bokeh Aesthetic
+   ======================================================================
+   When `body.light-mode` is active, the entire animated background
+   transforms from a dark neon-purple atmosphere to a dreamy, airy
+   sky-blue bokeh aesthetic. Inspired by soft-focus bokeh photography:
+     - Base: sky-blue gradient (clear morning sky feel)
+     - Orbs: large blurred white + pink bokeh circles
+     - Canvas (in JSX): white neural dots & lines, pink bokeh particles
+     - Overall feel: bright, dreamy, premium
+   ====================================================================== */
+
+/* --- Base background: soft morning sky gradient ----------------------- */
+/* Replaces the dark navy with a layered sky-blue gradient. Multiple
+   radial gradients simulate sun glow (top-left), brighter sky (center),
+   and slightly deeper blue (bottom). */
+body.light-mode .bg-system-container {
+  background-color: #f1f5f9;  /* Fallback: soft light slate */
+  background-image:
+    /* Top-left: extremely soft sun glow */
+    radial-gradient(ellipse at 15% 15%, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.2) 30%, transparent 60%),
+    /* Center: lighter soft slate zone */
+    radial-gradient(ellipse at 60% 40%, rgba(255, 255, 255, 0.4) 0%, transparent 55%),
+    /* Bottom: very faint cool light-blue tint */
+    radial-gradient(ellipse at 80% 90%, rgba(219, 234, 254, 0.3) 0%, transparent 50%),
+    /* Base: extremely soft grey-blue gradient that matches slate 50 and slate 100 transitions */
+    linear-gradient(160deg, #f8fafc 0%, #f1f5f9 40%, #e2e8f0 100%);
+  /* Slow "breathing" animation — very subtle brightness/saturation pulse */
+  animation: skyBreath 20s ease-in-out infinite alternate;
+}
+
+/* Sky breathing animation — softly pulses brightness and saturation to
+   give the background a living, organic quality */
+@keyframes skyBreath {
+  0%   { filter: brightness(1.0) saturate(1.0); }
+  50%  { filter: brightness(1.02) saturate(1.04); }
+  100% { filter: brightness(1.0) saturate(1.0); }
+}
+
+/* --- Bokeh Orbs (Light Mode) ------------------------------------------
+   The same .glow-orb elements are repurposed as large, soft-focus bokeh
+   circles. Key differences from dark mode:
+     - Less blur (80px vs 140px) for slightly more defined circles
+     - `mix-blend-mode: normal` (no additive blending on light backgrounds)
+     - White and pink color palettes replace purple/indigo/cyan
+   ---------------------------------------------------------------------- */
+
+/* Reset dark-mode blend mode for all orbs */
+body.light-mode .glow-orb {
+  filter: blur(80px);          /* Slightly more blur to soften the circles */
+  mix-blend-mode: normal;      /* Normal blending — no additive glow needed on light bg */
+}
+
+/* Large white bokeh — top-left ("sun" region)
+   Bright white center with a sky-blue outer fade */
+body.light-mode .glow-orb-purple {
+  width: 550px;
+  height: 550px;
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.7) 0%,    /* Softened center */
+    rgba(255, 255, 255, 0.4)  40%,   
+    rgba(241, 245, 249, 0.1)  75%,   
+    transparent 100%
+  );
+  top: -15%;
+  left: -5%;
+  opacity: 0.8;                          /* Reduced opacity from 1.0 */
+  animation: bokehdrift-1 22s infinite alternate ease-in-out;
+}
+
+/* Medium pink/salmon bokeh — bottom-left
+   Adds warmth and visual interest to the cool sky palette */
+body.light-mode .glow-orb-indigo {
+  width: 420px;
+  height: 420px;
+  background: radial-gradient(
+    circle,
+    rgba(245, 243, 255, 0.6) 0%,    /* Lavender white instead of pink/salmon, which is much softer */
+    rgba(237, 233, 254, 0.3) 35%,   
+    rgba(224, 242, 254, 0.15)  65%,   
+    transparent 100%
+  );
+  bottom: 5%;
+  left: 5%;
+  opacity: 0.65;                    /* Reduced from 0.85 */
+  animation: bokehdrift-2 28s infinite alternate ease-in-out;
+}
+
+/* Soft white bokeh — mid-right
+   A cooler white with sky-blue edges to complement the pink orb */
+body.light-mode .glow-orb-cyan {
+  width: 380px;
+  height: 380px;
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.6)  0%,    
+    rgba(241, 245, 249, 0.3)  40%,   
+    rgba(224, 242, 254, 0.1)  70%,   
+    transparent 100%
+  );
+  top: 25%;
+  right: 8%;
+  opacity: 0.7;                     /* Reduced from 0.9 */
+  animation: bokehdrift-3 18s infinite alternate ease-in-out;
+}
+
+/* Bokeh drift animations — gentle, slow floating motion.
+   Separate from dark-mode float animations so time and
+   movement distances can be tuned independently. */
+@keyframes bokehdrift-1 {
+  0%   { transform: translate(0,   0)   scale(1); }
+  50%  { transform: translate(30px, 20px) scale(1.08); }
+  100% { transform: translate(-15px, 35px) scale(0.95); }
+}
+@keyframes bokehdrift-2 {
+  0%   { transform: translate(0, 0)     scale(0.95); }
+  50%  { transform: translate(-25px, -30px) scale(1.1); }
+  100% { transform: translate(20px, 15px)  scale(1); }
+}
+@keyframes bokehdrift-3 {
+  0%   { transform: translate(0, 0)     scale(1.05); }
+  50%  { transform: translate(20px, -20px) scale(0.9); }
+  100% { transform: translate(-10px, 25px) scale(1.1); }
+}
+
+/* --- Light rays (Light Mode) ------------------------------------------
+   White light rays instead of indigo/purple. Higher opacity (0.25) and
+   `overlay` blend mode make them subtly catch the eye against the sky. */
+body.light-mode .light-rays-layer {
+  opacity: 0.12;               /* Reduced from 0.25 to make it softer */
+  mix-blend-mode: overlay;     /* Blends with the sky for a natural highlight */
+}
+
+body.light-mode .light-ray {
+  /* Pure white gradient for sky-appropriate light shafts */
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(255, 255, 255, 0.3) 30%,
+    rgba(255, 255, 255, 0.4) 60%,
+    rgba(255, 255, 255, 0.3) 80%,
+    transparent
+  );
+  filter: blur(3px);  /* Slightly more blur than dark mode for softness */
+}
+
+/* --- Vignette (Light Mode) --------------------------------------------
+   Replaces the dark edge vignette with a gentle sky-blue edge fade.
+   Center stays bright, edges have a soft periwinkle tint. The gradient
+   origin is shifted to 30% 30% (upper-left) so the "brightest" area
+   aligns with the sun-glow orb position. */
+body.light-mode .cinematic-vignette {
+  background: radial-gradient(
+    ellipse at 30% 30%,
+    transparent 50%,                        /* Wider center */
+    rgba(241, 245, 249, 0.2) 80%,         
+    rgba(226, 232, 240, 0.3) 100%          
+  );
+}
+
+/* --- Glass reflection (Light Mode) ------------------------------------
+   White shimmer instead of the near-invisible dark-mode version.
+   Opacity is higher so the glass reflection is actually noticeable
+   against the bright sky background. */
+body.light-mode .glass-reflection {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.35) 0%,    /* Bright white start */
+    rgba(255, 255, 255, 0.1)  50%,   /* Fading mid-point */
+    transparent 100%                  /* Fully transparent end */
+  );
+}
+
+/* --- Premium Card (Light Mode) ----------------------------------------
+   Transforms the dark glass card into a frosted white glass panel.
+   The sky background flows through cleanly via high-blur backdrop-filter.
+   Border is set to transparent because the ::before gradient overlay
+   handles the visible border via the mask-composite technique. */
+body.light-mode .premium-card {
+  /* Highly opaque white glass for excellent readability and eye comfort */
+  background: rgba(255, 255, 255, 0.92) !important;
+  border: 1px solid rgba(139, 92, 246, 0.14) !important;
+  backdrop-filter: blur(24px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+  /* Light-mode specular highlights: brighter white edges, soft violet shadow */
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.95),      
+    0 8px 24px -5px rgba(139, 92, 246, 0.08),
+    0 4px 12px -2px rgba(0, 0, 0, 0.03) !important; 
+  transition: 
+    transform 0.45s cubic-bezier(0.25, 1, 0.5, 1),
+    box-shadow 0.45s cubic-bezier(0.25, 1, 0.5, 1),
+    border-color 0.3s ease,
+    background-color 0.3s ease !important;
+}
+
+/* Light mode default border — white gradient for a subtle frosted edge */
+body.light-mode .premium-card::before {
+  opacity: 0.85;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.85) 0%,    /* Bright white */
+    rgba(255, 255, 255, 0.45) 100%   /* Softer white */
+  ) !important;
+  transition: opacity 0.4s ease, background 0.4s ease !important;
+}
+
+/* Remove the blue bottom glow in light mode — keeps cards clean and airy
+   rather than adding unnecessary color beneath the frosted glass */
+body.light-mode .premium-card::after {
+  display: none !important;
+}
+
+/* Light mode card hover — increased opacity and enhanced highlights */
+body.light-mode .premium-card:hover {
+  /* Solid white on hover for a "focusing" effect */
+  background: #ffffff !important;
+  border-color: rgba(139, 92, 246, 0.35) !important;
+  transform: translateY(-4px) scale(1.008) !important;
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.95),        
+    0 16px 40px -10px rgba(139, 92, 246, 0.14),       
+    0 0 25px -5px rgba(139, 92, 246, 0.1) !important; 
+}
+
+/* Light mode gradient border reveal on hover — switches from white to a
+   purple → indigo → blue gradient for a colorful accent effect */
+body.light-mode .premium-card:hover::before {
+  opacity: 1;
+  background: linear-gradient(
+    135deg,
+    rgba(139, 92, 246, 0.45) 0%,     /* Soft Purple */
+    rgba(99, 102, 241, 0.4) 50%,     /* Soft Indigo */
+    rgba(59, 130, 246, 0.45) 100%    /* Soft Blue */
+  ) !important;
+}
+
+/* --- Secondary CTA hover (Light Mode) ---------------------------------
+   In light mode, the secondary button has a light/white background with
+   dark text. The dark-navy hover from dark mode would clash badly here.
+   Override: keep background semi-transparent white, tint with indigo,
+   and keep text DARK so contrast remains high on the light surface. */
+body.light-mode .hero-cta-secondary:hover {
+  background: rgba(99, 102, 241, 0.08) !important;  /* Very soft indigo tint */
+  border-color: rgba(99, 102, 241, 0.45) !important; /* Visible indigo border */
+  box-shadow: 0 0 16px rgba(99, 102, 241, 0.15);     /* Subtle indigo glow */
+  color: #4338ca !important;  /* Deep indigo text — readable on light bg */
+  transform: translateY(-1px);
+}
+
+/* --- Primary CTA (Light Mode) -----------------------------------------
+   The filled gradient button always has a colored purple/indigo background,
+   so white text is correct in both modes. This rule is a safeguard to
+   prevent any inherited light-mode text color from overriding. */
+body.light-mode .hero-cta-primary,
+body.light-mode .hero-cta-primary:hover {
+  color: #ffffff !important;
+}
