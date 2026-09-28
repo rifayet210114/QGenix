@@ -21,14 +21,22 @@
 // ============================================================
 
 import React from 'react';
+import { AuthProvider } from './contexts/AuthContext';
 import { ProfileProvider } from './contexts/ProfileContext';
+// [MODIFICATION: Added AdminDataProvider for real-time reactivity and LocalStorage state persistence across the entire Admin Console]
+// [Bengali Note: অ্যাডমিন কনসোলের সকল ডাটা লাইভ আপডেট ও লোকালস্টোরেজে সেভ রাখার জন্য AdminDataProvider যুক্ত করা হলো।]
+import { AdminDataProvider } from './contexts/AdminDataContext';
+import { AdminRoute, TeacherRoute, StudentRoute } from './components/RoleRoute';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
 // Lucide icons used in the sidebar navigation link definitions
+// [MODIFICATION: Added Building2, ShieldAlert, Sparkles for complete Admin console navigation icons]
+// [Bengali Note: অ্যাডমিন কনসোলের নতুন মডিউলগুলোর জন্য নতুন আইকন যুক্ত করা হয়েছে।]
 import { 
   LayoutDashboard, Users, Settings, BookOpen, FileText, 
   CheckSquare, Calendar, TrendingUp, CalendarCheck, 
-  Award, Clock, Bell, MessageSquare, FolderOpen, BrainCircuit, User, LogOut
+  Award, Clock, Bell, MessageSquare, FolderOpen, BrainCircuit, User, LogOut,
+  Building2, ShieldAlert, Sparkles
 } from 'lucide-react';
 
 // ==================== LAYOUT ====================
@@ -43,9 +51,17 @@ import GetStarted from './pages/GetStarted';  // Pricing & free-trial page
 
 // ==================== ADMIN PAGES ====================
 // Pages for system administrators
-import AdminDashboard from './pages/Admin/Dashboard';       // Admin overview with system stats
-import UserManagement from './pages/Admin/UserManagement';  // CRUD for users (teachers, students)
-import AdminSettings from './pages/Admin/Settings';         // Platform-wide configuration
+// [MODIFICATION: Imported all newly created comprehensive Admin console pages]
+// [Bengali Note: অ্যাডমিন কনসোলের সম্পূর্ণ নতুন পেজগুলো ইম্পোর্ট করা হলো।]
+import AdminDashboard from './pages/Admin/Dashboard';           // Executive dashboard with KPIs & telemetry
+import Academics from './pages/Admin/Academics';                 // Academic hierarchy, departments, courses & allocation
+import UserManagement from './pages/Admin/UserManagement';      // Advanced user directory, bulk CSV upload & RBAC
+import ExamController from './pages/Admin/ExamController';       // Central exam sessions, AI moderation, grading & publishing
+import RoutineAttendance from './pages/Admin/RoutineAttendance'; // Master routine builder & attendance defaulters
+import NoticeBoard from './pages/Admin/NoticeBoard';             // Central circular publisher & audience delivery
+import AIEngine from './pages/Admin/AIEngine';                   // LLM providers, tokens quota & safety guardrails
+import AuditLogs from './pages/Admin/AuditLogs';                 // Audit trail logs & database backup vault
+import AdminSettings from './pages/Admin/Settings';             // Institutional preferences & maintenance mode
 
 // ==================== TEACHER PAGES ====================
 // Pages for teachers / instructors
@@ -94,11 +110,20 @@ import Profile from './pages/Student/Profile';                // Student Profile
 //   • icon  — Lucide React icon component (20px)
 // ============================================================
 
-// Admin sidebar links — system-level management tools
+// Admin sidebar links — comprehensive system-level management tools
+// [MODIFICATION: Expanded admin links with the full suite of 8 academic console modules]
+// [Bengali Note: অ্যাডমিন কনসোলের সম্পূর্ণ ৮টি মূল মডিউল এবং লগআউট সাইডবারে যুক্ত করা হয়েছে।]
 const adminLinks = [
-  { path: '/admin', label: 'Overview', icon: <LayoutDashboard size={20} /> },
-  { path: '/admin/users', label: 'User Management', icon: <Users size={20} /> },
+  { path: '/admin', label: 'Executive Dashboard', icon: <LayoutDashboard size={20} /> },
+  { path: '/admin/academics', label: 'Academics', icon: <Building2 size={20} /> },
+  { path: '/admin/users', label: 'Users & RBAC', icon: <Users size={20} /> },
+  { path: '/admin/exams', label: 'Exam Controller', icon: <Award size={20} /> },
+  { path: '/admin/routine', label: 'Routine & Attendance', icon: <CalendarCheck size={20} /> },
+  { path: '/admin/notices', label: 'Notice Board', icon: <Bell size={20} /> },
+  { path: '/admin/ai-engine', label: 'AI Engine & Quotas', icon: <Sparkles size={20} /> },
+  { path: '/admin/logs', label: 'Audit & Logs', icon: <ShieldAlert size={20} /> },
   { path: '/admin/settings', label: 'Settings', icon: <Settings size={20} /> },
+  { path: '/login', label: 'Logout', icon: <LogOut size={20} /> },
 ];
 
 // Teacher sidebar links — instructional & evaluation tools
@@ -162,8 +187,10 @@ function App() {
     // BrowserRouter (aliased as Router) enables client-side routing
     // using the HTML5 History API for clean URLs (no hash fragments)
     <Router>
-      <ProfileProvider>
-        <Routes>
+      <AuthProvider>
+        <ProfileProvider>
+          <AdminDataProvider>
+            <Routes>
 
           {/* ==================== PUBLIC ROUTES ==================== */}
           {/* These routes are accessible to all visitors without login */}
@@ -171,23 +198,53 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/get-started" element={<GetStarted />} />
 
-          {/* ==================== ADMIN ROUTES ==================== */}
+          {/* ==================== ADMIN ROUTES (PROTECTED VIA AdminRoute) ==================== */}
           {/* Parent route renders the DashboardLayout with admin-specific
               links, role label, and navbar title "System Controller".
-              Child routes render inside the layout's <Outlet />. */}
-          <Route path="/admin" element={<DashboardLayout links={adminLinks} role="Admin" title="System Controller" />}>
-            {/* index route — matches /admin exactly → Admin overview dashboard */}
+              Child routes render inside the layout's <Outlet />.
+              [SECURITY GUARD: AdminRoute strictly forbids unauthorized access from Teachers & Students]
+              [Bengali Note: AdminRoute গার্ডের মাধ্যমে শুধুমাত্র অনুমোদিত ADMIN রোলের ব্যবহারকারীই এখানে ঢুকতে পারবে।] */}
+          <Route 
+            path="/admin" 
+            element={
+              <AdminRoute>
+                <DashboardLayout links={adminLinks} role="Admin" title="System Controller" />
+              </AdminRoute>
+            }
+          >
+            {/* index route — matches /admin exactly → Executive Dashboard */}
             <Route index element={<AdminDashboard />} />
-            {/* /admin/users → User management CRUD interface */}
+            {/* /admin/academics → Academic Hierarchy (Departments, Batches, Courses, Allocation) */}
+            <Route path="academics" element={<Academics />} />
+            {/* /admin/users → Advanced User Directory, CSV Bulk Upload & RBAC */}
             <Route path="users" element={<UserManagement />} />
-            {/* /admin/settings → Platform configuration page */}
+            {/* /admin/exams → Central Examination & Result Publishing Pipeline */}
+            <Route path="exams" element={<ExamController />} />
+            {/* /admin/routine → Master Timetable Scheduler & Attendance Defaulter Monitor */}
+            <Route path="routine" element={<RoutineAttendance />} />
+            {/* /admin/notices → Central Circular Publisher with Audience Targeting */}
+            <Route path="notices" element={<NoticeBoard />} />
+            {/* /admin/ai-engine → LLM Provider Configuration, Tokens Quota & Guardrails */}
+            <Route path="ai-engine" element={<AIEngine />} />
+            {/* /admin/logs → Audit Trail Logs & Database Backup Snapshots */}
+            <Route path="logs" element={<AuditLogs />} />
+            {/* /admin/settings → Platform & Institutional Preferences */}
             <Route path="settings" element={<AdminSettings />} />
           </Route>
 
-          {/* ==================== TEACHER ROUTES ==================== */}
+          {/* ==================== TEACHER ROUTES (PROTECTED VIA TeacherRoute) ==================== */}
           {/* Parent route renders the DashboardLayout with teacher-specific
-              links, role label, and navbar title "Command Center". */}
-          <Route path="/teacher" element={<DashboardLayout links={teacherLinks} role="Teacher" title="Command Center" />}>
+              links, role label, and navbar title "Command Center".
+              [SECURITY GUARD: TeacherRoute strictly forbids access from Students or non-teachers]
+              [Bengali Note: TeacherRoute এর মাধ্যমে শিক্ষার্থীরা শিক্ষকের পোর্টালে ঢুকতে পারবে না।] */}
+          <Route 
+            path="/teacher" 
+            element={
+              <TeacherRoute>
+                <DashboardLayout links={teacherLinks} role="Teacher" title="Command Center" />
+              </TeacherRoute>
+            }
+          >
             {/* index route — matches /teacher exactly → Teacher dashboard */}
             <Route index element={<TeacherDashboard />} />
             {/* /teacher/resources → Upload & manage teaching materials */}
@@ -213,10 +270,19 @@ function App() {
             <Route path="profile" element={<TeacherProfile />} />
           </Route>
 
-          {/* ==================== STUDENT ROUTES ==================== */}
+          {/* ==================== STUDENT ROUTES (PROTECTED VIA StudentRoute) ==================== */}
           {/* Parent route renders the DashboardLayout with student-specific
-              links, role label, and navbar title "Learning & Analytics Hub". */}
-          <Route path="/student" element={<DashboardLayout links={studentLinks} role="Student" title="Learning & Analytics Hub" />}>
+              links, role label, and navbar title "Learning & Analytics Hub".
+              [SECURITY GUARD: StudentRoute strictly reserves portal for Enrolled Students]
+              [Bengali Note: StudentRoute এর মাধ্যমে শুধুমাত্র বৈধ শিক্ষার্থীরাই এখানে প্রবেশ করতে পারবে।] */}
+          <Route 
+            path="/student" 
+            element={
+              <StudentRoute>
+                <DashboardLayout links={studentLinks} role="Student" title="Learning & Analytics Hub" />
+              </StudentRoute>
+            }
+          >
             {/* index route — matches /student exactly → Student dashboard */}
             <Route index element={<StudentDashboard />} />
             {/* /student/exams → Take exams & view past results */}
@@ -250,8 +316,10 @@ function App() {
           {/* Any unmatched URL redirects to the landing page.
               "replace" prevents the bad URL from staying in browser history. */}
           <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </ProfileProvider>
+          </Routes>
+          </AdminDataProvider>
+        </ProfileProvider>
+      </AuthProvider>
     </Router>
   );
 }

@@ -715,6 +715,18 @@
   box-shadow: 0 0 22px -3px rgba(139, 92, 246, 0.28), inset 0 2px 4px rgba(0, 0, 0, 0.3) !important;
 }
 
+/* Select dropdowns in registration */
+.input-group select {
+  color-scheme: dark !important;
+  background-color: #000000 !important;
+  color: #ffffff !important;
+}
+
+.input-group select option {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+}
+
 /* --- Floating Label ---
    Starts centered vertically inside the input. When the input gains
    focus or contains text, the label transitions to the top edge.
@@ -1049,6 +1061,7 @@
    ======================================================================= */
 .auth-footer {
   text-align: center;
+  margin-top: 2rem;
 }
 
 .auth-footer p {

@@ -19,11 +19,13 @@
 import React from 'react';
 // Bell — notification icon, User — avatar fallback, LogOut — sign-out icon, Menu — hamburger, Search — search bar icon
 import { Bell, User, LogOut, Menu, Search } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 // ThemeToggle provides the dark/light mode switcher button
 import ThemeToggle from './ThemeToggle';
 // ProfileContext — shared profile store updated from Profile page
 import { useProfile } from '../contexts/ProfileContext';
+// AuthContext — handles session state and role clearance upon logout
+import { useAuth } from '../contexts/AuthContext';
 
 /**
  * Navbar Component
@@ -33,16 +35,20 @@ import { useProfile } from '../contexts/ProfileContext';
  * @param {Function} onMenuClick - Callback to open the sidebar on mobile (triggers setIsSidebarOpen(true)).
  */
 export default function Navbar({ title, role, onMenuClick }) {
-  // Read profile name and avatar from the global ProfileContext
+  // Read profile name and avatar from the global ProfileContext and AuthContext
   const { profile } = useProfile();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
-  // Derive display name: use stored name if available, else fall back gracefully
-  const displayName = (profile.firstName || profile.lastName)
+  // Derive display name: check user session first, then profile context, then fallback
+  const displayName = user?.name || (profile.firstName || profile.lastName
     ? `${profile.firstName} ${profile.lastName}`.trim()
-    : 'Admin User';
+    : `${role} User`);
 
   // Initials for avatar fallback when no photo is set
-  const initials = (profile.firstName?.charAt(0) || '') + (profile.lastName?.charAt(0) || '');
+  const initials = user?.name 
+    ? user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+    : ((profile.firstName?.charAt(0) || '') + (profile.lastName?.charAt(0) || ''));
 
   // Common style for circular glass action buttons
   const iconButtonStyle = {
@@ -177,16 +183,20 @@ export default function Navbar({ title, role, onMenuClick }) {
           </div>
         </div>
 
-        {/* Logout button — navigates to /login, effectively ending the session */}
-        <Link 
-          to="/login" 
+        {/* Logout button — destroys session, clears localStorage, navigates to /login */}
+        <button 
+          type="button"
+          onClick={() => {
+            logout();
+            navigate('/login');
+          }}
           className="navbar-btn-hover" 
           style={iconButtonStyle}
-          title="Logout"
+          title="Logout / Sign Out"
         >
           {/* Slight left margin on the icon to optically center it within the circle */}
           <LogOut size={18} style={{ marginLeft: '2px' }} />
-        </Link>
+        </button>
       </div>
     </div>
   );

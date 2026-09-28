@@ -18,7 +18,7 @@ export default function Landing() {
         <header style={{ padding: '24px 48px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)' }}>
           <div className="flex items-center gap-2">
             <BrainCircuit color="var(--accent-primary)" size={32} />
-            <h2 style={{ margin: 0, fontWeight: 700, letterSpacing: '-0.02em' }}>QGenix AI</h2>
+            <h2 style={{ margin: 0, fontWeight: 700, letterSpacing: '-0.02em' }}>QGenix</h2>
           </div>
           <div className="flex items-center gap-4">
             <ThemeToggle />
@@ -32,10 +32,10 @@ export default function Landing() {
           {/* Spotlight behind hero */}
           <div className="hero-spotlight"></div>
 
-          <div className="badge badge-primary animate-fade-in" style={{ marginBottom: '24px', padding: '6px 12px' }}>Platform v2.0 Live</div>
+          {/* <div className="badge badge-primary animate-fade-in" style={{ marginBottom: '24px', padding: '6px 12px' }}>Platform v2.0 Live</div> */}
           
           <h1 className="animate-fade-in" style={{ fontSize: '4rem', marginBottom: '24px', maxWidth: '800px', lineHeight: 1.1, fontWeight: 800, letterSpacing: '-0.03em' }}>
-            Next-Gen <span className="text-gradient">AI Examination</span> & Analytics Platform
+            Next-Gen <span className="text-gradient"> Examination</span> <br />&<br /> Analytics Platform
           </h1>
           
           <p className="animate-fade-in" style={{ fontSize: '1.2rem', color: 'var(--text-secondary)', maxWidth: '600px', marginBottom: '40px', animationDelay: '0.1s' }}>
