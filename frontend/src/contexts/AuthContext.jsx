@@ -58,7 +58,7 @@ export const AuthProvider = ({ children }) => {
     setAuthError(null);
 
     try {
-      // 1. Attempt connection to Django REST Framework backend
+      // Authenticate via Django REST Framework backend only
       const response = await fetch(`${API_BASE}/api/auth/login/`, {
         method: 'POST',
         headers: {
@@ -69,7 +69,6 @@ export const AuthProvider = ({ children }) => {
 
       if (response.ok) {
         const data = await response.json();
-        // Server returned valid JWT access token and user metadata
         const authData = {
           token: data.access,
           refresh: data.refresh,
@@ -79,7 +78,7 @@ export const AuthProvider = ({ children }) => {
           role: data.user.role.toUpperCase(), // 'ADMIN', 'TEACHER', 'STUDENT'
           name: `${data.user.first_name || ''} ${data.user.last_name || ''}`.trim() || data.user.username,
           department: data.user.department || 'Academic',
-          institutionalId: data.user.institutional_id || 'QG-001',
+          institutionalId: data.user.institutional_id || '',
           batch: data.user.batch || '',
           designation: data.user.designation || '',
         };
@@ -88,91 +87,17 @@ export const AuthProvider = ({ children }) => {
         return { success: true, user: authData };
       } else {
         const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.detail || 'Invalid username or password');
+        const errorMsg = errData.detail || 'Invalid username or password.';
+        setAuthError(errorMsg);
+        setLoading(false);
+        return { success: false, error: errorMsg };
       }
     } catch (err) {
-      console.warn('Backend server response:', err.message);
-
-      // Fallback verification for offline development / preview testing
-      // Matches the seeded users in backend/seed_users.py with DIIT format
-      const cleanUser = username.trim().toLowerCase();
-      if ((cleanUser === 'admin' || cleanUser === 'admin@diit.edu.bd' || cleanUser === 'admin@qgenix.edu') && password === 'admin123') {
-        const mockAdmin = {
-          token: 'mock-jwt-admin-token-qgenix',
-          id: 1,
-          username: 'admin',
-          email: 'admin@diit.edu.bd',
-          role: 'ADMIN',
-          name: 'Super Administrator',
-          department: 'Central Administration',
-          institutionalId: 'ADM-001'
-        };
-        setUser(mockAdmin);
-        setLoading(false);
-        return { success: true, user: mockAdmin };
-      } else if ((cleanUser === 'teacher' || cleanUser === 'teacher@diit.edu.bd' || cleanUser === 'teacher@qgenix.edu') && password === 'teacher123') {
-        const mockTeacher = {
-          token: 'mock-jwt-teacher-token-qgenix',
-          id: 2,
-          username: 'teacher',
-          email: 'teacher@diit.edu.bd',
-          role: 'TEACHER',
-          name: 'Dr. Tariq Hasan',
-          department: 'Computer Science & Engineering',
-          designation: 'Associate Professor',
-          institutionalId: 'FAC-201'
-        };
-        setUser(mockTeacher);
-        setLoading(false);
-        return { success: true, user: mockTeacher };
-      } else if ((cleanUser === 'student' || cleanUser === 'tanvir_2022014' || cleanUser === 'tanvir_2022014@diit.edu.bd' || cleanUser === 'student@diit.edu.bd') && password === 'student123') {
-        const mockStudent = {
-          token: 'mock-jwt-student-token-qgenix',
-          id: 4,
-          username: 'tanvir_2022014',
-          email: 'tanvir_2022014@diit.edu.bd',
-          role: 'STUDENT',
-          name: 'Tanvir Rahman',
-          department: 'Computer Science & Engineering',
-          batch: 'Batch 2022',
-          institutionalId: '2022014'
-        };
-        setUser(mockStudent);
-        setLoading(false);
-        return { success: true, user: mockStudent };
-      }
-
-      // Dynamic check for self-registered students
-      try {
-        const registeredStudents = JSON.parse(localStorage.getItem('qgenix_registered_students') || '[]');
-        const matched = registeredStudents.find(
-          s => (s.email?.toLowerCase() === cleanUser || s.username?.toLowerCase() === cleanUser || s.institutionalId === cleanUser) && 
-               (s.password === password || password === 'student123' || password === 'password123')
-        );
-        if (matched) {
-          setUser(matched);
-          setLoading(false);
-          return { success: true, user: matched };
-        }
-      } catch (e) {}
-
-      // Dynamic check for Admin-registered teachers
-      try {
-        const registeredTeachers = JSON.parse(localStorage.getItem('qgenix_registered_teachers') || '[]');
-        const matchedT = registeredTeachers.find(
-          t => (t.email?.toLowerCase() === cleanUser || t.username?.toLowerCase() === cleanUser || t.id === cleanUser) && 
-               (t.password === password || password === 'teacher123')
-        );
-        if (matchedT) {
-          setUser(matchedT);
-          setLoading(false);
-          return { success: true, user: matchedT };
-        }
-      } catch (e) {}
-
-      setAuthError(err.message || 'Authentication failed. Please verify your credentials.');
+      // Network/connection error
+      const errorMsg = 'Cannot connect to server. Please try again later.';
+      setAuthError(errorMsg);
       setLoading(false);
-      return { success: false, error: err.message };
+      return { success: false, error: errorMsg };
     }
   };
 

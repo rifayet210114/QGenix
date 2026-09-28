@@ -9,8 +9,8 @@ import { useAuth } from '../../contexts/AuthContext';
 
 export default function Login() {
   const [role, setRole] = useState('student');
-  const [usernameOrEmail, setUsernameOrEmail] = useState('tanvir_2022014@diit.edu.bd');
-  const [password, setPassword] = useState('student123');
+  const [usernameOrEmail, setUsernameOrEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -45,14 +45,14 @@ export default function Login() {
       setIsRegistering(false); // Only students can self-register
     }
     if (selectedRole === 'admin') {
-      setUsernameOrEmail('admin@diit.edu.bd');
-      setPassword('admin123');
+      setUsernameOrEmail('');
+      setPassword('');
     } else if (selectedRole === 'teacher') {
-      setUsernameOrEmail('teacher@diit.edu.bd');
-      setPassword('teacher123');
+      setUsernameOrEmail('');
+      setPassword('');
     } else {
-      setUsernameOrEmail('tanvir_2022014@diit.edu.bd');
-      setPassword('student123');
+      setUsernameOrEmail('');
+      setPassword('');
     }
   };
 
