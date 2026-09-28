@@ -132,10 +132,10 @@ SIMPLE_JWT = {
 # CORS Configuration
 # Railway backend + Vercel frontend + local dev সব allow
 # =========================================================================================
-CORS_ALLOW_ALL_ORIGINS = True   # Deploy হলে False করো এবং নিচে আসল URLs দাও
+CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://localhost:3000",
-    "https://qgenix.vercel.app",   # Vercel deploy এর পরে আসল URL দিয়ে replace করো
+    "https://q-genix-li83.vercel.app",
 ]
 CORS_ALLOW_CREDENTIALS = True
