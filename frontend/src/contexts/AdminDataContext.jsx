@@ -233,7 +233,7 @@ export function AdminDataProvider({ children }) {
     addAuditLog('Department Added', 'Academic', `${dept.code} - ${dept.name}`);
 
     try {
-      await fetch('${API_BASE}/api/auth/departments/', {
+      await fetch(`${API_BASE}/api/auth/departments/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dept)
@@ -272,7 +272,7 @@ export function AdminDataProvider({ children }) {
     addAuditLog('Course Catalog Added', 'Academic', `${course.code}: ${course.title}`);
 
     try {
-      await fetch('${API_BASE}/api/auth/courses/', {
+      await fetch(`${API_BASE}/api/auth/courses/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(course)
@@ -349,7 +349,7 @@ export function AdminDataProvider({ children }) {
     addAuditLog('Student Registered', 'User Management', `${student.id} - ${student.name}`);
 
     try {
-      await fetch('${API_BASE}/api/auth/users/', {
+      await fetch(`${API_BASE}/api/auth/users/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -390,7 +390,7 @@ export function AdminDataProvider({ children }) {
   // Publish Semester Result and dynamically re-calculate student CGPA
   const publishSemesterResult = async (payload) => {
     try {
-      const res = await fetch('${API_BASE}/api/auth/publish-semester-result/', {
+      const res = await fetch(`${API_BASE}/api/auth/publish-semester-result/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -443,7 +443,7 @@ export function AdminDataProvider({ children }) {
     addAuditLog('Faculty Appointed', 'User Management', `${fac.id} - ${fac.name}`);
 
     try {
-      await fetch('${API_BASE}/api/auth/users/', {
+      await fetch(`${API_BASE}/api/auth/users/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -570,7 +570,7 @@ export function AdminDataProvider({ children }) {
     addAuditLog('Notice Broadcasted', 'Notice Board', notice.title);
 
     try {
-      await fetch('${API_BASE}/api/auth/notices/', {
+      await fetch(`${API_BASE}/api/auth/notices/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(notice)
