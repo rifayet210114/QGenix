@@ -233,7 +233,7 @@ export function AdminDataProvider({ children }) {
     addAuditLog('Department Added', 'Academic', `${dept.code} - ${dept.name}`);
 
     try {
-      await fetch('http://localhost:8000/api/auth/departments/', {
+      await fetch('${API_BASE}/api/auth/departments/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dept)
@@ -256,7 +256,7 @@ export function AdminDataProvider({ children }) {
     addAuditLog('Department Deleted', 'Academic', `Dept ID: ${id}`);
 
     try {
-      await fetch(`http://localhost:8000/api/auth/departments/${id}/`, {
+      await fetch(`${API_BASE}/api/auth/departments/${id}/`, {
         method: 'DELETE'
       });
       await refreshFromDB();
@@ -272,7 +272,7 @@ export function AdminDataProvider({ children }) {
     addAuditLog('Course Catalog Added', 'Academic', `${course.code}: ${course.title}`);
 
     try {
-      await fetch('http://localhost:8000/api/auth/courses/', {
+      await fetch('${API_BASE}/api/auth/courses/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(course)
@@ -295,7 +295,7 @@ export function AdminDataProvider({ children }) {
     addAuditLog('Course Catalog Removed', 'Academic', `Course ID: ${id}`);
 
     try {
-      await fetch(`http://localhost:8000/api/auth/courses/${id}/`, {
+      await fetch(`${API_BASE}/api/auth/courses/${id}/`, {
         method: 'DELETE'
       });
       await refreshFromDB();
@@ -349,7 +349,7 @@ export function AdminDataProvider({ children }) {
     addAuditLog('Student Registered', 'User Management', `${student.id} - ${student.name}`);
 
     try {
-      await fetch('http://localhost:8000/api/auth/users/', {
+      await fetch('${API_BASE}/api/auth/users/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -376,7 +376,7 @@ export function AdminDataProvider({ children }) {
     addAuditLog('Student Profile Modified', 'User Management', `${id}`);
 
     try {
-      await fetch(`http://localhost:8000/api/auth/users/${id}/`, {
+      await fetch(`${API_BASE}/api/auth/users/${id}/`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedFields)
@@ -390,7 +390,7 @@ export function AdminDataProvider({ children }) {
   // Publish Semester Result and dynamically re-calculate student CGPA
   const publishSemesterResult = async (payload) => {
     try {
-      const res = await fetch('http://localhost:8000/api/auth/publish-semester-result/', {
+      const res = await fetch('${API_BASE}/api/auth/publish-semester-result/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -409,7 +409,7 @@ export function AdminDataProvider({ children }) {
     addAuditLog('Student Account Removed', 'User Management', `${id}`);
 
     try {
-      await fetch(`http://localhost:8000/api/auth/users/${id}/`, {
+      await fetch(`${API_BASE}/api/auth/users/${id}/`, {
         method: 'DELETE'
       });
       await refreshFromDB();
@@ -443,7 +443,7 @@ export function AdminDataProvider({ children }) {
     addAuditLog('Faculty Appointed', 'User Management', `${fac.id} - ${fac.name}`);
 
     try {
-      await fetch('http://localhost:8000/api/auth/users/', {
+      await fetch('${API_BASE}/api/auth/users/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -473,7 +473,7 @@ export function AdminDataProvider({ children }) {
     addAuditLog('Faculty Record Deleted', 'User Management', `${id}`);
 
     try {
-      await fetch(`http://localhost:8000/api/auth/users/${id}/`, {
+      await fetch(`${API_BASE}/api/auth/users/${id}/`, {
         method: 'DELETE'
       });
       await refreshFromDB();
@@ -570,7 +570,7 @@ export function AdminDataProvider({ children }) {
     addAuditLog('Notice Broadcasted', 'Notice Board', notice.title);
 
     try {
-      await fetch('http://localhost:8000/api/auth/notices/', {
+      await fetch('${API_BASE}/api/auth/notices/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(notice)
@@ -586,7 +586,7 @@ export function AdminDataProvider({ children }) {
     addAuditLog('Notice Deleted', 'Notice Board', `Notice ID: ${id}`);
 
     try {
-      await fetch(`http://localhost:8000/api/auth/notices/${id}/`, {
+      await fetch(`${API_BASE}/api/auth/notices/${id}/`, {
         method: 'DELETE'
       });
       await refreshFromDB();

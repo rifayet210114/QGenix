@@ -12,6 +12,8 @@
 // =========================================================================================
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { API_BASE } from '../config';
+
 
 const AuthContext = createContext(null);
 
@@ -57,7 +59,7 @@ export const AuthProvider = ({ children }) => {
 
     try {
       // 1. Attempt connection to Django REST Framework backend
-      const response = await fetch('http://localhost:8000/api/auth/login/', {
+      const response = await fetch('${API_BASE}/api/auth/login/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -183,7 +185,7 @@ export const AuthProvider = ({ children }) => {
     setAuthError(null);
 
     try {
-      const response = await fetch('http://localhost:8000/api/auth/register/student/', {
+      const response = await fetch('${API_BASE}/api/auth/register/student/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(studentData),
