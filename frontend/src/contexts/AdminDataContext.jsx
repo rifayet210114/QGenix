@@ -9,6 +9,7 @@
 // =========================================================================================
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { API_BASE } from '../config';
 
 const AdminDataContext = createContext();
 
@@ -163,7 +164,7 @@ export function AdminDataProvider({ children }) {
   // Live Sync with Django SQLite Database
   const refreshFromDB = async () => {
     try {
-      const res = await fetch('http://localhost:8000/api/auth/dashboard-stats/');
+      const res = await fetch(`${API_BASE}/api/auth/dashboard-stats/`);
       if (res.ok) {
         const data = await res.json();
         setStats(data);

@@ -2,25 +2,25 @@
 Django settings for qgenix_server project.
 
 Bengali Note:
-এই ফাইলে Django ব্যাকএন্ডের প্রধান কনফিগারেশন সেট করা হয়েছে:
-১. কাস্টম ইউজার মডেল (accounts.CustomUser) সেট করা হয়েছে।
-২. Django REST Framework (DRF) এবং SimpleJWT অথেনটিকেশন কনফিগার করা হয়েছে।
-৩. CORS Headers কনফিগার করা হয়েছে যাতে Vite Frontend (localhost:5173) নির্বিঘ্নে এপিআই অ্যাক্সেস করতে পারে।
+এই ফাইলে Django ব্যাকএন্ডের প্রধান কনফিগারেশন সেট করা হয়েছে।
+Production + Local উভয় environment এ কাজ করে।
 """
 
+import os
 from pathlib import Path
 from datetime import timedelta
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-sh+@8oc=qv^z4)ico2tfr+4b2%i5n(kky!pv^bd!d*m*=e_geb'
+# =========================================================================================
+# Security (Production: Environment Variables থেকে পড়া হয়)
+# =========================================================================================
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-sh+@8oc=qv^z4)ico2tfr+4b2%i5n(kky!pv^bd!d*m*=e_geb')
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ['*', '.railway.app', '.up.railway.app', 'localhost', '127.0.0.1']
 
 # Application definition
 INSTALLED_APPS = [
@@ -31,21 +31,22 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
-    # Third Party Libraries (তৃতীয় পক্ষের লাইব্রেরি)
+    # Third Party Libraries
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
 
-    # Local Apps (কাস্টম অ্যাপস)
+    # Local Apps
     'accounts',
 ]
 
-# Custom User Model (কাস্টম ইউজার মডেল যাতে রোল ও প্রোফাইল ডাটা যুক্ত থাকে)
+# Custom User Model
 AUTH_USER_MODEL = 'accounts.CustomUser'
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware', # CORS middleware must be at the very top
+    'corsheaders.middleware.CorsMiddleware',        # CORS: must be at top
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',    # WhiteNoise: static files for production
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -73,7 +74,9 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'qgenix_server.wsgi.application'
 
-# Database configuration (SQLite for fast local development)
+# =========================================================================================
+# Database (SQLite - Railway Volume Mount দিয়ে persistent রাখা হবে)
+# =========================================================================================
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -83,12 +86,8 @@ DATABASES = {
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
+    { 'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator' },
+    { 'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator' },
 ]
 
 # Internationalization
@@ -97,10 +96,13 @@ TIME_ZONE = 'Asia/Dhaka'
 USE_I18N = True
 USE_TZ = True
 
-# Static files (CSS, JavaScript, Images)
-STATIC_URL = 'static/'
+# =========================================================================================
+# Static Files (WhiteNoise দিয়ে production-এ serve হবে)
+# =========================================================================================
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-# Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # =========================================================================================
@@ -116,10 +118,10 @@ REST_FRAMEWORK = {
 }
 
 # =========================================================================================
-# SimpleJWT Configuration (JWT টোকেনের মেয়াদ ও সিকিউরিটি পলিসি)
+# SimpleJWT Configuration
 # =========================================================================================
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(days=1), # 1 day for smooth dev experience
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': False,
@@ -127,7 +129,13 @@ SIMPLE_JWT = {
 }
 
 # =========================================================================================
-# CORS Configuration (ফ্রন্টএন্ড পোর্ট 5173 থেকে রিকোয়েস্ট অনুমতি)
+# CORS Configuration
+# Railway backend + Vercel frontend + local dev সব allow
 # =========================================================================================
-CORS_ALLOW_ALL_ORIGINS = True # Enabled for local full-stack pair development
+CORS_ALLOW_ALL_ORIGINS = True   # Deploy হলে False করো এবং নিচে আসল URLs দাও
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "https://qgenix.vercel.app",   # Vercel deploy এর পরে আসল URL দিয়ে replace করো
+]
 CORS_ALLOW_CREDENTIALS = True
