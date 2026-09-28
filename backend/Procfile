@@ -1,1 +1,1 @@
-web: gunicorn qgenix_server.wsgi:application --bind 0.0.0.0:$PORT
+web: python manage.py migrate && python manage.py ensure_superuser && gunicorn qgenix_server.wsgi:application --bind 0.0.0.0:$PORT
