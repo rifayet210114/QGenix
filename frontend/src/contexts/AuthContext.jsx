@@ -140,10 +140,16 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (err) {
       console.warn('Backend registration response / fallback:', err.message);
-      // Fallback offline mock registration
-      const cleanFirst = studentData.first_name.trim().toLowerCase().replace(/\s+/g, '');
-      const cleanId = studentData.class_id.trim();
-      const generatedEmail = `${cleanFirst}_${cleanId}@diit.edu.bd`;
+      // Dynamically apply institutional student email format
+      let studentDomain = '@diit.edu.bd';
+      try {
+        const savedFormats = JSON.parse(localStorage.getItem('qgenix_emailFormats') || '{}');
+        if (savedFormats && savedFormats.student) {
+          const raw = savedFormats.student.trim();
+          studentDomain = raw.startsWith('@') ? raw : (raw.includes('@') ? raw.slice(raw.indexOf('@')) : `@${raw}`);
+        }
+      } catch (e) {}
+      const generatedEmail = `${cleanFirst}_${cleanId}${studentDomain}`;
 
       const mockStudent = {
         token: `mock-jwt-student-${Date.now()}`,

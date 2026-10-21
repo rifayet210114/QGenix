@@ -119,13 +119,19 @@ class StudentRegistrationSerializer(serializers.Serializer):
         first_name = data.get('first_name', '').strip().lower().replace(' ', '')
         class_id = data.get('class_id', '').strip()
         
-        # Expected institutional format: firstname_classid@diit.edu.bd
-        expected_email = f"{first_name}_{class_id}@diit.edu.bd"
+        # Expected institutional format from SystemSetting
+        from .models import SystemSetting
+        setting = SystemSetting.objects.first()
+        req_format = setting.student_email_format if setting else '@diit.edu.bd'
+        req_format = (req_format or '@diit.edu.bd').strip().lower()
+        domain_suffix = req_format if req_format.startswith('@') else f"@{req_format.split('@')[-1]}"
+
+        expected_email = f"{first_name}_{class_id}{domain_suffix}"
         provided_email = data.get('email', '').strip().lower()
 
         if provided_email:
-            if not provided_email.endswith('@diit.edu.bd'):
-                raise serializers.ValidationError({"email": "Email must end with @diit.edu.bd institutional domain."})
+            if not provided_email.endswith(domain_suffix):
+                raise serializers.ValidationError({"email": f"Student email must follow the required format: {domain_suffix}"})
             data['final_email'] = provided_email
         else:
             data['final_email'] = expected_email
@@ -161,7 +167,12 @@ class StudentRegistrationSerializer(serializers.Serializer):
         return user
 
 
-from .models import Department, Course, Batch, ExamSession, Notice, AuditLog
+from .models import Department, Course, Batch, ExamSession, Notice, AuditLog, ClassRoutine, CourseAllocation, AIConfiguration, SemesterArchive, StudentSemesterRecord, SystemSetting
+
+class SystemSettingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SystemSetting
+        fields = '__all__'
 
 class DepartmentSerializer(serializers.ModelSerializer):
     class Meta:
@@ -192,5 +203,44 @@ class AuditLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = AuditLog
         fields = '__all__'
+
+class ClassRoutineSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ClassRoutine
+        fields = '__all__'
+
+class CourseAllocationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CourseAllocation
+        fields = '__all__'
+
+class AIConfigurationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AIConfiguration
+        fields = '__all__'
+
+class StudentSemesterRecordSerializer(serializers.ModelSerializer):
+    student_id = serializers.CharField(source='student_uid')
+
+    class Meta:
+        model = StudentSemesterRecord
+        fields = [
+            'id', 'student_id', 'student_name', 'email', 'registration_no',
+            'section', 'attendance_pct', 'mid_marks', 'final_marks',
+            'semester_gpa', 'cumulative_cgpa', 'grade', 'remarks'
+        ]
+
+class SemesterArchiveSerializer(serializers.ModelSerializer):
+    records = StudentSemesterRecordSerializer(many=True, read_only=True)
+    records_count = serializers.IntegerField(source='records.count', read_only=True)
+
+    class Meta:
+        model = SemesterArchive
+        fields = [
+            'id', 'batch_name', 'department', 'semester', 'academic_year',
+            'total_students', 'average_gpa', 'average_attendance', 'archived_at',
+            'is_graduate_batch', 'status', 'records', 'records_count'
+        ]
+
 
 

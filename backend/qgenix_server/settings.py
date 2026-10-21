@@ -139,3 +139,4 @@ CORS_ALLOWED_ORIGINS = [
     "https://q-genix-li83.vercel.app",
 ]
 CORS_ALLOW_CREDENTIALS = True
+

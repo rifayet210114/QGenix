@@ -11,8 +11,9 @@
 // সমস্ত কোডে বিস্তারিত বাংলা ও ইংরেজি কমেন্ট রয়েছে এবং সম্পূর্ণ রেসপনসিভ ডিজাইন।
 // =========================================================================================
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Card from '../../components/Card';
+import { useAdminData } from '../../contexts/AdminDataContext';
 import { 
   Building, 
   Mail, 
@@ -27,6 +28,7 @@ import {
 } from 'lucide-react';
 
 export default function Settings() {
+  const { emailFormats, updateEmailFormats } = useAdminData();
   const [toastMessage, setToastMessage] = useState('');
   
   // Institutional Settings State
@@ -38,15 +40,53 @@ export default function Settings() {
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [emailAlertsEnabled, setEmailAlertsEnabled] = useState(true);
 
+  // Email Format State (100% Admin Configurable & Modifiable)
+  const [studentEmailFormat, setStudentEmailFormat] = useState(emailFormats?.student || '@diit.edu.bd');
+  const [teacherEmailFormat, setTeacherEmailFormat] = useState(emailFormats?.teacher || '@diit.edu.bd');
+  const initializedRef = useRef(false);
+
+  // Initialize once on mount or when emailFormats loads initially
+  useEffect(() => {
+    if (!initializedRef.current && emailFormats) {
+      if (emailFormats.student) setStudentEmailFormat(emailFormats.student);
+      if (emailFormats.teacher) setTeacherEmailFormat(emailFormats.teacher);
+      initializedRef.current = true;
+    }
+  }, [emailFormats]);
+
   // Toast feedback helper
   const showToast = (msg) => {
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(''), 3200);
+    setTimeout(() => setToastMessage(''), 3500);
   };
 
-  const handleSave = (e) => {
-    e.preventDefault();
-    showToast('Platform & Institutional Configuration successfully committed!');
+  // Dedicated Save for Email Formate
+  const handleSaveEmailFormatOnly = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    const cleanStudent = (studentEmailFormat || '').trim();
+    const cleanTeacher = (teacherEmailFormat || '').trim();
+    if (!cleanStudent || !cleanTeacher) {
+      showToast('❌ Error: Student and Teacher email formats cannot be empty!');
+      return;
+    }
+    if (updateEmailFormats) {
+      await updateEmailFormats({
+        student: cleanStudent,
+        teacher: cleanTeacher
+      });
+    }
+    showToast('✓ Email Formate successfully saved and updated across the whole system!');
+  };
+
+  const handleSave = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (updateEmailFormats) {
+      await updateEmailFormats({
+        student: (studentEmailFormat || '').trim(),
+        teacher: (teacherEmailFormat || '').trim()
+      });
+    }
+    showToast('Platform & Email Formate settings successfully updated!');
   };
 
   return (
@@ -268,7 +308,55 @@ export default function Settings() {
           </form>
         </Card>
 
-        {/* Panel 4: Emergency Maintenance Mode */}
+        {/* Panel 4: Email Formate Settings */}
+        <Card title="Email Formate">
+          <form onSubmit={handleSaveEmailFormatOnly} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '12px' }}>
+            
+            {/* Studen Email Formate */}
+            <div>
+              <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '6px' }}>
+                Studen Email Formate
+              </label>
+              <input 
+                type="text" 
+                className="input-field" 
+                placeholder="e.g. @diit.edu.bd or @du.ac.bd"
+                value={studentEmailFormat}
+                onChange={(e) => setStudentEmailFormat(e.target.value)}
+                style={{ width: '100%', fontWeight: 600 }} 
+              />
+            </div>
+
+            {/* Teacher Email Formate */}
+            <div>
+              <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '6px' }}>
+                Teacher Email Formate
+              </label>
+              <input 
+                type="text" 
+                className="input-field" 
+                placeholder="e.g. @diit.edu.bd or @du.ac.bd"
+                value={teacherEmailFormat}
+                onChange={(e) => setTeacherEmailFormat(e.target.value)}
+                style={{ width: '100%', fontWeight: 600 }} 
+              />
+            </div>
+
+            {/* Save Button for Email Formate */}
+            <div>
+              <button 
+                type="submit" 
+                className="btn btn-primary"
+                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px' }}
+              >
+                <Save size={16} />
+                <span>Save Email Formate</span>
+              </button>
+            </div>
+          </form>
+        </Card>
+
+        {/* Panel 5: Emergency Maintenance Mode */}
         <Card title="System Availability & Maintenance Mode">
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '12px' }}>
             <div 

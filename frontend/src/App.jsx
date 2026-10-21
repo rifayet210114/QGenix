@@ -36,7 +36,7 @@ import {
   LayoutDashboard, Users, Settings, BookOpen, FileText, 
   CheckSquare, Calendar, TrendingUp, CalendarCheck, 
   Award, Clock, Bell, MessageSquare, FolderOpen, BrainCircuit, User, LogOut,
-  Building2, ShieldAlert, Sparkles
+  Building2, ShieldAlert, Sparkles, Archive
 } from 'lucide-react';
 
 // ==================== LAYOUT ====================
@@ -55,6 +55,7 @@ import GetStarted from './pages/GetStarted';  // Pricing & free-trial page
 // [Bengali Note: অ্যাডমিন কনসোলের সম্পূর্ণ নতুন পেজগুলো ইম্পোর্ট করা হলো।]
 import AdminDashboard from './pages/Admin/Dashboard';           // Executive dashboard with KPIs & telemetry
 import Academics from './pages/Admin/Academics';                 // Academic hierarchy, departments, courses & allocation
+import ArchivePage from './pages/Admin/Archive';                 // Academic past semester archives & graduated cohorts
 import UserManagement from './pages/Admin/UserManagement';      // Advanced user directory, bulk CSV upload & RBAC
 import ExamController from './pages/Admin/ExamController';       // Central exam sessions, AI moderation, grading & publishing
 import RoutineAttendance from './pages/Admin/RoutineAttendance'; // Master routine builder & attendance defaulters
@@ -120,6 +121,7 @@ const adminLinks = [
   { path: '/admin/exams', label: 'Exam Controller', icon: <Award size={20} /> },
   { path: '/admin/routine', label: 'Routine & Attendance', icon: <CalendarCheck size={20} /> },
   { path: '/admin/notices', label: 'Notice Board', icon: <Bell size={20} /> },
+  { path: '/admin/archive', label: 'Archive', icon: <Archive size={20} /> },
   { path: '/admin/ai-engine', label: 'AI Engine & Quotas', icon: <Sparkles size={20} /> },
   { path: '/admin/logs', label: 'Audit & Logs', icon: <ShieldAlert size={20} /> },
   { path: '/admin/settings', label: 'Settings', icon: <Settings size={20} /> },
@@ -216,6 +218,8 @@ function App() {
             <Route index element={<AdminDashboard />} />
             {/* /admin/academics → Academic Hierarchy (Departments, Batches, Courses, Allocation) */}
             <Route path="academics" element={<Academics />} />
+            {/* /admin/archive → Permanent Academic Archives & Graduated Cohorts */}
+            <Route path="archive" element={<ArchivePage />} />
             {/* /admin/users → Advanced User Directory, CSV Bulk Upload & RBAC */}
             <Route path="users" element={<UserManagement />} />
             {/* /admin/exams → Central Examination & Result Publishing Pipeline */}

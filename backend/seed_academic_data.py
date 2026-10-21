@@ -4,7 +4,10 @@ import django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'qgenix_server.settings')
 django.setup()
 
-from accounts.models import CustomUser, Department, Course, Batch, ExamSession, Notice, AuditLog
+from accounts.models import (
+    CustomUser, Department, Course, Batch, ExamSession, Notice, AuditLog,
+    ClassRoutine, CourseAllocation, AIConfiguration
+)
 
 def seed_academic():
     # 1. Seed Departments
@@ -33,11 +36,11 @@ def seed_academic():
 
     # 3. Seed Batches
     batches_data = [
-        {'name': 'Batch 2022-2026', 'department': 'CSE', 'semester': '6th Semester', 'student_count': 210, 'status': 'Active'},
-        {'name': 'Batch 2023-2027', 'department': 'CSE', 'semester': '4th Semester', 'student_count': 180, 'status': 'Active'},
-        {'name': 'Batch 2021-2025', 'department': 'EEE', 'semester': '8th Semester', 'student_count': 95, 'status': 'Graduating'},
-        {'name': 'Batch 2024-2028', 'department': 'BBA', 'semester': '2nd Semester', 'student_count': 220, 'status': 'Active'},
-        {'name': 'Batch 2023-2027', 'department': 'CE', 'semester': '4th Semester', 'student_count': 80, 'status': 'Active'},
+        {'name': 'Batch 2022 - 2023', 'department': 'CSE', 'semester': '6th Semester', 'sections': 'A, B, C', 'student_count': 210, 'status': 'Active'},
+        {'name': 'Batch 2023 - 2024', 'department': 'CSE', 'semester': '4th Semester', 'sections': 'A, B', 'student_count': 180, 'status': 'Active'},
+        {'name': 'Batch 2021 - 2022', 'department': 'EEE', 'semester': '8th Semester', 'sections': 'A', 'student_count': 95, 'status': 'Graduating'},
+        {'name': 'Batch 2024 - 2025', 'department': 'BBA', 'semester': '2nd Semester', 'sections': 'A, B, C', 'student_count': 220, 'status': 'Active'},
+        {'name': 'Batch 2023 - 2024', 'department': 'CE', 'semester': '4th Semester', 'sections': 'A', 'student_count': 80, 'status': 'Active'},
     ]
     for b in batches_data:
         Batch.objects.get_or_create(name=b['name'], department=b['department'], defaults=b)
@@ -117,13 +120,56 @@ def seed_academic():
         AuditLog.objects.get_or_create(action=a['action'], defaults=a)
     print("Audit logs seeded.")
 
+    # 8. Seed Routine Slots
+    routine_slots_data = [
+        {'day': 'Sunday', 'time': '09:00 AM - 10:30 AM', 'course': 'CSE-301: Database Systems', 'teacher': 'Dr. Asaduzzaman', 'room': 'Lab-402', 'batch': 'Batch 2022 Sec A', 'conflict': False},
+        {'day': 'Sunday', 'time': '10:45 AM - 12:15 PM', 'course': 'CSE-315: Artificial Intelligence', 'teacher': 'Prof. Dr. Mahbubur Rahman', 'room': 'Room-501', 'batch': 'Batch 2022 Sec A', 'conflict': False},
+        {'day': 'Sunday', 'time': '01:00 PM - 02:30 PM', 'course': 'EEE-211: Signals & Systems', 'teacher': 'Dr. Farhana Ahmed', 'room': 'Room-302', 'batch': 'Batch 2023 Sec B', 'conflict': False},
+        {'day': 'Sunday', 'time': '02:45 PM - 04:15 PM', 'course': 'BBA-205: Financial Accounting', 'teacher': 'Prof. Tariqul Islam', 'room': 'Room-204', 'batch': 'Batch 2024 Sec A', 'conflict': False},
+        {'day': 'Monday', 'time': '09:00 AM - 10:30 AM', 'course': 'CSE-302: Operating Systems', 'teacher': 'Engr. Tanvir Hasan', 'room': 'Lab-401', 'batch': 'Batch 2022 Sec B', 'conflict': False},
+        {'day': 'Monday', 'time': '10:45 AM - 12:15 PM', 'course': 'CSE-301: Database Systems', 'teacher': 'Dr. Asaduzzaman', 'room': 'Lab-401', 'batch': 'Batch 2023 Sec A', 'conflict': True},
+    ]
+    for r in routine_slots_data:
+        ClassRoutine.objects.get_or_create(day=r['day'], time=r['time'], room=r['room'], defaults=r)
+    print("Class Routine slots seeded.")
+
+    # 9. Seed Course Allocations
+    allocations_data = [
+        {'course_code': 'CSE-301', 'course_name': 'Database Management Systems', 'teacher': 'Dr. Asaduzzaman', 'batch': 'Batch 2022 - 2023', 'section': 'Sec A & B', 'hours_per_week': 4, 'status': 'Confirmed'},
+        {'course_code': 'CSE-315', 'course_name': 'Artificial Intelligence & Machine Learning', 'teacher': 'Prof. Dr. Mahbubur Rahman', 'batch': 'Batch 2022 - 2023', 'section': 'Sec A', 'hours_per_week': 4, 'status': 'Confirmed'},
+        {'course_code': 'CSE-302', 'course_name': 'Operating Systems', 'teacher': 'Engr. Tanvir Hasan', 'batch': 'Batch 2023 - 2024', 'section': 'Sec B', 'hours_per_week': 3, 'status': 'Pending Review'},
+        {'course_code': 'EEE-211', 'course_name': 'Signals and Linear Systems', 'teacher': 'Dr. Farhana Ahmed', 'batch': 'Batch 2021 - 2022', 'section': 'Sec A', 'hours_per_week': 4, 'status': 'Confirmed'},
+    ]
+    for a in allocations_data:
+        CourseAllocation.objects.get_or_create(course_code=a['course_code'], teacher=a['teacher'], batch=a['batch'], defaults=a)
+    print("Course Allocations seeded.")
+
+    # 10. Seed AI Configuration
+    AIConfiguration.objects.get_or_create(
+        id=1,
+        defaults={
+            'primary_provider': 'gemini',
+            'primary_model': 'gemini-1.5-pro',
+            'gemini_api_key': 'AIzaSyD-981x2084792384791827491283',
+            'openai_api_key': 'sk-proj-48197491274918274918274912',
+            'daily_quota_per_teacher': 50,
+            'similarity_threshold': 15,
+            'enable_safety_guard': True,
+            'temperature': 0.4
+        }
+    )
+    print("AI Configuration initialized.")
+
     print(f"Total Students in DB: {CustomUser.objects.filter(role='STUDENT').count()}")
     print(f"Total Faculty in DB: {CustomUser.objects.filter(role='TEACHER').count()}")
     print(f"Total Courses in DB: {Course.objects.count()}")
     print(f"Total Departments in DB: {Department.objects.count()}")
     print(f"Total Notices in DB: {Notice.objects.count()}")
     print(f"Total Audit Logs in DB: {AuditLog.objects.count()}")
+    print(f"Total Routine Slots in DB: {ClassRoutine.objects.count()}")
+    print(f"Total Allocations in DB: {CourseAllocation.objects.count()}")
 
 if __name__ == '__main__':
     seed_academic()
+
 

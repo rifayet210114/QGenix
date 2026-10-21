@@ -30,10 +30,25 @@ export default function Login() {
   const { login, registerStudent } = useAuth();
   const navigate = useNavigate();
 
-  // Live Generated DIIT Institutional Email preview
+  // Dynamic configured Student Email Format
+  const [configuredStudentFormat, setConfiguredStudentFormat] = useState('@diit.edu.bd');
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('qgenix_emailFormats') || '{}');
+      if (saved && saved.student) {
+        setConfiguredStudentFormat(saved.student.trim());
+      }
+    } catch (e) {}
+  }, []);
+
+  const studentSuffix = configuredStudentFormat.startsWith('@')
+    ? configuredStudentFormat
+    : (configuredStudentFormat.includes('@') ? configuredStudentFormat.slice(configuredStudentFormat.indexOf('@')) : `@${configuredStudentFormat}`);
+
+  // Live Generated Institutional Email preview
   const previewEmail = regFirstName && regClassId
-    ? `${regFirstName.trim().toLowerCase().replace(/[^a-z0-9]/g, '')}_${regClassId.trim()}@diit.edu.bd`
-    : 'firstname_classid@diit.edu.bd';
+    ? `${regFirstName.trim().toLowerCase().replace(/[^a-z0-9]/g, '')}_${regClassId.trim()}${studentSuffix}`
+    : `firstname_classid${studentSuffix}`;
 
   // Switch default credentials based on selected role tab with DIIT Institutional Format
   // Bengali Note: DIIT ইন্সটিটিউশনাল ইমেইল ফরম্যাট অনুযায়ী টেস্ট ক্রেডেনশিয়াল সেট করা হয়েছে

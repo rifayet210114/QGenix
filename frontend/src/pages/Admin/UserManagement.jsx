@@ -13,7 +13,8 @@
 // সকল ডাটা AdminDataContext এবং LocalStorage-এ স্বয়ংক্রিয়ভাবে সংরক্ষিত থাকে।
 // =========================================================================================
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Card from '../../components/Card';
 import { useAdminData } from '../../contexts/AdminDataContext';
 import { 
@@ -45,11 +46,28 @@ export default function UserManagement() {
     bulkImportStudents, 
     addFaculty, 
     editFaculty, 
-    deleteFaculty 
+    deleteFaculty,
+    emailFormats,
+    validateEmailFormat
   } = useAdminData();
 
-  // Tab & Search states
-  const [activeTab, setActiveTab] = useState('students');
+  // Tab & Search states with URL query param sync
+  const [searchParams, setSearchParams] = useSearchParams();
+  const validTabs = ['students', 'faculty', 'rbac'];
+  const urlTab = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState(validTabs.includes(urlTab) ? urlTab : 'students');
+
+  useEffect(() => {
+    const currentUrlTab = searchParams.get('tab');
+    if (currentUrlTab && validTabs.includes(currentUrlTab)) {
+      setActiveTab(currentUrlTab);
+    }
+  }, [searchParams]);
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setSearchParams({ tab });
+  };
   const [searchQuery, setSearchQuery] = useState('');
   const [toastMessage, setToastMessage] = useState('');
 
@@ -88,9 +106,20 @@ export default function UserManagement() {
   };
 
   // 1. Submit Single Add User Form
-  // 1. Submit Single Add User Form
   const handleAddUserSubmit = (e) => {
     e.preventDefault();
+    const roleKey = formData.role === 'Student' ? 'student' : 'teacher';
+    
+    // Strict institutional email format check
+    if (validateEmailFormat) {
+      const check = validateEmailFormat(formData.email, roleKey);
+      if (!check.isValid) {
+        alert(check.error);
+        showToast(`❌ Validation Error: ${check.error}`);
+        return;
+      }
+    }
+
     if (formData.role === 'Student') {
       const generatedId = `STU-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`;
       addStudent({
@@ -168,6 +197,17 @@ export default function UserManagement() {
   // 2. Submit Edit Student
   const handleSaveStudentEdit = (e) => {
     e.preventDefault();
+
+    // Strict institutional student email format check
+    if (validateEmailFormat) {
+      const check = validateEmailFormat(editingStudent.email, 'student');
+      if (!check.isValid) {
+        alert(check.error);
+        showToast(`❌ Validation Error: ${check.error}`);
+        return;
+      }
+    }
+
     editStudent(editingStudent.id, {
       name: editingStudent.name,
       email: editingStudent.email,
@@ -195,6 +235,17 @@ export default function UserManagement() {
   // 3. Submit Edit Faculty
   const handleSaveFacultyEdit = (e) => {
     e.preventDefault();
+
+    // Strict institutional teacher email format check
+    if (validateEmailFormat) {
+      const check = validateEmailFormat(editingFaculty.email, 'teacher');
+      if (!check.isValid) {
+        alert(check.error);
+        showToast(`❌ Validation Error: ${check.error}`);
+        return;
+      }
+    }
+
     editFaculty(editingFaculty.id, {
       name: editingFaculty.name,
       email: editingFaculty.email,
@@ -341,21 +392,21 @@ export default function UserManagement() {
           }}
         >
           <button
-            onClick={() => setActiveTab('students')}
+            onClick={() => handleTabChange('students')}
             className={`btn ${activeTab === 'students' ? 'btn-primary' : 'btn-secondary'}`}
             style={{ padding: '8px 16px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}
           >
             <Users size={16} /> Students Directory ({students.length})
           </button>
           <button
-            onClick={() => setActiveTab('faculty')}
+            onClick={() => handleTabChange('faculty')}
             className={`btn ${activeTab === 'faculty' ? 'btn-primary' : 'btn-secondary'}`}
             style={{ padding: '8px 16px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}
           >
             <GraduationCap size={16} /> Faculty / Teachers ({faculty.length})
           </button>
           <button
-            onClick={() => setActiveTab('rbac')}
+            onClick={() => handleTabChange('rbac')}
             className={`btn ${activeTab === 'rbac' ? 'btn-primary' : 'btn-secondary'}`}
             style={{ padding: '8px 16px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}
           >
@@ -654,7 +705,12 @@ export default function UserManagement() {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '6px', color: 'var(--text-secondary)' }}>Email</label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Email</label>
+                  <span className="badge badge-primary" style={{ fontSize: '0.7rem', padding: '2px 6px' }}>
+                    Required: {emailFormats?.student || '@diit.edu.bd'}
+                  </span>
+                </div>
                 <input 
                   required 
                   type="email" 
@@ -781,7 +837,12 @@ export default function UserManagement() {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '6px', color: 'var(--text-secondary)' }}>Email</label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Email</label>
+                  <span className="badge badge-primary" style={{ fontSize: '0.7rem', padding: '2px 6px' }}>
+                    Required: {emailFormats?.teacher || '@diit.edu.bd'}
+                  </span>
+                </div>
                 <input 
                   required 
                   type="email" 
@@ -1007,12 +1068,17 @@ export default function UserManagement() {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '6px', color: 'var(--text-secondary)' }}>Institutional Email</label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Institutional Email</label>
+                  <span className="badge badge-primary" style={{ fontSize: '0.7rem', padding: '2px 6px' }}>
+                    Required: {formData.role === 'Student' ? (emailFormats?.student || '@diit.edu.bd') : (emailFormats?.teacher || '@diit.edu.bd')}
+                  </span>
+                </div>
                 <input 
                   required 
                   type="email" 
                   className="input-field" 
-                  placeholder="user@qgenix.edu" 
+                  placeholder={formData.role === 'Student' ? `student_id${emailFormats?.student || '@diit.edu.bd'}` : `teacher_name${emailFormats?.teacher || '@diit.edu.bd'}`}
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   style={{ width: '100%' }} 

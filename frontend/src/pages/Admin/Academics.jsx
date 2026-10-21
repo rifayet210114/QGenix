@@ -11,7 +11,8 @@
 // সমস্ত ডাটা AdminDataContext এবং LocalStorage-এ স্বয়ংক্রিয়ভাবে সংরক্ষিত থাকে।
 // =========================================================================================
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Card from '../../components/Card';
 import { useAdminData } from '../../contexts/AdminDataContext';
 import { 
@@ -26,14 +27,17 @@ import {
   CheckCircle2, 
   UserCheck, 
   Clock, 
-  X,
-  Save
+  X, 
+  Save,
+  Archive,
+  ArrowRightCircle,
+  GraduationCap
 } from 'lucide-react';
 
 export default function Academics() {
   const { 
     departments, addDepartment, editDepartment, deleteDepartment,
-    batches, addBatch, editBatch,
+    batches, addBatch, editBatch, deleteBatch, archiveSemester,
     courses, addCourse, editCourse, deleteCourse,
     allocations, addAllocation, editAllocation, deleteAllocation,
     faculty,
@@ -41,22 +45,42 @@ export default function Academics() {
     isDbConnected
   } = useAdminData();
 
-  const [activeTab, setActiveTab] = useState('departments');
+  // Tab & Search states with URL query param sync
+  const [searchParams, setSearchParams] = useSearchParams();
+  const validTabs = ['departments', 'batches', 'courses', 'allocation'];
+  const urlTab = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState(validTabs.includes(urlTab) ? urlTab : 'departments');
+
+  useEffect(() => {
+    const currentUrlTab = searchParams.get('tab');
+    if (currentUrlTab && validTabs.includes(currentUrlTab)) {
+      setActiveTab(currentUrlTab);
+    }
+  }, [searchParams]);
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setSearchParams({ tab });
+  };
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [notification, setNotification] = useState('');
 
-  // Editing Modals State
+  // Editing & Archiving Modals State
   const [editingDept, setEditingDept] = useState(null);
+  const [editingBatch, setEditingBatch] = useState(null);
   const [editingCourse, setEditingCourse] = useState(null);
   const [editingAlloc, setEditingAlloc] = useState(null);
   const [viewSyllabusCourse, setViewSyllabusCourse] = useState(null);
+  const [archivingBatch, setArchivingBatch] = useState(null);
+  const [archivingAction, setArchivingAction] = useState('advance'); // 'advance' or 'graduate'
+  const [isArchivingSubmitting, setIsArchivingSubmitting] = useState(false);
 
   // Forms state for adding new items
   const [deptForm, setDeptForm] = useState({ code: '', name: '', hod: '', facultyCount: 20, studentCount: 500 });
-  const [courseForm, setCourseForm] = useState({ code: '', title: '', credits: 3.0, dept: 'CSE', modules: 5, prerequisite: 'None' });
+  const [courseForm, setCourseForm] = useState({ code: '', title: '', credits: 3.0, dept: 'CSE' });
   const [batchForm, setBatchForm] = useState({ name: '', dept: 'CSE', semester: '1st Semester', sections: 'A, B', studentCount: 120 });
-  const [allocForm, setAllocForm] = useState({ courseCode: 'CSE-301', courseName: 'Database Management Systems', teacher: 'Dr. Asaduzzaman', batch: 'Batch 2022-2026', section: 'Sec A', hoursPerWeek: 4 });
+  const [allocForm, setAllocForm] = useState({ courseCode: 'CSE-301', courseName: 'Database Management Systems', teacher: 'Dr. Asaduzzaman', batch: 'Batch 2022 - 2023', section: 'Sec A', weeklyDays: 'Sun, Tue' });
 
   // Calculate dynamic real count of enrolled students in a department
   const getDeptStudentCount = (dept) => {
@@ -111,17 +135,28 @@ export default function Academics() {
       triggerToast(`Registered department: ${deptForm.name}`);
       setDeptForm({ code: '', name: '', hod: '', facultyCount: 20, studentCount: 500 });
     } else if (activeTab === 'courses') {
-      addCourse({ ...courseForm, credits: parseFloat(courseForm.credits) || 3.0, modules: parseInt(courseForm.modules) || 4 });
+      addCourse({ ...courseForm, credits: parseFloat(courseForm.credits) || 3.0 });
       triggerToast(`Registered course: ${courseForm.code} - ${courseForm.title}`);
-      setCourseForm({ code: '', title: '', credits: 3.0, dept: 'CSE', modules: 5, prerequisite: 'None' });
+      setCourseForm({ code: '', title: '', credits: 3.0, dept: 'CSE' });
     } else if (activeTab === 'batches') {
-      const parsedSections = batchForm.sections.split(',').map(s => s.trim());
+      const parsedSections = batchForm.sections
+        ? batchForm.sections.split(',').map(s => s.trim().toUpperCase()).filter(Boolean)
+        : ['A', 'B'];
       addBatch({ ...batchForm, sections: parsedSections, status: 'Active' });
-      triggerToast(`Created batch cohort: ${batchForm.name}`);
+      triggerToast(`Created batch cohort: ${batchForm.name} (${parsedSections.join(', ')})`);
       setBatchForm({ name: '', dept: 'CSE', semester: '1st Semester', sections: 'A, B', studentCount: 120 });
     } else if (activeTab === 'allocation') {
-      addAllocation({ ...allocForm, hoursPerWeek: parseInt(allocForm.hoursPerWeek) || 3, status: 'Confirmed' });
-      triggerToast(`Allocated ${allocForm.courseName} to ${allocForm.teacher}`);
+      const days = allocForm.weeklyDays || 'Sun, Tue';
+      addAllocation({ ...allocForm, weeklyDays: days });
+      triggerToast(`Allocated ${allocForm.courseName} to ${allocForm.teacher} (${days})`);
+      setAllocForm({ 
+        courseCode: 'CSE-301', 
+        courseName: 'Database Management Systems', 
+        teacher: 'Dr. Asaduzzaman', 
+        batch: 'Batch 2022 - 2023', 
+        section: 'Sec A', 
+        weeklyDays: 'Sun, Tue' 
+      });
     }
     setIsAddModalOpen(false);
   };
@@ -218,28 +253,28 @@ export default function Academics() {
           }}
         >
           <button
-            onClick={() => setActiveTab('departments')}
+            onClick={() => handleTabChange('departments')}
             className={`btn ${activeTab === 'departments' ? 'btn-primary' : 'btn-secondary'}`}
             style={{ padding: '8px 16px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}
           >
             <Building2 size={16} /> Departments ({departments.length})
           </button>
           <button
-            onClick={() => setActiveTab('batches')}
+            onClick={() => handleTabChange('batches')}
             className={`btn ${activeTab === 'batches' ? 'btn-primary' : 'btn-secondary'}`}
             style={{ padding: '8px 16px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}
           >
             <Layers size={16} /> Programs & Batches ({batches.length})
           </button>
           <button
-            onClick={() => setActiveTab('courses')}
+            onClick={() => handleTabChange('courses')}
             className={`btn ${activeTab === 'courses' ? 'btn-primary' : 'btn-secondary'}`}
             style={{ padding: '8px 16px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}
           >
             <BookOpen size={16} /> Course Catalog ({courses.length})
           </button>
           <button
-            onClick={() => setActiveTab('allocation')}
+            onClick={() => handleTabChange('allocation')}
             className={`btn ${activeTab === 'allocation' ? 'btn-primary' : 'btn-secondary'}`}
             style={{ padding: '8px 16px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}
           >
@@ -337,6 +372,24 @@ export default function Academics() {
       {/* ==================== TAB 2: BATCHES ==================== */}
       {activeTab === 'batches' && (
         <Card title="Academic Batches, Semesters & Sections">
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'space-between', 
+            padding: '10px 14px', 
+            background: 'rgba(139, 92, 246, 0.08)', 
+            border: '1px solid rgba(139, 92, 246, 0.2)', 
+            borderRadius: '8px', 
+            marginTop: '10px',
+            marginBottom: '6px',
+            fontSize: '0.82rem'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)' }}>
+              <Archive size={16} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />
+              <span>Showing <strong>Active Batches</strong> (Current Semester). Completed previous semesters are preserved in the <strong>Archive</strong>. Graduated batches move completely to the Archive page.</span>
+            </div>
+          </div>
+
           <div style={{ overflowX: 'auto', marginTop: '12px' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '680px' }}>
               <thead>
@@ -347,27 +400,44 @@ export default function Academics() {
                   <th style={{ padding: '12px' }}>Sections</th>
                   <th style={{ padding: '12px' }}>Enrolled Students</th>
                   <th style={{ padding: '12px' }}>Status</th>
+                  <th style={{ padding: '12px' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {(batches || [])
+                  .filter(b => (b.status || '').toLowerCase() !== 'graduate' && (b.status || '').toLowerCase() !== 'graduated')
                   .filter(b => (b.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || (b.dept || b.department || '').toLowerCase().includes(searchQuery.toLowerCase()))
                   .map((b) => {
                     const sectionsList = Array.isArray(b.sections)
                       ? b.sections
                       : (typeof b.sections === 'string' && b.sections.trim()
-                          ? b.sections.split(',').map(s => s.trim())
+                          ? b.sections.split(',').map(s => s.trim().toUpperCase()).filter(Boolean)
                           : ['A', 'B']);
                     return (
                       <tr key={b.id} style={{ borderBottom: '1px solid var(--border-color-light)', fontSize: '0.9rem' }}>
                         <td style={{ padding: '14px 12px', fontWeight: 600 }}>{b.name || 'Unnamed Batch'}</td>
                         <td style={{ padding: '14px 12px' }}><span className="badge badge-secondary">{b.dept || b.department || 'General'}</span></td>
-                        <td style={{ padding: '14px 12px' }}>{b.semester || 'N/A'}</td>
                         <td style={{ padding: '14px 12px' }}>
-                          <div style={{ display: 'flex', gap: '4px' }}>
-                            {sectionsList.map(s => (
-                              <span key={s} style={{ padding: '2px 8px', borderRadius: '4px', background: 'var(--bg-tertiary)', fontSize: '0.75rem', fontWeight: 600 }}>
-                                Sec {s}
+                          <span style={{ fontWeight: 600, color: 'var(--accent-secondary)' }}>
+                            {b.semester || 'N/A'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '14px 12px' }}>
+                          <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', maxWidth: '320px' }}>
+                            {sectionsList.map((s, idx) => (
+                              <span 
+                                key={`${s}-${idx}`} 
+                                style={{ 
+                                  padding: '3px 9px', 
+                                  borderRadius: '6px', 
+                                  background: 'rgba(59, 130, 246, 0.12)', 
+                                  border: '1px solid rgba(59, 130, 246, 0.25)', 
+                                  color: 'var(--accent-secondary)', 
+                                  fontSize: '0.78rem', 
+                                  fontWeight: 700 
+                                }}
+                              >
+                                Sec {String(s).replace(/^sec\s*/i, '')}
                               </span>
                             ))}
                           </div>
@@ -379,6 +449,51 @@ export default function Academics() {
                           <span className={`badge ${(b.status || 'Active') === 'Active' ? 'badge-success' : 'badge-warning'}`}>
                             {b.status || 'Active'}
                           </span>
+                        </td>
+                        <td style={{ padding: '14px 12px' }}>
+                          <div style={{ display: 'flex', gap: '6px' }}>
+                            <button 
+                              className="btn btn-secondary" 
+                              style={{ 
+                                padding: '6px 10px', 
+                                fontSize: '0.75rem',
+                                color: 'var(--accent-primary)',
+                                background: 'rgba(139, 92, 246, 0.1)',
+                                borderColor: 'rgba(139, 92, 246, 0.35)'
+                              }}
+                              title="Complete Semester & Archive to DB"
+                              onClick={() => {
+                                setArchivingBatch(b);
+                                setArchivingAction(b.semester === '8th Semester' ? 'graduate' : 'advance');
+                              }}
+                            >
+                              <Archive size={14} />
+                            </button>
+                            <button 
+                              className="btn btn-secondary" 
+                              style={{ padding: '6px 10px', fontSize: '0.75rem' }}
+                              title="Edit Batch Cohort & Sections"
+                              onClick={() => setEditingBatch({
+                                ...b,
+                                sections: Array.isArray(b.sections) ? b.sections.join(', ') : (b.sections || 'A, B')
+                              })}
+                            >
+                              <Edit3 size={14} />
+                            </button>
+                            <button 
+                              className="btn btn-secondary" 
+                              style={{ padding: '6px 10px', fontSize: '0.75rem', color: 'var(--accent-danger)' }}
+                              title="Delete Batch Cohort"
+                              onClick={() => {
+                                if (window.confirm(`Delete batch cohort ${b.name}?`)) {
+                                  deleteBatch(b.id);
+                                  triggerToast(`Deleted batch cohort ${b.name}`);
+                                }
+                              }}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -400,59 +515,55 @@ export default function Academics() {
                   <th style={{ padding: '12px' }}>Course Title</th>
                   <th style={{ padding: '12px' }}>Department</th>
                   <th style={{ padding: '12px' }}>Credit Hours</th>
-                  <th style={{ padding: '12px' }}>Syllabus Modules</th>
-                  <th style={{ padding: '12px' }}>Prerequisite</th>
                   <th style={{ padding: '12px' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {(courses || [])
-                  .filter(c => (c.title || '').toLowerCase().includes(searchQuery.toLowerCase()) || (c.code || '').toLowerCase().includes(searchQuery.toLowerCase()))
-                  .map((c) => (
-                    <tr key={c.id} style={{ borderBottom: '1px solid var(--border-color-light)', fontSize: '0.9rem' }}>
-                      <td style={{ padding: '14px 12px' }}>
-                        <span className="badge badge-primary">{c.code}</span>
-                      </td>
-                      <td style={{ padding: '14px 12px', fontWeight: 600 }}>{c.title}</td>
-                      <td style={{ padding: '14px 12px' }}>{c.dept || c.department || 'General'}</td>
-                      <td style={{ padding: '14px 12px', fontWeight: 700 }}>{(parseFloat(c.credits) || 3.0).toFixed(1)} Credits</td>
-                      <td style={{ padding: '14px 12px' }}>{c.modules || 4} Units</td>
-                      <td style={{ padding: '14px 12px', color: 'var(--text-secondary)' }}>{c.prerequisite || 'None'}</td>
-                      <td style={{ padding: '14px 12px' }}>
-                        <div style={{ display: 'flex', gap: '6px' }}>
-                          <button 
-                            className="btn btn-secondary" 
-                            style={{ padding: '6px 10px', fontSize: '0.75rem' }}
-                            title="View Syllabus Outline"
-                            onClick={() => setViewSyllabusCourse(c)}
-                          >
-                            Syllabus
-                          </button>
-                          <button 
-                            className="btn btn-secondary" 
-                            style={{ padding: '6px 10px', fontSize: '0.75rem' }}
-                            title="Edit Course"
-                            onClick={() => setEditingCourse({ ...c })}
-                          >
-                            <Edit3 size={14} />
-                          </button>
-                          <button 
-                            className="btn btn-secondary" 
-                            style={{ padding: '6px 10px', fontSize: '0.75rem', color: 'var(--accent-danger)' }}
-                            title="Delete Course"
-                            onClick={() => {
-                              if (window.confirm(`Delete course ${c.code}?`)) {
-                                deleteCourse(c.id);
-                                triggerToast(`Deleted course ${c.code}`);
-                              }
-                            }}
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                ))}
+                {(courses || []).length === 0 ? (
+                  <tr>
+                    <td colSpan={5} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>
+                      No courses found in database. Click "Add Course" above to register new courses.
+                    </td>
+                  </tr>
+                ) : (
+                  (courses || [])
+                    .filter(c => (c.title || '').toLowerCase().includes(searchQuery.toLowerCase()) || (c.code || '').toLowerCase().includes(searchQuery.toLowerCase()))
+                    .map((c) => (
+                      <tr key={c.id} style={{ borderBottom: '1px solid var(--border-color-light)', fontSize: '0.9rem' }}>
+                        <td style={{ padding: '14px 12px' }}>
+                          <span className="badge badge-primary">{c.code}</span>
+                        </td>
+                        <td style={{ padding: '14px 12px', fontWeight: 600 }}>{c.title}</td>
+                        <td style={{ padding: '14px 12px' }}>{c.dept || c.department || 'General'}</td>
+                        <td style={{ padding: '14px 12px', fontWeight: 700 }}>{(parseFloat(c.credits) || 3.0).toFixed(1)} Credits</td>
+                        <td style={{ padding: '14px 12px' }}>
+                          <div style={{ display: 'flex', gap: '6px' }}>
+                            <button 
+                              className="btn btn-secondary" 
+                              style={{ padding: '6px 10px', fontSize: '0.75rem' }}
+                              title="Edit Course"
+                              onClick={() => setEditingCourse({ ...c })}
+                            >
+                              <Edit3 size={14} />
+                            </button>
+                            <button 
+                              className="btn btn-secondary" 
+                              style={{ padding: '6px 10px', fontSize: '0.75rem', color: 'var(--accent-danger)' }}
+                              title="Delete Course"
+                              onClick={() => {
+                                if (window.confirm(`Delete course ${c.code}?`)) {
+                                  deleteCourse(c.id);
+                                  triggerToast(`Deleted course ${c.code}`);
+                                }
+                              }}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -470,31 +581,36 @@ export default function Academics() {
                   <th style={{ padding: '12px' }}>Assigned Faculty</th>
                   <th style={{ padding: '12px' }}>Target Batch</th>
                   <th style={{ padding: '12px' }}>Assigned Section</th>
-                  <th style={{ padding: '12px' }}>Weekly Hours</th>
-                  <th style={{ padding: '12px' }}>Status</th>
+                  <th style={{ padding: '12px' }}>Weekly</th>
                   <th style={{ padding: '12px' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {(allocations || [])
-                  .filter(a => (a.courseName || '').toLowerCase().includes(searchQuery.toLowerCase()) || (a.teacher || '').toLowerCase().includes(searchQuery.toLowerCase()))
-                  .map((a) => (
-                    <tr key={a.id} style={{ borderBottom: '1px solid var(--border-color-light)', fontSize: '0.9rem' }}>
-                      <td style={{ padding: '14px 12px' }}>
-                        <div style={{ fontWeight: 600 }}>{a.courseName}</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{a.courseCode}</div>
-                      </td>
-                      <td style={{ padding: '14px 12px', color: 'var(--accent-secondary)', fontWeight: 600 }}>
-                        {a.teacher}
-                      </td>
-                      <td style={{ padding: '14px 12px' }}>{a.batch}</td>
-                      <td style={{ padding: '14px 12px' }}><span className="badge badge-secondary">{a.section}</span></td>
-                      <td style={{ padding: '14px 12px' }}>{a.hoursPerWeek} hrs/week</td>
-                      <td style={{ padding: '14px 12px' }}>
-                        <span className={`badge ${a.status === 'Confirmed' ? 'badge-success' : 'badge-warning'}`}>
-                          {a.status}
-                        </span>
-                      </td>
+                {(allocations || []).length === 0 ? (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>
+                      No course allocations found. Click "Assign Course" above to allocate courses to teachers.
+                    </td>
+                  </tr>
+                ) : (
+                  (allocations || [])
+                    .filter(a => (a.courseName || '').toLowerCase().includes(searchQuery.toLowerCase()) || (a.teacher || '').toLowerCase().includes(searchQuery.toLowerCase()))
+                    .map((a) => (
+                      <tr key={a.id} style={{ borderBottom: '1px solid var(--border-color-light)', fontSize: '0.9rem' }}>
+                        <td style={{ padding: '14px 12px' }}>
+                          <div style={{ fontWeight: 600 }}>{a.courseName}</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{a.courseCode}</div>
+                        </td>
+                        <td style={{ padding: '14px 12px', color: 'var(--accent-secondary)', fontWeight: 600 }}>
+                          {a.teacher}
+                        </td>
+                        <td style={{ padding: '14px 12px' }}>{a.batch}</td>
+                        <td style={{ padding: '14px 12px' }}><span className="badge badge-secondary">{a.section}</span></td>
+                        <td style={{ padding: '14px 12px' }}>
+                          <span className="badge badge-secondary" style={{ fontSize: '0.82rem', padding: '4px 10px', background: 'rgba(59, 130, 246, 0.12)', color: 'var(--accent-secondary)', border: '1px solid rgba(59, 130, 246, 0.25)' }}>
+                            {a.weeklyDays || (a.hoursPerWeek ? `${a.hoursPerWeek} Days/Week` : 'Sun, Tue')}
+                          </span>
+                        </td>
                       <td style={{ padding: '14px 12px' }}>
                         <div style={{ display: 'flex', gap: '6px' }}>
                           {/* Reassign Allocation Modal Trigger */}
@@ -523,7 +639,8 @@ export default function Academics() {
                         </div>
                       </td>
                     </tr>
-                ))}
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -591,6 +708,256 @@ export default function Academics() {
         </div>
       )}
 
+      {/* ==================== EDIT BATCH MODAL ==================== */}
+      {editingBatch && (
+        <div 
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.75)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+            padding: '20px'
+          }}
+          onClick={() => setEditingBatch(null)}
+        >
+          <div 
+            className="glass-panel"
+            style={{ width: '100%', maxWidth: '520px', padding: '28px', borderRadius: '16px', background: 'var(--bg-primary)' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700 }}>Edit Program Batch ({editingBatch.name})</h3>
+              <button onClick={() => setEditingBatch(null)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><X size={20} /></button>
+            </div>
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                const parsed = typeof editingBatch.sections === 'string'
+                  ? editingBatch.sections.split(',').map(s => s.trim().toUpperCase()).filter(Boolean)
+                  : editingBatch.sections;
+                editBatch(editingBatch.id, {
+                  name: editingBatch.name,
+                  department: editingBatch.dept || editingBatch.department || 'CSE',
+                  semester: editingBatch.semester,
+                  sections: parsed,
+                  status: editingBatch.status || 'Active'
+                });
+                setEditingBatch(null);
+                triggerToast(`Updated batch cohort ${editingBatch.name}`);
+              }} 
+              style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}
+            >
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '6px' }}>Batch Name / Identifier</label>
+                <input required type="text" className="input-field" value={editingBatch.name} onChange={e => setEditingBatch({ ...editingBatch, name: e.target.value })} style={{ width: '100%' }} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '6px' }}>Department</label>
+                  <select className="input-field" value={editingBatch.dept || editingBatch.department || 'CSE'} onChange={e => setEditingBatch({ ...editingBatch, dept: e.target.value, department: e.target.value })} style={{ width: '100%' }}>
+                    {departments.map(d => (
+                      <option key={d.code} value={d.code}>{d.code}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '6px' }}>Current Semester</label>
+                  <select className="input-field" value={editingBatch.semester || '1st Semester'} onChange={e => setEditingBatch({ ...editingBatch, semester: e.target.value })} style={{ width: '100%' }}>
+                    {['1st Semester', '2nd Semester', '3rd Semester', '4th Semester', '5th Semester', '6th Semester', '7th Semester', '8th Semester'].map(sem => (
+                      <option key={sem} value={sem}>{sem}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '6px' }}>Sections (comma-separated)</label>
+                <input required type="text" className="input-field" placeholder="e.g. A, B, C, D" value={editingBatch.sections} onChange={e => setEditingBatch({ ...editingBatch, sections: e.target.value })} style={{ width: '100%' }} />
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
+                  Admin can configure any number of sections separated by commas (e.g. A, B, C, D, E)
+                </span>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '6px' }}>Status</label>
+                <select className="input-field" value={editingBatch.status || 'Active'} onChange={e => setEditingBatch({ ...editingBatch, status: e.target.value })} style={{ width: '100%' }}>
+                  <option value="Active">Active</option>
+                  <option value="Graduating">Graduating</option>
+                  <option value="Graduate">Graduate (Auto-moves to Archive)</option>
+                  <option value="Archived">Archived</option>
+                </select>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setEditingBatch(null)}>Cancel</button>
+                <button type="submit" className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Save size={16} /> Save Changes</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ==================== COMPLETE & ARCHIVE SEMESTER MODAL ==================== */}
+      {archivingBatch && (
+        <div 
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.75)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+            padding: '20px'
+          }}
+          onClick={() => setArchivingBatch(null)}
+        >
+          <div 
+            className="glass-panel"
+            style={{ width: '100%', maxWidth: '520px', padding: '28px', borderRadius: '16px', background: 'var(--bg-primary)', border: '1px solid rgba(139, 92, 246, 0.3)' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(139, 92, 246, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent-primary)' }}>
+                  <Archive size={20} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 700 }}>Archive Semester Records</h3>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{archivingBatch.name} ({archivingBatch.dept || archivingBatch.department})</div>
+                </div>
+              </div>
+              <button onClick={() => setArchivingBatch(null)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><X size={20} /></button>
+            </div>
+
+            <div style={{ padding: '14px', background: 'var(--bg-secondary)', borderRadius: '10px', marginBottom: '16px', fontSize: '0.88rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Semester being Archived:</span>
+                <strong style={{ color: 'var(--accent-secondary)' }}>{archivingBatch.semester || '1st Semester'}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Enrolled Students:</span>
+                <strong>{getBatchStudentCount(archivingBatch)} Students</strong>
+              </div>
+            </div>
+
+            <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', margin: '0 0 16px 0', lineHeight: 1.5 }}>
+              Archiving stores an official permanent snapshot of student attendance %, mid marks, final exam score, semester GPA, and cumulative CGPA into the <strong>Archive</strong> database.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
+              <label 
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'flex-start', 
+                  gap: '10px', 
+                  padding: '12px', 
+                  borderRadius: '10px', 
+                  background: archivingAction === 'advance' ? 'rgba(59, 130, 246, 0.1)' : 'var(--bg-secondary)',
+                  border: `1px solid ${archivingAction === 'advance' ? 'var(--accent-secondary)' : 'var(--border-color)'}`,
+                  cursor: 'pointer' 
+                }}
+              >
+                <input 
+                  type="radio" 
+                  name="archiveAction" 
+                  checked={archivingAction === 'advance'} 
+                  onChange={() => setArchivingAction('advance')} 
+                  style={{ marginTop: '3px' }}
+                />
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                    Archive & Advance to Next Semester
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    Saves {archivingBatch.semester} to Archive, and promotes batch to the following semester.
+                  </div>
+                </div>
+              </label>
+
+              <label 
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'flex-start', 
+                  gap: '10px', 
+                  padding: '12px', 
+                  borderRadius: '10px', 
+                  background: archivingAction === 'graduate' ? 'rgba(16, 185, 129, 0.1)' : 'var(--bg-secondary)',
+                  border: `1px solid ${archivingAction === 'graduate' ? 'var(--accent-success)' : 'var(--border-color)'}`,
+                  cursor: 'pointer' 
+                }}
+              >
+                <input 
+                  type="radio" 
+                  name="archiveAction" 
+                  checked={archivingAction === 'graduate'} 
+                  onChange={() => setArchivingAction('graduate')} 
+                  style={{ marginTop: '3px' }}
+                />
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--accent-success)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <GraduationCap size={16} /> Mark as Graduate (Move to Archive)
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    Batch finishes all 8 semesters. All semester records move out of active list into Archive.
+                  </div>
+                </div>
+              </label>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button 
+                type="button" 
+                className="btn btn-secondary" 
+                onClick={() => setArchivingBatch(null)}
+                disabled={isArchivingSubmitting}
+              >
+                Cancel
+              </button>
+              <button 
+                type="button" 
+                className="btn btn-primary" 
+                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                disabled={isArchivingSubmitting}
+                onClick={async () => {
+                  setIsArchivingSubmitting(true);
+                  try {
+                    const res = await archiveSemester({
+                      batchId: archivingBatch.id,
+                      batchName: archivingBatch.name,
+                      semester: archivingBatch.semester,
+                      advanceToNext: archivingAction === 'advance',
+                      isGraduate: archivingAction === 'graduate'
+                    });
+                    if (archivingAction === 'graduate') {
+                      triggerToast(`${archivingBatch.name} marked as Graduate and moved to Archive!`);
+                    } else if (res?.next_semester) {
+                      triggerToast(`${archivingBatch.name} advanced to ${res.next_semester}! (${archivingBatch.semester} stored in Archive)`);
+                    } else {
+                      triggerToast(`Archived ${archivingBatch.semester} for ${archivingBatch.name}!`);
+                    }
+                    setArchivingBatch(null);
+                  } catch (err) {
+                    triggerToast('Failed to archive semester. Please try again.');
+                  } finally {
+                    setIsArchivingSubmitting(false);
+                  }
+                }}
+              >
+                {isArchivingSubmitting ? 'Archiving...' : (
+                  <>
+                    <Archive size={16} />
+                    Confirm & Store in Archive
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ==================== EDIT COURSE MODAL ==================== */}
       {editingCourse && (
         <div 
@@ -623,7 +990,7 @@ export default function Academics() {
                   title: editingCourse.title,
                   code: editingCourse.code,
                   credits: parseFloat(editingCourse.credits) || 3.0,
-                  prerequisite: editingCourse.prerequisite
+                  department: editingCourse.dept || editingCourse.department || 'CSE'
                 });
                 setEditingCourse(null);
                 triggerToast(`Saved course ${editingCourse.code}`);
@@ -645,8 +1012,19 @@ export default function Academics() {
                 </div>
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '6px' }}>Prerequisite</label>
-                <input type="text" className="input-field" value={editingCourse.prerequisite} onChange={e => setEditingCourse({ ...editingCourse, prerequisite: e.target.value })} style={{ width: '100%' }} />
+                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '6px' }}>Department</label>
+                <select 
+                  className="input-field" 
+                  value={editingCourse.dept || editingCourse.department || 'CSE'} 
+                  onChange={e => setEditingCourse({ ...editingCourse, dept: e.target.value, department: e.target.value })} 
+                  style={{ width: '100%' }}
+                >
+                  <option value="CSE">CSE</option>
+                  <option value="EEE">EEE</option>
+                  <option value="BBA">BBA</option>
+                  <option value="CE">CE</option>
+                  <option value="ENG">ENG</option>
+                </select>
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
                 <button type="button" className="btn btn-secondary" onClick={() => setEditingCourse(null)}>Cancel</button>
@@ -693,11 +1071,10 @@ export default function Academics() {
                 editAllocation(editingAlloc.id, {
                   teacher: editingAlloc.teacher,
                   section: editingAlloc.section,
-                  hoursPerWeek: parseInt(editingAlloc.hoursPerWeek) || 3,
-                  status: editingAlloc.status
+                  weeklyDays: editingAlloc.weeklyDays || 'Sun, Tue'
                 });
                 setEditingAlloc(null);
-                triggerToast(`Reallocated ${editingAlloc.courseCode} to ${editingAlloc.teacher}`);
+                triggerToast(`Reallocated ${editingAlloc.courseCode} to ${editingAlloc.teacher} (${editingAlloc.weeklyDays || 'Sun, Tue'})`);
               }} 
               style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}
             >
@@ -705,8 +1082,8 @@ export default function Academics() {
                 <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '6px' }}>Assigned Faculty Instructor</label>
                 <select 
                   className="input-field" 
-                  value={editingAlloc.teacher}
-                  onChange={e => setEditingAlloc({ ...editingAlloc, teacher: e.target.value })}
+                  value={editingAlloc.teacher} 
+                  onChange={e => setEditingAlloc({ ...editingAlloc, teacher: e.target.value })} 
                   style={{ width: '100%' }}
                 >
                   {faculty.map(f => (
@@ -730,14 +1107,25 @@ export default function Academics() {
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '6px' }}>Weekly Hours</label>
+                  <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '6px' }}>Weekly Days</label>
                   <input 
-                    type="number" 
+                    type="text" 
                     className="input-field" 
-                    value={editingAlloc.hoursPerWeek} 
-                    onChange={e => setEditingAlloc({ ...editingAlloc, hoursPerWeek: e.target.value })} 
+                    placeholder="e.g. Sun, Tue or Mon, Wed, Fri"
+                    value={editingAlloc.weeklyDays || ''} 
+                    onChange={e => setEditingAlloc({ ...editingAlloc, weeklyDays: e.target.value })} 
                     style={{ width: '100%' }} 
+                    list="reassign-weekly-days-presets"
                   />
+                  <datalist id="reassign-weekly-days-presets">
+                    <option value="Sun, Tue" />
+                    <option value="Mon, Wed" />
+                    <option value="Sun, Tue, Thu" />
+                    <option value="Mon, Wed, Fri" />
+                    <option value="Sat, Thu" />
+                    <option value="Sat, Mon, Wed" />
+                    <option value="Friday, Saturday" />
+                  </datalist>
                 </div>
               </div>
 
@@ -891,7 +1279,7 @@ export default function Academics() {
                 <>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '6px' }}>Batch Identifier</label>
-                    <input required type="text" className="input-field" placeholder="e.g. Batch 2025-2029" value={batchForm.name} onChange={e => setBatchForm({ ...batchForm, name: e.target.value })} style={{ width: '100%' }} />
+                    <input required type="text" className="input-field" placeholder="e.g. Batch 2024 - 2025" value={batchForm.name} onChange={e => setBatchForm({ ...batchForm, name: e.target.value })} style={{ width: '100%' }} />
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                     <div>
@@ -918,7 +1306,10 @@ export default function Academics() {
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '6px' }}>Sections (comma-separated)</label>
-                    <input required type="text" className="input-field" placeholder="e.g. A, B, C" value={batchForm.sections} onChange={e => setBatchForm({ ...batchForm, sections: e.target.value })} style={{ width: '100%' }} />
+                    <input required type="text" className="input-field" placeholder="e.g. A, B, C, D" value={batchForm.sections} onChange={e => setBatchForm({ ...batchForm, sections: e.target.value })} style={{ width: '100%' }} />
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
+                      Enter as many sections as needed separated by commas (e.g. A, B, C, D, E)
+                    </span>
                   </div>
                 </>
               )}
@@ -973,11 +1364,36 @@ export default function Academics() {
                       <input 
                         type="text" 
                         className="input-field" 
+                        placeholder="e.g. Sec A, Sec B"
                         value={allocForm.section} 
                         onChange={e => setAllocForm({ ...allocForm, section: e.target.value })} 
                         style={{ width: '100%' }} 
                       />
                     </div>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '6px' }}>Weekly Days</label>
+                    <input 
+                      type="text" 
+                      className="input-field" 
+                      placeholder="e.g. Sun, Tue or Mon, Wed, Fri"
+                      value={allocForm.weeklyDays || ''} 
+                      onChange={e => setAllocForm({ ...allocForm, weeklyDays: e.target.value })} 
+                      style={{ width: '100%' }}
+                      list="add-alloc-weekly-days-presets"
+                    />
+                    <datalist id="add-alloc-weekly-days-presets">
+                      <option value="Sun, Tue" />
+                      <option value="Mon, Wed" />
+                      <option value="Sun, Tue, Thu" />
+                      <option value="Mon, Wed, Fri" />
+                      <option value="Sat, Thu" />
+                      <option value="Sat, Mon, Wed" />
+                      <option value="Friday, Saturday" />
+                    </datalist>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
+                      Assign weekly lecture days (e.g. Sun, Tue or Mon, Wed, Fri)
+                    </span>
                   </div>
                 </>
               )}

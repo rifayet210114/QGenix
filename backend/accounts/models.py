@@ -111,6 +111,7 @@ class Batch(models.Model):
     name = models.CharField(max_length=100)
     department = models.CharField(max_length=50)
     semester = models.CharField(max_length=50, blank=True)
+    sections = models.CharField(max_length=255, default='A, B', blank=True)
     student_count = models.IntegerField(default=0)
     status = models.CharField(max_length=30, default='Active')
 
@@ -169,3 +170,107 @@ class SemesterResult(models.Model):
 
     def __str__(self):
         return f"{self.student.username} - {self.semester}: GPA {self.gpa}"
+
+
+class ClassRoutine(models.Model):
+    day = models.CharField(max_length=20) # e.g. Sunday, Monday
+    time = models.CharField(max_length=50) # e.g. "09:00 AM - 10:30 AM"
+    course = models.CharField(max_length=200)
+    teacher = models.CharField(max_length=150)
+    room = models.CharField(max_length=50)
+    batch = models.CharField(max_length=100)
+    conflict = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.day} {self.time} - {self.course} ({self.room})"
+
+
+class CourseAllocation(models.Model):
+    course_code = models.CharField(max_length=30)
+    course_name = models.CharField(max_length=200)
+    teacher = models.CharField(max_length=150)
+    batch = models.CharField(max_length=100)
+    section = models.CharField(max_length=50, default='Sec A')
+    hours_per_week = models.IntegerField(default=3)
+    weekly_days = models.CharField(max_length=100, default='Sun, Tue', blank=True)
+    status = models.CharField(max_length=50, default='Confirmed')
+
+    def __str__(self):
+        return f"{self.course_code} -> {self.teacher} ({self.batch})"
+
+
+class AIConfiguration(models.Model):
+    primary_provider = models.CharField(max_length=50, default='gemini')
+    primary_model = models.CharField(max_length=100, default='gemini-1.5-pro')
+    gemini_api_key = models.CharField(max_length=255, blank=True, default='')
+    openai_api_key = models.CharField(max_length=255, blank=True, default='')
+    daily_quota_per_teacher = models.IntegerField(default=50)
+    similarity_threshold = models.IntegerField(default=15)
+    enable_safety_guard = models.BooleanField(default=True)
+    temperature = models.FloatField(default=0.4)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"AI Config ({self.primary_provider} - {self.primary_model})"
+
+
+class SemesterArchive(models.Model):
+    batch_name = models.CharField(max_length=100)
+    department = models.CharField(max_length=100)
+    semester = models.CharField(max_length=50)  # e.g. "1st Semester", "2nd Semester", etc.
+    academic_year = models.CharField(max_length=50, blank=True, default='')
+    total_students = models.IntegerField(default=0)
+    average_gpa = models.FloatField(default=0.0)
+    average_attendance = models.FloatField(default=0.0)
+    archived_at = models.DateTimeField(auto_now_add=True)
+    is_graduate_batch = models.BooleanField(default=False)
+    status = models.CharField(max_length=50, default='Archived')  # "Archived" or "Graduated"
+
+    class Meta:
+        ordering = ['-archived_at', 'batch_name', 'semester']
+        unique_together = ('batch_name', 'semester')
+
+    def __str__(self):
+        return f"{self.batch_name} - {self.semester} ({self.department})"
+
+
+class StudentSemesterRecord(models.Model):
+    archive = models.ForeignKey(SemesterArchive, on_delete=models.CASCADE, related_name='records')
+    student = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True)
+    student_name = models.CharField(max_length=200)
+    student_uid = models.CharField(max_length=50)  # Institutional Student ID (e.g. STU-2024-001)
+    email = models.CharField(max_length=200, blank=True)
+    registration_no = models.CharField(max_length=100, blank=True)
+    section = models.CharField(max_length=50, blank=True, default='A')
+    attendance_pct = models.FloatField(default=85.0)
+    mid_marks = models.FloatField(default=25.0)
+    final_marks = models.FloatField(default=45.0)
+    semester_gpa = models.FloatField(default=3.75)
+    cumulative_cgpa = models.FloatField(default=3.75)
+    grade = models.CharField(max_length=10, blank=True, default='A')
+    remarks = models.CharField(max_length=100, blank=True, default='Promoted')
+
+    class Meta:
+        ordering = ['student_uid']
+
+    def __str__(self):
+        return f"{self.student_name} ({self.student_uid}) - {self.archive.semester}"
+
+
+class SystemSetting(models.Model):
+    student_email_format = models.CharField(max_length=150, default='@diit.edu.bd')
+    teacher_email_format = models.CharField(max_length=150, default='@diit.edu.bd')
+    university_name = models.CharField(max_length=200, default='QGenix International University')
+    short_code = models.CharField(max_length=50, default='QIU')
+    contact_email = models.CharField(max_length=150, default='support@qgenix.edu')
+    academic_year = models.CharField(max_length=50, default='2026-2027')
+    current_term = models.CharField(max_length=50, default='Spring 2026')
+    maintenance_mode = models.BooleanField(default=False)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"System Setting (Student: {self.student_email_format}, Teacher: {self.teacher_email_format})"
+
+
+

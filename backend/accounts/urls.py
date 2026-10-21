@@ -22,7 +22,16 @@ from .views import (
     DepartmentViewSet,
     ExamSessionViewSet,
     NoticeViewSet,
-    PublishSemesterResultView
+    AuditLogViewSet,
+    PublishSemesterResultView,
+    BatchViewSet,
+    ClassRoutineViewSet,
+    CourseAllocationViewSet,
+    AIConfigurationView,
+    DatabaseBackupView,
+    SemesterArchiveViewSet,
+    ArchiveSemesterActionView,
+    SystemSettingView
 )
 
 router = DefaultRouter()
@@ -30,12 +39,25 @@ router = DefaultRouter()
 router.register(r'users', AdminUserViewSet, basename='admin-users')
 router.register(r'courses', CourseViewSet, basename='admin-courses')
 router.register(r'departments', DepartmentViewSet, basename='admin-departments')
+router.register(r'batches', BatchViewSet, basename='admin-batches')
+router.register(r'archives', SemesterArchiveViewSet, basename='admin-archives')
+router.register(r'routines', ClassRoutineViewSet, basename='admin-routines')
+router.register(r'allocations', CourseAllocationViewSet, basename='admin-allocations')
 router.register(r'exam-sessions', ExamSessionViewSet, basename='admin-exam-sessions')
 router.register(r'notices', NoticeViewSet, basename='admin-notices')
+router.register(r'audit-logs', AuditLogViewSet, basename='admin-audit-logs')
 
 urlpatterns = [
     # Dynamic DB Metrics for Executive Dashboard
     path('dashboard-stats/', DashboardStatsView.as_view(), name='dashboard-stats'),
+    # System Settings & Email Formats Configuration
+    path('system-settings/', SystemSettingView.as_view(), name='system-settings'),
+    # Academic Archive Semester Action
+    path('archive-semester/', ArchiveSemesterActionView.as_view(), name='archive-semester'),
+    # AI Engine Configuration & Quota Settings
+    path('ai-config/', AIConfigurationView.as_view(), name='ai-config'),
+    # Database Snapshot Backup Export
+    path('backup/export/', DatabaseBackupView.as_view(), name='backup-export'),
     # Publish semester result and dynamic CGPA recalculation
     path('publish-semester-result/', PublishSemesterResultView.as_view(), name='publish-semester-result'),
     # Public Student Registration

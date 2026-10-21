@@ -13,69 +13,7 @@ import { API_BASE } from '../config';
 
 const AdminDataContext = createContext();
 
-// Default Initial Data (যদি লোকাল স্টোরেজে আগে থেকে ডাটা না থাকে)
-const initialDepartments = [
-  { id: 1, code: 'CSE', name: 'Computer Science & Engineering', hod: 'Prof. Dr. Mahbubur Rahman', facultyCount: 38, studentCount: 1650, established: '2012' },
-  { id: 2, code: 'EEE', name: 'Electrical & Electronic Engineering', hod: 'Dr. Farhana Ahmed', facultyCount: 26, studentCount: 980, established: '2014' },
-  { id: 3, code: 'BBA', name: 'Business Administration', hod: 'Prof. Tariqul Islam', facultyCount: 22, studentCount: 850, established: '2015' },
-  { id: 4, code: 'CE', name: 'Civil Engineering', hod: 'Dr. Nazmul Huda', facultyCount: 18, studentCount: 520, established: '2018' },
-  { id: 5, code: 'ENG', name: 'English & Modern Languages', hod: 'Dr. Shaila Parveen', facultyCount: 14, studentCount: 250, established: '2019' },
-];
-
-const initialBatches = [
-  { id: 1, name: 'Batch 2022-2026', dept: 'CSE', semester: '6th Semester', sections: ['A', 'B', 'C'], studentCount: 210, status: 'Active' },
-  { id: 2, name: 'Batch 2023-2027', dept: 'CSE', semester: '4th Semester', sections: ['A', 'B'], studentCount: 180, status: 'Active' },
-  { id: 3, name: 'Batch 2021-2025', dept: 'EEE', semester: '8th Semester', sections: ['A'], studentCount: 95, status: 'Graduating' },
-  { id: 4, name: 'Batch 2024-2028', dept: 'BBA', semester: '2nd Semester', sections: ['A', 'B', 'C'], studentCount: 220, status: 'Active' },
-  { id: 5, name: 'Batch 2023-2027', dept: 'CE', semester: '4th Semester', sections: ['A'], studentCount: 80, status: 'Active' },
-];
-
-const initialCourses = [
-  { id: 1, code: 'CSE-301', title: 'Database Management Systems', credits: 3.0, dept: 'CSE', modules: 5, prerequisite: 'CSE-201' },
-  { id: 2, code: 'CSE-302', title: 'Operating Systems & System Programming', credits: 3.0, dept: 'CSE', modules: 6, prerequisite: 'CSE-205' },
-  { id: 3, code: 'CSE-315', title: 'Artificial Intelligence & Machine Learning', credits: 4.0, dept: 'CSE', modules: 8, prerequisite: 'CSE-301' },
-  { id: 4, code: 'EEE-211', title: 'Signals and Linear Systems', credits: 3.0, dept: 'EEE', modules: 4, prerequisite: 'EEE-101' },
-  { id: 5, code: 'BBA-205', title: 'Financial Accounting & Reporting', credits: 3.0, dept: 'BBA', modules: 5, prerequisite: 'None' },
-];
-
-const initialAllocations = [
-  { id: 1, courseCode: 'CSE-301', courseName: 'Database Management Systems', teacher: 'Dr. Asaduzzaman', batch: 'Batch 2022-2026', section: 'Sec A & B', hoursPerWeek: 4, status: 'Confirmed' },
-  { id: 2, courseCode: 'CSE-315', courseName: 'Artificial Intelligence & Machine Learning', teacher: 'Prof. Dr. Mahbubur Rahman', batch: 'Batch 2022-2026', section: 'Sec A', hoursPerWeek: 4, status: 'Confirmed' },
-  { id: 3, courseCode: 'CSE-302', courseName: 'Operating Systems', teacher: 'Engr. Tanvir Hasan', batch: 'Batch 2023-2027', section: 'Sec B', hoursPerWeek: 3, status: 'Pending Review' },
-  { id: 4, courseCode: 'EEE-211', courseName: 'Signals and Linear Systems', teacher: 'Dr. Farhana Ahmed', batch: 'Batch 2021-2025', section: 'Sec A', hoursPerWeek: 4, status: 'Confirmed' },
-];
-
-const initialStudents = [
-  { id: 'STU-2022-001', name: 'Tanvir Hossain', email: 'tanvir.001@student.edu', regNo: 'REG-2022-0001', dept: 'CSE', batch: 'Batch 2022', section: 'A', cgpa: '3.82', status: 'Active' },
-  { id: 'STU-2022-045', name: 'Nusrat Jahan', email: 'nusrat.045@student.edu', regNo: 'REG-2022-0045', dept: 'CSE', batch: 'Batch 2022', section: 'B', cgpa: '3.91', status: 'Active' },
-  { id: 'STU-2023-102', name: 'Arif Mahmud', email: 'arif.102@student.edu', regNo: 'REG-2023-0102', dept: 'EEE', batch: 'Batch 2023', section: 'A', cgpa: '3.45', status: 'Active' },
-  { id: 'STU-2022-089', name: 'Sumaiya Akter', email: 'sumaiya.089@student.edu', regNo: 'REG-2022-0089', dept: 'BBA', batch: 'Batch 2022', section: 'B', cgpa: '3.68', status: 'Active' },
-  { id: 'STU-2021-014', name: 'Kamrul Hassan', email: 'kamrul.014@student.edu', regNo: 'REG-2021-0014', dept: 'CE', batch: 'Batch 2021', section: 'A', cgpa: '2.85', status: 'Suspended' },
-];
-
-const initialFaculty = [
-  { id: 'FAC-101', name: 'Prof. Dr. Mahbubur Rahman', email: 'mahbub@qgenix.edu', designation: 'Professor & Head', dept: 'CSE', courseLoad: 3, status: 'Active' },
-  { id: 'FAC-104', name: 'Dr. Farhana Ahmed', email: 'farhana@qgenix.edu', designation: 'Associate Professor', dept: 'EEE', courseLoad: 4, status: 'Active' },
-  { id: 'FAC-112', name: 'Engr. Tanvir Hasan', email: 'tanvir.h@qgenix.edu', designation: 'Assistant Professor', dept: 'CSE', courseLoad: 4, status: 'Active' },
-  { id: 'FAC-120', name: 'Dr. Asaduzzaman', email: 'asad@qgenix.edu', designation: 'Senior Lecturer', dept: 'CSE', courseLoad: 3, status: 'Active' },
-  { id: 'FAC-135', name: 'Prof. Tariqul Islam', email: 'tariqul@qgenix.edu', designation: 'Professor & Dean', dept: 'BBA', courseLoad: 2, status: 'Active' },
-];
-
-const initialRoutineSlots = [
-  { id: 1, day: 'Sunday', time: '09:00 AM - 10:30 AM', course: 'CSE-301: Database Systems', teacher: 'Dr. Asaduzzaman', room: 'Lab-402', batch: 'Batch 2022 Sec A', conflict: false },
-  { id: 2, day: 'Sunday', time: '10:45 AM - 12:15 PM', course: 'CSE-315: Artificial Intelligence', teacher: 'Prof. Dr. Mahbubur Rahman', room: 'Room-501', batch: 'Batch 2022 Sec A', conflict: false },
-  { id: 3, day: 'Sunday', time: '01:00 PM - 02:30 PM', course: 'EEE-211: Signals & Systems', teacher: 'Dr. Farhana Ahmed', room: 'Room-302', batch: 'Batch 2023 Sec B', conflict: false },
-  { id: 4, day: 'Sunday', time: '02:45 PM - 04:15 PM', course: 'BBA-205: Financial Accounting', teacher: 'Prof. Tariqul Islam', room: 'Room-204', batch: 'Batch 2024 Sec A', conflict: false },
-  { id: 5, day: 'Monday', time: '09:00 AM - 10:30 AM', course: 'CSE-302: Operating Systems', teacher: 'Engr. Tanvir Hasan', room: 'Lab-401', batch: 'Batch 2022 Sec B', conflict: false },
-  { id: 6, day: 'Monday', time: '10:45 AM - 12:15 PM', course: 'CSE-301: Database Systems', teacher: 'Dr. Asaduzzaman', room: 'Lab-401', batch: 'Batch 2023 Sec A', conflict: true },
-];
-
-const initialExamSessions = [
-  { id: 1, name: 'Spring 2026 Midterm Examination', type: 'Midterm', startDate: '2026-04-10', endDate: '2026-04-22', isLocked: false, submittedPapers: 42, totalExpected: 42 },
-  { id: 2, name: 'Spring 2026 Continuous Assessment Quiz II', type: 'Quiz', startDate: '2026-03-28', endDate: '2026-04-02', isLocked: true, submittedPapers: 86, totalExpected: 86 },
-  { id: 3, name: 'Fall 2025 Semester Final Examination', type: 'Final', startDate: '2025-12-15', endDate: '2026-01-05', isLocked: true, submittedPapers: 110, totalExpected: 110 },
-];
-
+// Standard University Grading Scale
 const initialGradingScale = [
   { id: 1, grade: 'A+', minMarks: 80, maxMarks: 100, gpa: 4.00, remarks: 'Outstanding' },
   { id: 2, grade: 'A', minMarks: 75, maxMarks: 79, gpa: 3.75, remarks: 'Excellent' },
@@ -88,80 +26,92 @@ const initialGradingScale = [
   { id: 9, grade: 'F', minMarks: 0, maxMarks: 39, gpa: 0.00, remarks: 'Fail' },
 ];
 
-const initialTabulationMarks = [
-  { studentId: 'STU-2022-001', studentName: 'Tanvir Hossain', quiz: 19, mid: 28, final: 46, total: 93, grade: 'A+', gpa: 4.00 },
-  { studentId: 'STU-2022-045', studentName: 'Nusrat Jahan', quiz: 18, mid: 26, final: 44, total: 88, grade: 'A+', gpa: 4.00 },
-  { studentId: 'STU-2022-089', studentName: 'Sumaiya Akter', quiz: 15, mid: 22, final: 39, total: 76, grade: 'A', gpa: 3.75 },
-  { studentId: 'STU-2023-102', studentName: 'Arif Mahmud', quiz: 14, mid: 20, final: 36, total: 70, grade: 'A-', gpa: 3.50 },
-];
-
-const initialNotices = [
-  {
-    id: 1,
-    title: 'Spring 2026 Midterm Examination Schedule Revised',
-    category: 'Exam',
-    audience: 'All Students & Teachers',
-    priority: 'Urgent',
-    pinned: true,
-    author: 'Office of the Exam Controller',
-    date: 'Sep 24, 2026',
-    content: 'Due to national holiday announcements, all midterm exams originally scheduled for April 12 have been shifted to April 24. Updated admit cards are accessible in student portals.',
-    attachment: 'Revised_Midterm_Routine_2026.pdf'
-  },
-  {
-    id: 2,
-    title: 'Faculty Senate Meeting: AI Assessment Curriculum Review',
-    category: 'Academic',
-    audience: 'Teachers Only',
-    priority: 'High',
-    pinned: true,
-    author: 'Academic Council',
-    date: 'Sep 22, 2026',
-    content: 'All departmental HoDs and course instructors are requested to attend the senate review regarding QGenix AI question moderation quotas on Thursday at 3:00 PM.',
-    attachment: null
-  },
-];
-
-const initialAuditLogs = [
-  { id: 'LOG-7721', user: 'System Initializer', action: 'Console Bootstrapped', category: 'System', target: 'Core State Initialized', ipAddress: '127.0.0.1', timestamp: '2026-09-24 10:00 AM', status: 'Success' }
-];
-
 export function AdminDataProvider({ children }) {
-  // Helper to read from LocalStorage with fallback
-  const loadState = (key, fallback) => {
+  // Helper to read from LocalStorage with fallback (clean legacy mock data if cached)
+  const loadState = (key, fallback = []) => {
     try {
       const saved = localStorage.getItem(`qgenix_${key}`);
-      return saved ? JSON.parse(saved) : fallback;
+      if (!saved) return fallback;
+      const parsed = JSON.parse(saved);
+      // Clean legacy mock batches with 4-year span format if present in cache
+      if (key === 'batches' && Array.isArray(parsed)) {
+        return parsed.map(b => ({
+          ...b,
+          name: (b.name || '')
+            .replace('2023-2027', '2023 - 2024')
+            .replace('2024-2028', '2024 - 2025')
+            .replace('2022-2026', '2022 - 2023')
+            .replace('2021-2025', '2021 - 2022')
+            .replace('2020-2024', '2020 - 2021')
+        }));
+      }
+      // Clean legacy modules and prerequisite fields if cached
+      if (key === 'courses' && Array.isArray(parsed)) {
+        return parsed.map(c => ({
+          id: c.id,
+          code: c.code,
+          title: c.title,
+          credits: parseFloat(c.credits) || 3.0,
+          dept: c.dept || c.department || 'CSE'
+        }));
+      }
+      // Clean legacy status and map weeklyDays for allocations
+      if (key === 'allocations' && Array.isArray(parsed)) {
+        return parsed.map(a => {
+          const { status, ...rest } = a;
+          return {
+            ...rest,
+            weeklyDays: a.weeklyDays || a.weekly_days || (a.hoursPerWeek ? `${a.hoursPerWeek} Days/Week` : 'Sun, Tue')
+          };
+        });
+      }
+      return parsed;
     } catch (e) {
       console.error(`Failed to load ${key} from localStorage`, e);
       return fallback;
     }
   };
 
-  // State declarations
-  const [departments, setDepartments] = useState(() => loadState('departments', initialDepartments));
+  // Helper to dynamically parse batch sections from array or comma-separated string
+  const parseBatchSections = (sections) => {
+    if (Array.isArray(sections)) {
+      return sections.map(s => String(s).trim().toUpperCase()).filter(Boolean);
+    }
+    if (typeof sections === 'string' && sections.trim()) {
+      return sections.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+    }
+    return ['A', 'B'];
+  };
+
+  // State declarations (Strictly database driven — no hardcoded demo rows)
+  const [departments, setDepartments] = useState(() => loadState('departments', []));
   const [batches, setBatches] = useState(() => {
-    const loaded = loadState('batches', initialBatches);
+    const loaded = loadState('batches', []);
     return Array.isArray(loaded) ? loaded.map(b => ({
       ...b,
       dept: b.dept || b.department || 'CSE',
-      sections: Array.isArray(b.sections) ? b.sections : (typeof b.sections === 'string' && b.sections.trim() ? b.sections.split(',').map(s => s.trim()) : ['A', 'B'])
-    })) : initialBatches;
+      sections: parseBatchSections(b.sections)
+    })) : [];
   });
-  const [courses, setCourses] = useState(() => loadState('courses', initialCourses));
-  const [allocations, setAllocations] = useState(() => loadState('allocations', initialAllocations));
-  const [students, setStudents] = useState(() => loadState('students', initialStudents));
-  const [faculty, setFaculty] = useState(() => loadState('faculty', initialFaculty));
-  const [routineSlots, setRoutineSlots] = useState(() => loadState('routineSlots', initialRoutineSlots));
-  const [examSessions, setExamSessions] = useState(() => loadState('examSessions', initialExamSessions));
+  const [courses, setCourses] = useState(() => loadState('courses', []));
+  const [allocations, setAllocations] = useState(() => loadState('allocations', []));
+  const [students, setStudents] = useState(() => loadState('students', []));
+  const [faculty, setFaculty] = useState(() => loadState('faculty', []));
+  const [routineSlots, setRoutineSlots] = useState(() => loadState('routineSlots', []));
+  const [examSessions, setExamSessions] = useState(() => loadState('examSessions', []));
   const [gradingScale, setGradingScale] = useState(() => loadState('gradingScale', initialGradingScale));
-  const [tabulationMarks, setTabulationMarks] = useState(() => loadState('tabulationMarks', initialTabulationMarks));
-  const [notices, setNotices] = useState(() => loadState('notices', initialNotices));
-  const [auditLogs, setAuditLogs] = useState(() => loadState('auditLogs', initialAuditLogs));
+  const [tabulationMarks, setTabulationMarks] = useState(() => loadState('tabulationMarks', []));
+  const [notices, setNotices] = useState(() => loadState('notices', []));
+  const [auditLogs, setAuditLogs] = useState(() => loadState('auditLogs', []));
+  const [archives, setArchives] = useState([]);
   const [stats, setStats] = useState(null);
   const [isDbConnected, setIsDbConnected] = useState(false);
+  const [emailFormats, setEmailFormats] = useState(() => loadState('emailFormats', {
+    student: '@diit.edu.bd',
+    teacher: '@diit.edu.bd'
+  }));
 
-  // Live Sync with Django SQLite Database
+  // Live Sync with Django SQLite Database — Realtime Single Source of Truth
   const refreshFromDB = async () => {
     try {
       const res = await fetch(`${API_BASE}/api/auth/dashboard-stats/`);
@@ -169,20 +119,55 @@ export function AdminDataProvider({ children }) {
         const data = await res.json();
         setStats(data);
         setIsDbConnected(true);
+
+        if (data.system_settings) {
+          const nextStudent = (data.system_settings.student_email_format || '@diit.edu.bd').trim();
+          const nextTeacher = (data.system_settings.teacher_email_format || '@diit.edu.bd').trim();
+          setEmailFormats(prev => {
+            if (prev && prev.student === nextStudent && prev.teacher === nextTeacher) {
+              return prev;
+            }
+            return { student: nextStudent, teacher: nextTeacher };
+          });
+        }
+
         if (Array.isArray(data.students)) setStudents(data.students);
         if (Array.isArray(data.faculty)) setFaculty(data.faculty);
-        if (Array.isArray(data.courses) && data.courses.length > 0) setCourses(data.courses);
-        if (Array.isArray(data.departments) && data.departments.length > 0) setDepartments(data.departments);
-        if (Array.isArray(data.batches) && data.batches.length > 0) {
+        if (Array.isArray(data.courses)) {
+          setCourses(data.courses.map(c => ({
+            id: c.id,
+            code: c.code,
+            title: c.title,
+            credits: parseFloat(c.credits) || 3.0,
+            dept: c.dept || c.department || 'CSE'
+          })));
+        }
+        if (Array.isArray(data.departments)) setDepartments(data.departments);
+        if (Array.isArray(data.archives)) setArchives(data.archives);
+
+        if (Array.isArray(data.batches)) {
           setBatches(data.batches.map(b => ({
             ...b,
             dept: b.dept || b.department || 'CSE',
-            sections: Array.isArray(b.sections) ? b.sections : (typeof b.sections === 'string' && b.sections.trim() ? b.sections.split(',').map(s => s.trim()) : ['A', 'B'])
+            sections: parseBatchSections(b.sections)
           })));
         }
-        if (Array.isArray(data.exam_sessions_list) && data.exam_sessions_list.length > 0) setExamSessions(data.exam_sessions_list);
-        if (Array.isArray(data.notices) && data.notices.length > 0) setNotices(data.notices);
-        if (Array.isArray(data.audit_logs) && data.audit_logs.length > 0) setAuditLogs(data.audit_logs);
+
+        if (Array.isArray(data.exam_sessions_list)) setExamSessions(data.exam_sessions_list);
+        if (Array.isArray(data.notices)) setNotices(data.notices);
+        if (Array.isArray(data.audit_logs)) setAuditLogs(data.audit_logs);
+        if (Array.isArray(data.routine_slots)) setRoutineSlots(data.routine_slots);
+        if (Array.isArray(data.allocations)) {
+          setAllocations(data.allocations.map(a => ({
+            id: a.id,
+            courseCode: a.courseCode || a.course_code,
+            courseName: a.courseName || a.course_name,
+            teacher: a.teacher,
+            batch: a.batch,
+            section: a.section,
+            weeklyDays: a.weeklyDays || a.weekly_days || (a.hoursPerWeek ? `${a.hoursPerWeek} Days/Week` : 'Sun, Tue')
+          })));
+        }
       }
     } catch (err) {
       console.warn('Django Backend DB not reachable, fallback to cache:', err.message);
@@ -209,6 +194,7 @@ export function AdminDataProvider({ children }) {
   useEffect(() => { localStorage.setItem('qgenix_tabulationMarks', JSON.stringify(tabulationMarks)); }, [tabulationMarks]);
   useEffect(() => { localStorage.setItem('qgenix_notices', JSON.stringify(notices)); }, [notices]);
   useEffect(() => { localStorage.setItem('qgenix_auditLogs', JSON.stringify(auditLogs)); }, [auditLogs]);
+  useEffect(() => { localStorage.setItem('qgenix_emailFormats', JSON.stringify(emailFormats)); }, [emailFormats]);
 
   // Log action automatically (অটোমেটেড অডিট ট্রেইল তৈরি)
   const addAuditLog = (action, category, target, status = 'Success') => {
@@ -267,7 +253,13 @@ export function AdminDataProvider({ children }) {
 
   // Add Course
   const addCourse = async (course) => {
-    const newCourse = { id: Date.now(), ...course };
+    const payload = {
+      code: course.code,
+      title: course.title,
+      credits: parseFloat(course.credits) || 3.0,
+      department: course.dept || course.department || 'CSE'
+    };
+    const newCourse = { id: Date.now(), ...payload, dept: payload.department };
     setCourses(prev => [...prev, newCourse]);
     addAuditLog('Course Catalog Added', 'Academic', `${course.code}: ${course.title}`);
 
@@ -275,7 +267,7 @@ export function AdminDataProvider({ children }) {
       await fetch(`${API_BASE}/api/auth/courses/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(course)
+        body: JSON.stringify(payload)
       });
       await refreshFromDB();
     } catch (e) {
@@ -284,9 +276,28 @@ export function AdminDataProvider({ children }) {
   };
 
   // Edit Course
-  const editCourse = (id, updatedFields) => {
+  const editCourse = async (id, updatedFields) => {
     setCourses(prev => prev.map(c => c.id === id ? { ...c, ...updatedFields } : c));
     addAuditLog('Course Catalog Updated', 'Academic', `Course ID: ${id}`);
+
+    try {
+      const payload = {};
+      if (updatedFields.title !== undefined) payload.title = updatedFields.title;
+      if (updatedFields.code !== undefined) payload.code = updatedFields.code;
+      if (updatedFields.credits !== undefined) payload.credits = parseFloat(updatedFields.credits) || 3.0;
+      if (updatedFields.department !== undefined || updatedFields.dept !== undefined) {
+        payload.department = updatedFields.department || updatedFields.dept;
+      }
+
+      await fetch(`${API_BASE}/api/auth/courses/${id}/`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      await refreshFromDB();
+    } catch (e) {
+      console.warn('Error updating course in DB:', e);
+    }
   };
 
   // Delete Course
@@ -305,35 +316,176 @@ export function AdminDataProvider({ children }) {
   };
 
   // Add Batch
-  const addBatch = (batch) => {
-    const newBatch = { id: Date.now(), ...batch };
+  const addBatch = async (batch) => {
+    const rawSections = parseBatchSections(batch.sections);
+    const newBatch = { ...batch, sections: rawSections, id: Date.now() };
     setBatches(prev => [...prev, newBatch]);
-    addAuditLog('Academic Batch Created', 'Academic', `${batch.name} (${batch.dept})`);
+    addAuditLog('Academic Batch Created', 'Academic', `${batch.name} (${batch.dept}) - Sections: ${rawSections.join(', ')}`);
+
+    try {
+      await fetch(`${API_BASE}/api/auth/batches/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: batch.name,
+          department: batch.dept || batch.department || 'CSE',
+          semester: batch.semester || '1st Semester',
+          sections: rawSections.join(', '),
+          student_count: batch.studentCount || 0,
+          status: batch.status || 'Active'
+        })
+      });
+      await refreshFromDB();
+    } catch (e) {
+      console.warn('Error saving batch to DB:', e);
+    }
   };
 
   // Edit Batch
-  const editBatch = (id, updatedFields) => {
-    setBatches(prev => prev.map(b => b.id === id ? { ...b, ...updatedFields } : b));
+  const editBatch = async (id, updatedFields) => {
+    let finalFields = { ...updatedFields };
+    if (updatedFields.sections !== undefined) {
+      finalFields.sections = parseBatchSections(updatedFields.sections);
+    }
+    if (finalFields.status === 'Graduate' || finalFields.status === 'Graduated') {
+      setBatches(prev => prev.filter(b => b.id !== id));
+    } else {
+      setBatches(prev => prev.map(b => b.id === id ? { ...b, ...finalFields } : b));
+    }
     addAuditLog('Academic Batch Modified', 'Academic', `Batch ID: ${id}`);
+
+    try {
+      await fetch(`${API_BASE}/api/auth/batches/${id}/`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...(finalFields.name ? { name: finalFields.name } : {}),
+          ...(finalFields.dept || finalFields.department ? { department: finalFields.dept || finalFields.department } : {}),
+          ...(finalFields.semester ? { semester: finalFields.semester } : {}),
+          ...(finalFields.sections ? { sections: finalFields.sections.join(', ') } : {}),
+          ...(finalFields.status ? { status: finalFields.status } : {})
+        })
+      });
+      await refreshFromDB();
+    } catch (e) {
+      console.warn('Error updating batch in DB:', e);
+    }
+  };
+
+  // Delete Batch
+  const deleteBatch = async (id) => {
+    setBatches(prev => prev.filter(b => b.id !== id));
+    addAuditLog('Academic Batch Removed', 'Academic', `Batch ID: ${id}`);
+
+    try {
+      await fetch(`${API_BASE}/api/auth/batches/${id}/`, {
+        method: 'DELETE'
+      });
+      await refreshFromDB();
+    } catch (e) {
+      console.warn('Error deleting batch from DB:', e);
+    }
+  };
+
+  // Archive Batch Semester (and optionally advance or mark graduate)
+  const archiveSemester = async ({ batchId, batchName, semester, advanceToNext = false, isGraduate = false }) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/archive-semester/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          batch_id: batchId,
+          batch_name: batchName,
+          semester,
+          advance_to_next: !!advanceToNext,
+          is_graduate: !!isGraduate
+        })
+      });
+      const data = await res.json();
+
+      // IMMEDIATE REACTIVE OPTIMISTIC UPDATE:
+      if (isGraduate || data?.batch_status === 'Graduate') {
+        // Remove graduated batch from active cohorts immediately!
+        setBatches(prev => prev.filter(b => b.id !== batchId && b.name !== batchName));
+      } else if (advanceToNext && data?.next_semester) {
+        // Advance current semester in active batches immediately!
+        setBatches(prev => prev.map(b => (b.id === batchId || b.name === batchName) ? { ...b, semester: data.next_semester } : b));
+      }
+
+      addAuditLog('Semester Archived', 'Academic Archive', `${batchName || 'Batch'} - ${semester || 'Semester'}`);
+      await refreshFromDB();
+      return data;
+    } catch (e) {
+      console.warn('Error archiving semester:', e);
+    }
   };
 
   // Allocate Course (Assign Teacher)
-  const addAllocation = (alloc) => {
-    const newAlloc = { id: Date.now(), ...alloc };
+  const addAllocation = async (alloc) => {
+    const weeklyDays = alloc.weeklyDays || alloc.weekly_days || 'Sun, Tue';
+    const newAlloc = { id: Date.now(), ...alloc, weeklyDays };
     setAllocations(prev => [...prev, newAlloc]);
-    addAuditLog('Course Allocated', 'Faculty', `${alloc.courseName} -> ${alloc.teacher}`);
+    addAuditLog('Course Allocated', 'Faculty', `${alloc.courseName || alloc.courseCode} -> ${alloc.teacher} (${weeklyDays})`);
+
+    try {
+      await fetch(`${API_BASE}/api/auth/allocations/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          course_code: alloc.courseCode,
+          course_name: alloc.courseName,
+          teacher: alloc.teacher,
+          batch: alloc.batch,
+          section: alloc.section || 'Sec A',
+          weekly_days: weeklyDays,
+          hours_per_week: alloc.hoursPerWeek || 3
+        })
+      });
+      await refreshFromDB();
+    } catch (e) {
+      console.warn('Error saving allocation to DB:', e);
+    }
   };
 
   // Edit Allocation (Reassign Teacher)
-  const editAllocation = (id, updatedFields) => {
+  const editAllocation = async (id, updatedFields) => {
     setAllocations(prev => prev.map(a => a.id === id ? { ...a, ...updatedFields } : a));
     addAuditLog('Course Reassigned', 'Faculty', `Allocation ID: ${id}`);
+
+    try {
+      const payload = {};
+      if (updatedFields.teacher !== undefined) payload.teacher = updatedFields.teacher;
+      if (updatedFields.section !== undefined) payload.section = updatedFields.section;
+      if (updatedFields.weeklyDays !== undefined) payload.weekly_days = updatedFields.weeklyDays;
+      if (updatedFields.weekly_days !== undefined) payload.weekly_days = updatedFields.weekly_days;
+      if (updatedFields.courseName !== undefined) payload.course_name = updatedFields.courseName;
+      if (updatedFields.courseCode !== undefined) payload.course_code = updatedFields.courseCode;
+      if (updatedFields.batch !== undefined) payload.batch = updatedFields.batch;
+
+      await fetch(`${API_BASE}/api/auth/allocations/${id}/`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      await refreshFromDB();
+    } catch (e) {
+      console.warn('Error updating allocation in DB:', e);
+    }
   };
 
   // Remove Allocation
-  const deleteAllocation = (id) => {
+  const deleteAllocation = async (id) => {
     setAllocations(prev => prev.filter(a => a.id !== id));
     addAuditLog('Course Allocation Removed', 'Faculty', `Allocation ID: ${id}`);
+
+    try {
+      await fetch(`${API_BASE}/api/auth/allocations/${id}/`, {
+        method: 'DELETE'
+      });
+      await refreshFromDB();
+    } catch (e) {
+      console.warn('Error deleting allocation from DB:', e);
+    }
   };
 
   // ==================== 2. USERS CRUD ====================
@@ -549,18 +701,46 @@ export function AdminDataProvider({ children }) {
   };
 
   // Add Routine Slot
-  const addRoutineSlot = (slot) => {
+  const addRoutineSlot = async (slot) => {
     const clash = checkRoutineClash(slot);
     const newSlot = { id: Date.now(), conflict: clash.hasConflict, ...slot };
     setRoutineSlots(prev => [...prev, newSlot]);
     addAuditLog(`Routine Slot Added ${clash.hasConflict ? '(CONFLICT FLAGGED)' : ''}`, 'Routine', `${slot.course} in ${slot.room}`);
+
+    try {
+      await fetch(`${API_BASE}/api/auth/routines/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          day: slot.day,
+          time: slot.time,
+          course: slot.course,
+          teacher: slot.teacher,
+          room: slot.room,
+          batch: slot.batch,
+          conflict: clash.hasConflict
+        })
+      });
+      await refreshFromDB();
+    } catch (e) {
+      console.warn('Error saving routine to DB:', e);
+    }
     return clash;
   };
 
   // Delete Routine Slot
-  const deleteRoutineSlot = (id) => {
+  const deleteRoutineSlot = async (id) => {
     setRoutineSlots(prev => prev.filter(s => s.id !== id));
     addAuditLog('Routine Slot Removed', 'Routine', `Slot ID: ${id}`);
+
+    try {
+      await fetch(`${API_BASE}/api/auth/routines/${id}/`, {
+        method: 'DELETE'
+      });
+      await refreshFromDB();
+    } catch (e) {
+      console.warn('Error deleting routine from DB:', e);
+    }
   };
 
   // ==================== 5. NOTICES ====================
@@ -599,6 +779,111 @@ export function AdminDataProvider({ children }) {
     setNotices(prev => prev.map(n => n.id === id ? { ...n, pinned: !n.pinned } : n));
   };
 
+  // ── Email Format Settings & System-Wide Validator ──
+  const updateEmailFormats = async (newFormats) => {
+    const updated = {
+      student: (newFormats.student !== undefined ? newFormats.student : emailFormats.student).trim(),
+      teacher: (newFormats.teacher !== undefined ? newFormats.teacher : emailFormats.teacher).trim(),
+    };
+    setEmailFormats(updated);
+    try {
+      localStorage.setItem('qgenix_emailFormats', JSON.stringify(updated));
+    } catch (e) {}
+    addAuditLog('Email Formats Updated', 'Settings', `Student: ${updated.student} | Teacher: ${updated.teacher}`);
+
+    try {
+      await fetch(`${API_BASE}/api/auth/system-settings/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          student_email_format: updated.student,
+          teacher_email_format: updated.teacher
+        })
+      });
+      await refreshFromDB();
+    } catch (e) {
+      console.warn('Error saving email formats to DB:', e);
+    }
+  };
+
+  const validateEmailFormat = (email, role = 'student') => {
+    if (!email || !email.trim()) {
+      return { isValid: false, error: 'Email address cannot be empty.' };
+    }
+    const cleanEmail = email.trim().toLowerCase();
+    const roleKey = (role || 'student').toLowerCase() === 'teacher' ? 'teacher' : 'student';
+    const roleTitle = roleKey === 'teacher' ? 'Teacher' : 'Student';
+    const rawFormat = (emailFormats[roleKey] || '@diit.edu.bd').trim();
+    const cleanFormat = rawFormat.toLowerCase();
+
+    // 1. If format starts with '@' (e.g. '@diit.edu.bd')
+    if (cleanFormat.startsWith('@')) {
+      if (!cleanEmail.endsWith(cleanFormat)) {
+        return { 
+          isValid: false, 
+          error: `${roleTitle} email must follow the required format: ${rawFormat} (e.g. user${rawFormat})` 
+        };
+      }
+      return { isValid: true, error: null };
+    }
+
+    // 2. If format is just domain without '@' (e.g. 'diit.edu.bd')
+    if (!cleanFormat.includes('@')) {
+      const requiredSuffix = `@${cleanFormat}`;
+      if (!cleanEmail.endsWith(requiredSuffix)) {
+        return { 
+          isValid: false, 
+          error: `${roleTitle} email must end with @${rawFormat}` 
+        };
+      }
+      return { isValid: true, error: null };
+    }
+
+    // 3. If format includes wildcard '*' (e.g. '*@diit.edu.bd')
+    if (cleanFormat.includes('*')) {
+      const regexStr = '^' + cleanFormat.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\\\*/g, '[a-zA-Z0-9._-]+') + '$';
+      const regex = new RegExp(regexStr, 'i');
+      if (!regex.test(cleanEmail)) {
+        return { 
+          isValid: false, 
+          error: `${roleTitle} email must follow required pattern: ${rawFormat}` 
+        };
+      }
+      return { isValid: true, error: null };
+    }
+
+    // 4. If format has placeholders like '{name}_{id}@domain' or '[name]_[id]@domain'
+    if (cleanFormat.includes('{') || cleanFormat.includes('[')) {
+      const domain = cleanFormat.split('@')[1];
+      if (domain && !cleanEmail.endsWith(`@${domain}`)) {
+        return { 
+          isValid: false, 
+          error: `${roleTitle} email must end with @${domain}` 
+        };
+      }
+      const localFormat = cleanFormat.split('@')[0];
+      if (localFormat.includes('_') && !cleanEmail.split('@')[0].includes('_')) {
+        return { 
+          isValid: false, 
+          error: `${roleTitle} email username must follow format "${localFormat}" (e.g. name_id@${domain})` 
+        };
+      }
+      return { isValid: true, error: null };
+    }
+
+    // 5. Default domain check
+    const atIndex = cleanFormat.indexOf('@');
+    const expectedDomain = cleanFormat.slice(atIndex);
+    if (!cleanEmail.endsWith(expectedDomain)) {
+      return { 
+        isValid: false, 
+        error: `${roleTitle} email must end with ${expectedDomain}` 
+      };
+    }
+
+    return { isValid: true, error: null };
+  };
+
   return (
     <AdminDataContext.Provider value={{
       // Data state
@@ -614,6 +899,8 @@ export function AdminDataProvider({ children }) {
       tabulationMarks,
       notices,
       auditLogs,
+      archives,
+      emailFormats,
 
       // Operations
       addDepartment,
@@ -624,6 +911,8 @@ export function AdminDataProvider({ children }) {
       deleteCourse,
       addBatch,
       editBatch,
+      deleteBatch,
+      archiveSemester,
       addAllocation,
       editAllocation,
       deleteAllocation,
@@ -650,6 +939,10 @@ export function AdminDataProvider({ children }) {
       deleteNotice,
       togglePinNotice,
       addAuditLog,
+
+      // Email Format & System Settings Operations
+      updateEmailFormats,
+      validateEmailFormat,
 
       // Live DB Telemetry & Sync
       stats,

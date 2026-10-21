@@ -11,8 +11,9 @@
 // সমস্ত কোডে বিস্তারিত বাংলা ও ইংরেজি কমেন্ট রয়েছে এবং সম্পূর্ণ রেসপনসিভ ডিজাইন।
 // =========================================================================================
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Card from '../../components/Card';
+import { API_BASE } from '../../config';
 import { 
   Sparkles, 
   Cpu, 
@@ -31,10 +32,11 @@ import {
 
 export default function AIEngine() {
   const [toastMessage, setToastMessage] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
   
   // API Keys state with visibility toggles
-  const [geminiApiKey, setGeminiApiKey] = useState('AIzaSyD-981x2084792384791827491283');
-  const [openAiApiKey, setOpenAiApiKey] = useState('sk-proj-48197491274918274918274912');
+  const [geminiApiKey, setGeminiApiKey] = useState('');
+  const [openAiApiKey, setOpenAiApiKey] = useState('');
   const [showGeminiKey, setShowGeminiKey] = useState(false);
   const [showOpenAiKey, setShowOpenAiKey] = useState(false);
 
@@ -51,9 +53,56 @@ export default function AIEngine() {
     setTimeout(() => setToastMessage(''), 3200);
   };
 
-  const handleSaveConfig = (e) => {
+  // Fetch saved configuration from Django backend
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/ai-config/`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.primary_model) setPrimaryModel(data.primary_model);
+          if (data.gemini_api_key) setGeminiApiKey(data.gemini_api_key);
+          if (data.openai_api_key) setOpenAiApiKey(data.openai_api_key);
+          if (data.daily_quota_per_teacher) setDailyQuotaPerTeacher(data.daily_quota_per_teacher);
+          if (data.similarity_threshold !== undefined) setSimilarityThreshold(data.similarity_threshold);
+          if (data.enable_safety_guard !== undefined) setEnableSafetyGuard(data.enable_safety_guard);
+          if (data.temperature !== undefined) setTemperature(data.temperature);
+        }
+      } catch (err) {
+        console.warn('Could not load AI configuration from backend:', err);
+      }
+    };
+    fetchConfig();
+  }, []);
+
+  const handleSaveConfig = async (e) => {
     e.preventDefault();
-    showToast('AI Infrastructure & Quota configurations saved successfully!');
+    setIsSaving(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/ai-config/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          primary_model: primaryModel,
+          gemini_api_key: geminiApiKey,
+          openai_api_key: openAiApiKey,
+          daily_quota_per_teacher: Number(dailyQuotaPerTeacher),
+          similarity_threshold: Number(similarityThreshold),
+          enable_safety_guard: enableSafetyGuard,
+          temperature: Number(temperature)
+        })
+      });
+      if (res.ok) {
+        showToast('AI Infrastructure & Quota configurations saved to backend database!');
+      } else {
+        showToast('Configuration updated locally.');
+      }
+    } catch (err) {
+      console.warn('Error saving AI config to backend:', err);
+      showToast('Configuration updated locally.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (

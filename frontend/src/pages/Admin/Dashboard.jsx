@@ -12,6 +12,7 @@
 // =========================================================================================
 
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Card from '../../components/Card';
 import { useAdminData } from '../../contexts/AdminDataContext';
 import { 
@@ -44,17 +45,11 @@ import {
   Legend 
 } from 'recharts';
 
-const monthlyTrendData = [
-  { month: 'Jan', exams: 42, traffic: 1240, aiGenerations: 310 },
-  { month: 'Feb', exams: 58, traffic: 1890, aiGenerations: 450 },
-  { month: 'Mar', exams: 85, traffic: 2390, aiGenerations: 680 },
-  { month: 'Apr', exams: 94, traffic: 2780, aiGenerations: 820 },
-  { month: 'May', exams: 120, traffic: 3490, aiGenerations: 1100 },
-  { month: 'Jun', exams: 110, traffic: 3100, aiGenerations: 950 },
-  { month: 'Jul', exams: 145, traffic: 4200, aiGenerations: 1350 },
-];
+// Empty fallback — real data always comes from stats.monthly_trends via backend
+const monthlyTrendData = [];
 
 export default function AdminDashboard() {
+  const navigate = useNavigate();
   const { 
     students, 
     faculty, 
@@ -158,23 +153,31 @@ export default function AdminDashboard() {
     showToast('Database backup downloaded successfully!');
   };
 
-  // Dynamic Department Distribution from Live Database
+  // Department distribution — always from live DB (stats.department_distribution)
+  // Falls back to client-side calculation using real student counts from context
   const deptDistribution = (stats?.department_distribution && stats.department_distribution.length > 0)
     ? stats.department_distribution
     : departments.map((d, i) => {
         const colors = ['#8B5CF6', '#3B82F6', '#10B981', '#F59E0B', '#EC4899', '#06B6D4'];
-        const studentCountInDept = students.filter(s => s.dept === d.code || s.dept?.includes(d.code)).length;
-        return {
-          name: `${d.name} (${d.code})`,
-          value: studentCountInDept > 0 ? studentCountInDept : (d.studentCount || 100),
-          color: colors[i % colors.length]
-        };
+        const count = students.filter(s => s.dept === d.code || s.dept?.includes(d.code)).length;
+        return { name: `${d.name} (${d.code})`, value: count, color: colors[i % colors.length] };
       });
 
-  // Dynamic monthly activity trends from DB telemetry
+  // Exam Activity chart — always from real DB monthly trends
   const chartTrendData = (stats?.monthly_trends && stats.monthly_trends.length > 0)
     ? stats.monthly_trends
     : monthlyTrendData;
+
+  // Live Server & AI Engine Health — real OS/Gemini telemetry from backend psutil
+  const health = stats?.system_health;
+  const cpuPct      = health?.cpu?.percent     ?? null;
+  const cpuStatus   = health?.cpu?.status      ?? 'Syncing...';
+  const ramUsed     = health?.memory?.used_gb  ?? null;
+  const ramTotal    = health?.memory?.total_gb ?? null;
+  const ramPct      = health?.memory?.percent  ?? null;
+  const geminiStat  = health?.gemini?.status   ?? 'Checking...';
+  const geminiMs    = health?.gemini?.latency_ms ?? null;
+  const geminiUp    = health?.gemini?.uptime   ?? '–';
 
   return (
     <div className="flex-col gap-6" style={{ display: 'flex', width: '100%' }}>
@@ -287,8 +290,11 @@ export default function AdminDashboard() {
           gap: '16px' 
         }}
       >
-        {/* KPI 1: Live Students Count */}
-        <Card>
+        {/* KPI 1: Live Students Count -> Navigates to Students Directory */}
+        <Card 
+          onClick={() => navigate('/admin/users?tab=students')}
+          style={{ transition: 'all 0.3s cubic-bezier(0.25, 1, 0.5, 1)' }}
+        >
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
             <div>
               <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: 500 }}>
@@ -307,8 +313,11 @@ export default function AdminDashboard() {
           </div>
         </Card>
 
-        {/* KPI 2: Live Active Faculty Members */}
-        <Card>
+        {/* KPI 2: Live Active Faculty Members -> Navigates to Faculty / Teachers Directory */}
+        <Card 
+          onClick={() => navigate('/admin/users?tab=faculty')}
+          style={{ transition: 'all 0.3s cubic-bezier(0.25, 1, 0.5, 1)' }}
+        >
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
             <div>
               <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: 500 }}>
@@ -327,8 +336,11 @@ export default function AdminDashboard() {
           </div>
         </Card>
 
-        {/* KPI 3: Live Running Courses */}
-        <Card>
+        {/* KPI 3: Live Running Courses -> Navigates to Academics Course Catalog */}
+        <Card 
+          onClick={() => navigate('/admin/academics?tab=courses')}
+          style={{ transition: 'all 0.3s cubic-bezier(0.25, 1, 0.5, 1)' }}
+        >
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
             <div>
               <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: 500 }}>
@@ -347,8 +359,11 @@ export default function AdminDashboard() {
           </div>
         </Card>
 
-        {/* KPI 4: Exam Sessions */}
-        <Card>
+        {/* KPI 4: Exam Sessions -> Navigates to Exam Controller */}
+        <Card 
+          onClick={() => navigate('/admin/exams')}
+          style={{ transition: 'all 0.3s cubic-bezier(0.25, 1, 0.5, 1)' }}
+        >
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
             <div>
               <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: 500 }}>
@@ -367,8 +382,11 @@ export default function AdminDashboard() {
           </div>
         </Card>
 
-        {/* KPI 5: Total AI Questions */}
-        <Card>
+        {/* KPI 5: Total AI Questions -> Navigates to AI Engine & Quotas */}
+        <Card 
+          onClick={() => navigate('/admin/ai-engine')}
+          style={{ transition: 'all 0.3s cubic-bezier(0.25, 1, 0.5, 1)' }}
+        >
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
             <div>
               <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: 500 }}>
@@ -451,46 +469,77 @@ export default function AdminDashboard() {
       >
         <Card title="Live Server & AI Engine Health">
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '14px' }}>
+            {/* CPU — real OS data via psutil */}
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '6px' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Cpu size={16} color="var(--accent-primary)" /> Application Core CPU</span>
-                <span style={{ fontWeight: 600, color: 'var(--accent-success)' }}>28% (Healthy)</span>
+                <span style={{ fontWeight: 600, color: cpuPct !== null && cpuPct < 70 ? 'var(--accent-success)' : 'var(--accent-warning)' }}>
+                  {cpuPct !== null ? `${cpuPct}% (${cpuStatus})` : 'Syncing...'}
+                </span>
               </div>
               <div style={{ width: '100%', height: '8px', background: 'var(--bg-tertiary)', borderRadius: '4px', overflow: 'hidden' }}>
-                <div style={{ width: '28%', height: '100%', background: 'var(--accent-success)' }}></div>
+                <div style={{
+                  width: cpuPct !== null ? `${Math.min(cpuPct, 100)}%` : '0%',
+                  height: '100%',
+                  background: cpuPct !== null && cpuPct < 70 ? 'var(--accent-success)' : 'var(--accent-warning)',
+                  transition: 'width 1.2s ease-in-out'
+                }}></div>
               </div>
             </div>
+            {/* RAM — real OS data via psutil */}
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '6px' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><HardDrive size={16} color="var(--accent-secondary)" /> Memory (RAM) Allocation</span>
-                <span style={{ fontWeight: 600 }}>4.2 GB / 16 GB (26%)</span>
+                <span style={{ fontWeight: 600 }}>
+                  {ramUsed !== null ? `${ramUsed} GB / ${ramTotal} GB (${ramPct}%)` : 'Syncing...'}
+                </span>
               </div>
               <div style={{ width: '100%', height: '8px', background: 'var(--bg-tertiary)', borderRadius: '4px', overflow: 'hidden' }}>
-                <div style={{ width: '26%', height: '100%', background: 'var(--accent-secondary)' }}></div>
+                <div style={{
+                  width: ramPct !== null ? `${Math.min(ramPct, 100)}%` : '0%',
+                  height: '100%',
+                  background: ramPct !== null && ramPct < 80 ? 'var(--accent-secondary)' : 'var(--accent-warning)',
+                  transition: 'width 1.2s ease-in-out'
+                }}></div>
               </div>
             </div>
+            {/* Gemini API — real latency ping from backend */}
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '6px' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Sparkles size={16} color="#EC4899" /> Google Gemini API Gateway</span>
-                <span style={{ fontWeight: 600, color: 'var(--accent-success)' }}>99.98% Uptime (410ms)</span>
+                <span style={{ fontWeight: 600, color: geminiStat === 'Operational' ? 'var(--accent-success)' : 'var(--accent-warning)' }}>
+                  {geminiStat === 'Operational'
+                    ? `${geminiUp} Uptime (${geminiMs}ms)`
+                    : geminiStat === 'Checking...' ? 'Checking...' : `${geminiStat} (${geminiMs || '–'}ms)`}
+                </span>
               </div>
               <div style={{ width: '100%', height: '8px', background: 'var(--bg-tertiary)', borderRadius: '4px', overflow: 'hidden' }}>
-                <div style={{ width: '99.9%', height: '100%', background: 'linear-gradient(90deg, #8B5CF6, #10B981)' }}></div>
+                <div style={{
+                  width: geminiStat === 'Operational' ? '99.9%' : (geminiStat === 'Checking...' ? '20%' : '60%'),
+                  height: '100%',
+                  background: geminiStat === 'Operational' ? 'linear-gradient(90deg, #8B5CF6, #10B981)' : 'var(--accent-warning)',
+                  transition: 'width 1.5s ease-in-out'
+                }}></div>
               </div>
             </div>
           </div>
         </Card>
 
-        {/* Live Recent Audit Activity */}
+        {/* Live Recent Audit Activity — real records from SQLite AuditLog table */}
         <Card title="Live Recent Audit Events" action={<span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Real-time</span>}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px' }}>
-            {auditLogs.slice(0, 4).map((log) => (
-              <div key={log.id} style={{ padding: '10px 12px', borderLeft: '4px solid var(--accent-primary)', background: 'var(--bg-secondary)', borderRadius: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            {auditLogs.length === 0 && (
+              <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textAlign: 'center', padding: '18px' }}>No audit events yet.</div>
+            )}
+            {auditLogs.slice(0, 5).map((log) => (
+              <div key={log.id} style={{ padding: '10px 12px', borderLeft: `4px solid ${
+                log.status === 'Success' ? 'var(--accent-primary)' : 'var(--accent-warning)'
+              }`, background: 'var(--bg-secondary)', borderRadius: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{log.action}</div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{log.target}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{log.target || log.category}</div>
                 </div>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{log.timestamp}</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', marginLeft: '8px' }}>{log.timestamp || 'Just now'}</span>
               </div>
             ))}
           </div>
