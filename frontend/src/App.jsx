@@ -26,6 +26,7 @@ import { ProfileProvider } from './contexts/ProfileContext';
 // [MODIFICATION: Added AdminDataProvider for real-time reactivity and LocalStorage state persistence across the entire Admin Console]
 // [Bengali Note: অ্যাডমিন কনসোলের সকল ডাটা লাইভ আপডেট ও লোকালস্টোরেজে সেভ রাখার জন্য AdminDataProvider যুক্ত করা হলো।]
 import { AdminDataProvider } from './contexts/AdminDataContext';
+import { DeleteConfirmProvider } from './contexts/DeleteConfirmContext';
 import { AdminRoute, TeacherRoute, StudentRoute } from './components/RoleRoute';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
@@ -192,7 +193,8 @@ function App() {
       <AuthProvider>
         <ProfileProvider>
           <AdminDataProvider>
-            <Routes>
+            <DeleteConfirmProvider>
+              <Routes>
 
           {/* ==================== PUBLIC ROUTES ==================== */}
           {/* These routes are accessible to all visitors without login */}
@@ -321,6 +323,7 @@ function App() {
               "replace" prevents the bad URL from staying in browser history. */}
           <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+            </DeleteConfirmProvider>
           </AdminDataProvider>
         </ProfileProvider>
       </AuthProvider>

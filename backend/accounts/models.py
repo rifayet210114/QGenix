@@ -55,6 +55,9 @@ class CustomUser(AbstractUser):
     # Faculty Specific Attributes (শিক্ষকদের জন্য প্রয়োজনীয় ফিল্ড)
     designation = models.CharField(max_length=100, blank=True, null=True, help_text="e.g. Professor, Assistant Professor, Lecturer")
 
+    # Profile Picture / Avatar (অপ্টিমাইজড বেস৬৪ ইমেজ অথবা ফটো ইউআরএল)
+    profile_picture = models.TextField(blank=True, null=True, help_text="Optimized base64 avatar or image URL")
+
     # Helper role checking properties
     @property
     def is_admin_role(self):
@@ -143,7 +146,7 @@ class Notice(models.Model):
     content = models.TextField()
     attachment = models.CharField(max_length=255, blank=True, null=True)
 
-    def __str__(self):
+    def __str__(self): 
         return self.title
 
 
@@ -271,6 +274,86 @@ class SystemSetting(models.Model):
 
     def __str__(self):
         return f"System Setting (Student: {self.student_email_format}, Teacher: {self.teacher_email_format})"
+
+
+class FacultyBiometricLog(models.Model):
+    teacher = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='biometric_logs')
+    date = models.CharField(max_length=50) # e.g. "2026-10-24" or "Oct 24, 2026"
+    check_in = models.CharField(max_length=20, default='08:45 AM')
+    check_out = models.CharField(max_length=20, default='04:35 PM')
+    terminal = models.CharField(max_length=100, default='Gate 1 - RFID Terminal A')
+    duration = models.CharField(max_length=50, default='7h 50m')
+    status = models.CharField(max_length=50, default='Present') # Present, Late Entry, Half Day, Holiday
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.teacher.username} - {self.date}: {self.status} (In: {self.check_in}, Out: {self.check_out})"
+
+
+class FacultyLeaveQuota(models.Model):
+    teacher = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name='leave_quota')
+    academic_year = models.CharField(max_length=50, default='2026-2027')
+    casual_quota = models.IntegerField(default=15)
+    casual_taken = models.IntegerField(default=3)
+    medical_quota = models.IntegerField(default=15)
+    medical_taken = models.IntegerField(default=1)
+    academic_duty_quota = models.IntegerField(default=10)
+    academic_duty_taken = models.IntegerField(default=2)
+    earned_quota = models.IntegerField(default=10)
+    earned_taken = models.IntegerField(default=0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def total_quota(self):
+        return self.casual_quota + self.medical_quota + self.academic_duty_quota + self.earned_quota
+
+    def total_taken(self):
+        return self.casual_taken + self.medical_taken + self.academic_duty_taken + self.earned_taken
+
+    def total_remaining(self):
+        return self.total_quota() - self.total_taken()
+
+    def __str__(self):
+        return f"{self.teacher.username} Leave Quota ({self.total_remaining()} Remaining)"
+
+
+class FacultyLeaveRecord(models.Model):
+    teacher = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='leave_records')
+    leave_type = models.CharField(max_length=50, default='Casual Leave') # Casual Leave, Medical Leave, Academic Duty, Earned Leave
+    start_date = models.CharField(max_length=50) # e.g. "2026-10-10"
+    end_date = models.CharField(max_length=50)   # e.g. "2026-10-12"
+    days = models.IntegerField(default=1)
+    reason = models.TextField()
+    approved_by = models.CharField(max_length=150, default='Dean of Academic Affairs')
+    status = models.CharField(max_length=50, default='Approved') # Approved, Pending, Rejected
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.teacher.username} - {self.leave_type} ({self.days} days): {self.status}"
+
+
+class FacultySyllabusProgress(models.Model):
+    teacher = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='syllabus_progress')
+    course_code = models.CharField(max_length=30)
+    course_title = models.CharField(max_length=200, blank=True)
+    batch = models.CharField(max_length=100)
+    section = models.CharField(max_length=50, default='Sec A')
+    progress_percentage = models.IntegerField(default=68)
+    completed_topics = models.IntegerField(default=14)
+    total_topics = models.IntegerField(default=20)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('teacher', 'course_code', 'batch', 'section')
+
+    def __str__(self):
+        return f"{self.teacher.username} - {self.course_code} ({self.batch} {self.section}): {self.progress_percentage}%"
+
 
 
 

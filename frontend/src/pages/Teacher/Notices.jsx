@@ -21,6 +21,7 @@ import {
   PlusCircle, Trash2, Send, CheckCircle2, RefreshCw
 } from 'lucide-react';
 import Card from '../../components/Card';
+import { useDeleteConfirm } from '../../contexts/DeleteConfirmContext';
 
 // ----------------------------------------------------------------------------
 // 1. INITIAL MOCK DATA (Matches Student notice database)
@@ -91,6 +92,7 @@ const initialNoticesData = [
 ];
 
 export default function TeacherNotices() {
+  const { confirmDelete } = useDeleteConfirm();
   const [isLightMode, setIsLightMode] = useState(document.body.classList.contains('light-mode'));
   
   useEffect(() => {
@@ -240,20 +242,28 @@ export default function TeacherNotices() {
 
   // Delete posted notice function
   const handleDeleteNotice = (id) => {
-    if (window.confirm('Are you sure you want to permanently delete this notice?')) {
-      const remainingNotices = notices.filter(n => n.id !== id);
-      setNotices(remainingNotices);
-      
-      // Auto select first notice after delete
-      if (remainingNotices.length > 0) {
-        setSelectedNoticeId(remainingNotices[0].id);
-      } else {
-        setSelectedNoticeId(null);
-      }
+    const targetNotice = notices.find(n => n.id === id);
+    confirmDelete({
+      title: 'Delete Notice Announcement',
+      itemName: targetNotice?.title ? `"${targetNotice.title}"` : 'Notice',
+      itemType: 'Broadcast Circular',
+      warningText: 'This action cannot be undone. The notice will be permanently deleted from the student broadcast feed.',
+      confirmBtnText: 'Delete Notice',
+      onConfirm: () => {
+        const remainingNotices = notices.filter(n => n.id !== id);
+        setNotices(remainingNotices);
+        
+        // Auto select first notice after delete
+        if (remainingNotices.length > 0) {
+          setSelectedNoticeId(remainingNotices[0].id);
+        } else {
+          setSelectedNoticeId(null);
+        }
 
-      setMobileDetailActive(false);
-      triggerToast('Notice deleted successfully.');
-    }
+        setMobileDetailActive(false);
+        triggerToast('Notice deleted successfully.');
+      }
+    });
   };
 
   return (

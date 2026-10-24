@@ -15,6 +15,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Card from '../../components/Card';
 import { useAdminData } from '../../contexts/AdminDataContext';
+import { useDeleteConfirm } from '../../contexts/DeleteConfirmContext';
 import { 
   Building2, 
   Layers, 
@@ -35,6 +36,7 @@ import {
 } from 'lucide-react';
 
 export default function Academics() {
+  const { confirmDelete } = useDeleteConfirm();
   const { 
     departments, addDepartment, editDepartment, deleteDepartment,
     batches, addBatch, editBatch, deleteBatch, archiveSemester,
@@ -80,7 +82,31 @@ export default function Academics() {
   const [deptForm, setDeptForm] = useState({ code: '', name: '', hod: '', facultyCount: 20, studentCount: 500 });
   const [courseForm, setCourseForm] = useState({ code: '', title: '', credits: 3.0, dept: 'CSE' });
   const [batchForm, setBatchForm] = useState({ name: '', dept: 'CSE', semester: '1st Semester', sections: 'A, B', studentCount: 120 });
-  const [allocForm, setAllocForm] = useState({ courseCode: 'CSE-301', courseName: 'Database Management Systems', teacher: 'Dr. Asaduzzaman', batch: 'Batch 2022 - 2023', section: 'Sec A', weeklyDays: 'Sun, Tue' });
+  const [allocForm, setAllocForm] = useState({ courseCode: '', courseName: '', teacher: '', batch: '', section: 'Sec A', weeklyDays: 'Sun, Tue' });
+
+  // Open Add Item modal with freshly synced defaults based on current catalog and faculty
+  const handleOpenAddModal = () => {
+    if (activeTab === 'allocation') {
+      const defaultCourse = courses && courses.length > 0 ? courses[0] : null;
+      const defaultFaculty = faculty && faculty.length > 0 ? faculty[0] : null;
+      const defaultBatch = batches && batches.length > 0 ? batches[0] : null;
+
+      const courseCode = defaultCourse ? defaultCourse.code : 'CSE-301';
+      const courseName = defaultCourse ? defaultCourse.title : 'Database Management Systems';
+      const teacherName = defaultFaculty ? (defaultFaculty.name || '').trim() : 'Minhaj';
+      const batchName = defaultBatch ? (defaultBatch.name || '').trim() : 'Batch 2022 - 2023';
+
+      setAllocForm({
+        courseCode,
+        courseName,
+        teacher: teacherName,
+        batch: batchName,
+        section: 'Sec A',
+        weeklyDays: 'Sun, Tue'
+      });
+    }
+    setIsAddModalOpen(true);
+  };
 
   // Calculate dynamic real count of enrolled students in a department
   const getDeptStudentCount = (dept) => {
@@ -146,17 +172,22 @@ export default function Academics() {
       triggerToast(`Created batch cohort: ${batchForm.name} (${parsedSections.join(', ')})`);
       setBatchForm({ name: '', dept: 'CSE', semester: '1st Semester', sections: 'A, B', studentCount: 120 });
     } else if (activeTab === 'allocation') {
+      const matchedCourse = courses.find(c => c.code === allocForm.courseCode);
+      const cName = matchedCourse ? matchedCourse.title : (allocForm.courseName || allocForm.courseCode);
+      const teacherName = (allocForm.teacher || (faculty[0]?.name || '')).trim();
       const days = allocForm.weeklyDays || 'Sun, Tue';
-      addAllocation({ ...allocForm, weeklyDays: days });
-      triggerToast(`Allocated ${allocForm.courseName} to ${allocForm.teacher} (${days})`);
-      setAllocForm({ 
-        courseCode: 'CSE-301', 
-        courseName: 'Database Management Systems', 
-        teacher: 'Dr. Asaduzzaman', 
-        batch: 'Batch 2022 - 2023', 
-        section: 'Sec A', 
-        weeklyDays: 'Sun, Tue' 
+      const targetBatch = allocForm.batch || (batches[0]?.name || 'Batch 2022 - 2023');
+      const section = allocForm.section || 'Sec A';
+
+      addAllocation({
+        courseCode: allocForm.courseCode || (courses[0]?.code || 'CSE-301'),
+        courseName: cName,
+        teacher: teacherName,
+        batch: targetBatch,
+        section,
+        weeklyDays: days
       });
+      triggerToast(`Allocated ${cName} to ${teacherName} (${days})`);
     }
     setIsAddModalOpen(false);
   };
@@ -219,7 +250,7 @@ export default function Academics() {
         {/* Action Button: Trigger Modal */}
         <button 
           className="btn btn-primary"
-          onClick={() => setIsAddModalOpen(true)}
+          onClick={handleOpenAddModal}
           style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
         >
           <Plus size={16} />
@@ -351,10 +382,17 @@ export default function Academics() {
                             style={{ padding: '6px 10px', fontSize: '0.75rem', color: 'var(--accent-danger)' }}
                             title="Delete Department"
                             onClick={() => {
-                              if (window.confirm(`Are you sure you want to remove department ${dept.name}?`)) {
-                                deleteDepartment(dept.id);
-                                triggerToast(`Removed department ${dept.name}`);
-                              }
+                              confirmDelete({
+                                title: 'Remove Academic Department',
+                                itemName: `${dept.name} (${dept.code})`,
+                                itemType: 'Department',
+                                warningText: 'This will remove the department record. Associated batches and course programs will lose their department classification.',
+                                confirmBtnText: 'Remove Department',
+                                onConfirm: () => {
+                                  deleteDepartment(dept.id);
+                                  triggerToast(`Removed department ${dept.name}`);
+                                }
+                              });
                             }}
                           >
                             <Trash2 size={14} />
@@ -485,10 +523,17 @@ export default function Academics() {
                               style={{ padding: '6px 10px', fontSize: '0.75rem', color: 'var(--accent-danger)' }}
                               title="Delete Batch Cohort"
                               onClick={() => {
-                                if (window.confirm(`Delete batch cohort ${b.name}?`)) {
-                                  deleteBatch(b.id);
-                                  triggerToast(`Deleted batch cohort ${b.name}`);
-                                }
+                                confirmDelete({
+                                  title: 'Delete Batch Cohort',
+                                  itemName: `${b.name} (${b.dept})`,
+                                  itemType: 'Batch Cohort',
+                                  warningText: 'This will remove the cohort group and all associated section assignments.',
+                                  confirmBtnText: 'Delete Batch',
+                                  onConfirm: () => {
+                                    deleteBatch(b.id);
+                                    triggerToast(`Deleted batch cohort ${b.name}`);
+                                  }
+                                });
                               }}
                             >
                               <Trash2 size={14} />
@@ -551,10 +596,17 @@ export default function Academics() {
                               style={{ padding: '6px 10px', fontSize: '0.75rem', color: 'var(--accent-danger)' }}
                               title="Delete Course"
                               onClick={() => {
-                                if (window.confirm(`Delete course ${c.code}?`)) {
-                                  deleteCourse(c.id);
-                                  triggerToast(`Deleted course ${c.code}`);
-                                }
+                                confirmDelete({
+                                  title: 'Delete Curriculum Course',
+                                  itemName: `${c.code} - ${c.name}`,
+                                  itemType: 'Curriculum Course',
+                                  warningText: 'This will permanently remove the course from the syllabus catalog and faculty allocations.',
+                                  confirmBtnText: 'Delete Course',
+                                  onConfirm: () => {
+                                    deleteCourse(c.id);
+                                    triggerToast(`Deleted course ${c.code}`);
+                                  }
+                                });
                               }}
                             >
                               <Trash2 size={14} />
@@ -628,10 +680,17 @@ export default function Academics() {
                             style={{ padding: '6px 10px', fontSize: '0.8rem', color: 'var(--accent-danger)' }}
                             title="Cancel Allocation"
                             onClick={() => {
-                              if (window.confirm(`Unassign teacher from ${a.courseName}?`)) {
-                                deleteAllocation(a.id);
-                                triggerToast(`Allocation revoked for ${a.courseCode}`);
-                              }
+                              confirmDelete({
+                                title: 'Revoke Course Allocation',
+                                itemName: `${a.courseName} (${a.teacher})`,
+                                itemType: 'Course Allocation',
+                                warningText: 'This will unassign the faculty teacher from this course section and remove related scheduling slots.',
+                                confirmBtnText: 'Revoke Allocation',
+                                onConfirm: () => {
+                                  deleteAllocation(a.id);
+                                  triggerToast(`Allocation revoked for ${a.courseCode}`);
+                                }
+                              });
                             }}
                           >
                             <Trash2 size={14} />
@@ -1086,12 +1145,14 @@ export default function Academics() {
                   onChange={e => setEditingAlloc({ ...editingAlloc, teacher: e.target.value })} 
                   style={{ width: '100%' }}
                 >
-                  {faculty.map(f => (
-                    <option key={f.id} value={f.name}>{f.name} ({f.dept})</option>
-                  ))}
-                  <option value="Dr. Asaduzzaman">Dr. Asaduzzaman (CSE)</option>
-                  <option value="Prof. Dr. Mahbubur Rahman">Prof. Dr. Mahbubur Rahman (CSE)</option>
-                  <option value="Dr. Farhana Ahmed">Dr. Farhana Ahmed (EEE)</option>
+                  {faculty.map(f => {
+                    const trimmedName = (f.name || '').trim();
+                    return (
+                      <option key={f.id} value={trimmedName}>
+                        {trimmedName} ({f.dept || f.department || 'Faculty'})
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 
@@ -1340,9 +1401,14 @@ export default function Academics() {
                       onChange={e => setAllocForm({ ...allocForm, teacher: e.target.value })}
                       style={{ width: '100%' }}
                     >
-                      {faculty.map(f => (
-                        <option key={f.id} value={f.name}>{f.name} ({f.dept})</option>
-                      ))}
+                      {faculty.map(f => {
+                        const trimmedName = (f.name || '').trim();
+                        return (
+                          <option key={f.id} value={trimmedName}>
+                            {trimmedName} ({f.dept || f.department || 'Faculty'})
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>

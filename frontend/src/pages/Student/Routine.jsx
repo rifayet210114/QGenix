@@ -31,6 +31,8 @@ import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid 
 } from 'recharts';
 import Card from '../../components/Card';
+import { useAuth } from '../../contexts/AuthContext';
+import { API_BASE } from '../../config';
 
 // ----------------------------------------------------------------------------
 // 1. MOCK DATA: STUDENT ROUTINE & EVENTS DATABASE
@@ -274,6 +276,122 @@ const initialNotifications = [
 ];
 
 export default function Routine() {
+  const { user } = useAuth();
+
+  // Realtime Live Routine synchronization with database / localStorage
+  const [liveRoutines, setLiveRoutines] = useState(() => {
+    try {
+      const saved = localStorage.getItem('qgenix_routineSlots');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    const fetchLiveRoutines = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/routines/`);
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data)) {
+            setLiveRoutines(data);
+            localStorage.setItem('qgenix_routineSlots', JSON.stringify(data));
+          }
+        }
+      } catch (err) {
+        // Fallback to cache
+      }
+    };
+    fetchLiveRoutines();
+    const interval = setInterval(fetchLiveRoutines, 6000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const studentBatch = (user?.batch || '').toLowerCase().trim();
+  const studentDept = (user?.department || user?.dept || 'CSE').toLowerCase().trim();
+
+  const isMyStudentSlot = (slot) => {
+    if (!slot) return false;
+    const b = (slot.batch || '').toLowerCase().trim();
+    if (studentBatch && (b.includes(studentBatch) || studentBatch.includes(b))) return true;
+    const c = (slot.course || '').toLowerCase().trim();
+    if (studentDept && c.startsWith(studentDept)) return true;
+    return true;
+  };
+
+  const effectiveTimetableGrid = useMemo(() => {
+    if (!liveRoutines || liveRoutines.length === 0) return timetableGrid;
+
+    const slots = [
+      { id: 1, name: 'Slot 1', time: '09:00 AM - 10:30 AM' },
+      { id: 2, name: 'Slot 2', time: '10:45 AM - 12:15 PM' },
+      { id: 3, name: 'Slot 3', time: '01:00 PM - 02:30 PM' },
+      { id: 4, name: 'Slot 4', time: '02:45 PM - 04:15 PM' }
+    ];
+
+    const daysList = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const days = {};
+
+    daysList.forEach(day => {
+      days[day] = slots.map(slot => {
+        const matched = liveRoutines.find(r => 
+          r.day === day && 
+          (r.time === slot.time || r.time?.includes(slot.time.split(' - ')[0])) &&
+          isMyStudentSlot(r)
+        );
+
+        if (matched) {
+          const parts = (matched.course || '').split(':');
+          const code = parts[0]?.trim() || 'CLASS';
+          const title = parts[1]?.trim() || matched.course;
+          return {
+            code,
+            title,
+            type: code.toLowerCase().includes('lab') ? 'Lab' : 'Lecture',
+            room: matched.room,
+            instructor: matched.teacher,
+            batch: matched.batch,
+            time: matched.time || slot.time
+          };
+        }
+
+        return {
+          code: null,
+          title: 'Self Study / Library',
+          type: 'Free'
+        };
+      });
+    });
+
+    return { slots, days };
+  }, [liveRoutines, studentBatch, studentDept]);
+
+  const todayName = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+  const effectiveDailySchedule = useMemo(() => {
+    if (!liveRoutines || liveRoutines.length === 0) return dailySchedule;
+    const todaySlots = liveRoutines.filter(r => r.day === todayName && isMyStudentSlot(r));
+    if (todaySlots.length > 0) {
+      return todaySlots.map((r, idx) => {
+        const parts = (r.course || '').split(':');
+        const code = parts[0]?.trim() || 'CLASS';
+        const subject = parts[1]?.trim() || r.course;
+        return {
+          code,
+          subject,
+          instructor: r.teacher,
+          room: r.room,
+          startTime: (r.time || '').split(' - ')[0] || '09:00 AM',
+          endTime: (r.time || '').split(' - ')[1] || '10:30 AM',
+          duration: '1.5 Hours',
+          status: idx === 0 ? 'Ongoing' : 'Upcoming',
+          isCurrent: idx === 0
+        };
+      });
+    }
+    return dailySchedule;
+  }, [liveRoutines, todayName, studentBatch, studentDept]);
+
   // Theme state sync
   const [isLightMode, setIsLightMode] = useState(document.body.classList.contains('light-mode'));
   useEffect(() => {
@@ -952,7 +1070,7 @@ export default function Routine() {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {dailySchedule.map((cls, idx) => {
+                {effectiveDailySchedule.map((cls, idx) => {
                   const statusColors = {
                     Completed: { text: '#10B981', bg: 'rgba(16, 185, 129, 0.12)' },
                     Ongoing: { text: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.15)' },
@@ -1100,13 +1218,13 @@ export default function Routine() {
               <thead>
                 <tr>
                   <th style={{ width: '150px' }} className="timetable-th">Time Slots</th>
-                  {Object.keys(timetableGrid.days).map((day, idx) => (
+                  {Object.keys(effectiveTimetableGrid.days).map((day, idx) => (
                     <th key={idx} className="timetable-th">{day}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {timetableGrid.slots.map((slot, sIdx) => (
+                {effectiveTimetableGrid.slots.map((slot, sIdx) => (
                   <tr key={sIdx}>
                     {/* Time Slot display */}
                     <td className="timetable-td-time">
@@ -1117,8 +1235,8 @@ export default function Routine() {
                     </td>
 
                     {/* Loop through each day for this slot */}
-                    {Object.keys(timetableGrid.days).map((day, dIdx) => {
-                      const cls = timetableGrid.days[day][sIdx];
+                    {Object.keys(effectiveTimetableGrid.days).map((day, dIdx) => {
+                      const cls = effectiveTimetableGrid.days[day][sIdx];
                       const detail = cls && cls.code ? coursesDetail[cls.code] : null;
 
                       if (!cls || !cls.code) {

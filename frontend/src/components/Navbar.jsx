@@ -138,20 +138,21 @@ export default function Navbar({ title, role, onMenuClick }) {
         </Link>
 
         {/* ---- User Profile Pill Card ---- */}
-        {/* Shows avatar photo (if set) or gradient initials, plus the live display name from ProfileContext. */}
+        {/* Shows avatar photo (if set) or gradient initials, plus the live display name */}
         <div className="flex items-center" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '6px 16px 6px 6px', background: 'rgba(255,255,255,0.02)', borderRadius: '30px', border: '1px solid rgba(255,255,255,0.08)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 2px 6px rgba(0,0,0,0.1)' }}>
           {/* Avatar: shows uploaded photo or gradient initials circle */}
-          {profile.avatarUrl ? (
+          {(user?.profile_picture || profile.avatarUrl) ? (
             <img
-              src={profile.avatarUrl}
+              src={user?.profile_picture || profile.avatarUrl}
               alt="Profile"
               style={{
-                width: '28px',
-                height: '28px',
+                width: '32px',
+                height: '32px',
                 borderRadius: '50%',
                 objectFit: 'cover',
                 flexShrink: 0,
-                boxShadow: '0 0 10px rgba(139, 92, 246, 0.3)',
+                border: '2px solid #8B5CF6',
+                boxShadow: '0 0 10px rgba(139, 92, 246, 0.4)',
               }}
             />
           ) : (

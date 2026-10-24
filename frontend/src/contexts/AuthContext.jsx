@@ -57,14 +57,35 @@ export const AuthProvider = ({ children }) => {
     setLoading(true);
     setAuthError(null);
 
+    const cleanUsername = (username || '').trim();
+    const cleanPassword = (password || '').trim();
+
+    // 0. Check deletion ledger: permanently block login for deleted teachers & students
     try {
-      // Authenticate via Django REST Framework backend only
+      const deletedUsers = JSON.parse(localStorage.getItem('qgenix_deleted_users') || '[]');
+      const lowerUser = cleanUsername.toLowerCase();
+      const lowerPrefix = lowerUser.split('@')[0];
+      const isBlacklisted = deletedUsers.some(d => 
+        d === lowerUser || 
+        d === lowerPrefix || 
+        lowerUser === d
+      );
+      if (isBlacklisted) {
+        const errorMsg = 'Your account has been permanently removed by administration. Access is revoked.';
+        setAuthError(errorMsg);
+        setLoading(false);
+        return { success: false, error: errorMsg };
+      }
+    } catch (e) {}
+
+    try {
+      // Authenticate via Django REST Framework backend
       const response = await fetch(`${API_BASE}/api/auth/login/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username: cleanUsername, password: cleanPassword }),
       });
 
       if (response.ok) {
@@ -81,11 +102,72 @@ export const AuthProvider = ({ children }) => {
           institutionalId: data.user.institutional_id || '',
           batch: data.user.batch || '',
           designation: data.user.designation || '',
+          profile_picture: data.user.profile_picture || '',
         };
         setUser(authData);
         setLoading(false);
         return { success: true, user: authData };
       } else {
+        // Fallback: check registered students/teachers in localStorage
+        try {
+          const registeredStudents = JSON.parse(localStorage.getItem('qgenix_registered_students') || '[]');
+          const matched = registeredStudents.find(s => 
+            (s.email?.toLowerCase() === cleanUsername.toLowerCase() ||
+             s.institutionalId?.toLowerCase() === cleanUsername.toLowerCase() ||
+             s.username?.toLowerCase() === cleanUsername.toLowerCase() ||
+             s.email?.replace(/[_.-]/g, '').toLowerCase() === cleanUsername.replace(/[_.-]/g, '').toLowerCase()) &&
+            s.password === cleanPassword
+          );
+          if (matched) {
+            const authData = {
+              token: `mock-jwt-student-${Date.now()}`,
+              refresh: `mock-refresh-${Date.now()}`,
+              id: matched.id || 999,
+              username: matched.username || matched.email.split('@')[0],
+              email: matched.email,
+              role: 'STUDENT',
+              name: matched.name || matched.username,
+              department: matched.department || 'Computer Science & Engineering',
+              institutionalId: matched.institutionalId || '',
+              batch: matched.batch || 'Batch 2024',
+              designation: '',
+              profile_picture: matched.profile_picture || ''
+            };
+            setUser(authData);
+            setLoading(false);
+            return { success: true, user: authData };
+          }
+
+          // Check registered teachers fallback
+          const registeredTeachers = JSON.parse(localStorage.getItem('qgenix_registered_teachers') || '[]');
+          const matchedTeacher = registeredTeachers.find(t => 
+            (t.email?.toLowerCase() === cleanUsername.toLowerCase() ||
+             t.institutionalId?.toLowerCase() === cleanUsername.toLowerCase() ||
+             t.id?.toLowerCase() === cleanUsername.toLowerCase() ||
+             t.username?.toLowerCase() === cleanUsername.toLowerCase() ||
+             t.email?.replace(/[_.-]/g, '').toLowerCase() === cleanUsername.replace(/[_.-]/g, '').toLowerCase()) &&
+            t.password === cleanPassword
+          );
+          if (matchedTeacher) {
+            const authData = {
+              token: `mock-jwt-teacher-${Date.now()}`,
+              refresh: `mock-refresh-${Date.now()}`,
+              id: matchedTeacher.id || 888,
+              username: matchedTeacher.username || matchedTeacher.email.split('@')[0],
+              email: matchedTeacher.email,
+              role: 'TEACHER',
+              name: matchedTeacher.name || matchedTeacher.username,
+              department: matchedTeacher.department || 'Computer Science & Engineering',
+              institutionalId: matchedTeacher.id || '',
+              designation: matchedTeacher.designation || 'Lecturer',
+              profile_picture: matchedTeacher.profile_picture || ''
+            };
+            setUser(authData);
+            setLoading(false);
+            return { success: true, user: authData };
+          }
+        } catch (e) {}
+
         const errData = await response.json().catch(() => ({}));
         const errorMsg = errData.detail || 'Invalid username or password.';
         setAuthError(errorMsg);
@@ -93,7 +175,66 @@ export const AuthProvider = ({ children }) => {
         return { success: false, error: errorMsg };
       }
     } catch (err) {
-      // Network/connection error
+      // Network/connection fallback
+      try {
+        const registeredStudents = JSON.parse(localStorage.getItem('qgenix_registered_students') || '[]');
+        const matched = registeredStudents.find(s => 
+          (s.email?.toLowerCase() === cleanUsername.toLowerCase() ||
+           s.institutionalId?.toLowerCase() === cleanUsername.toLowerCase() ||
+           s.username?.toLowerCase() === cleanUsername.toLowerCase() ||
+           s.email?.replace(/[_.-]/g, '').toLowerCase() === cleanUsername.replace(/[_.-]/g, '').toLowerCase()) &&
+          s.password === cleanPassword
+        );
+        if (matched) {
+          const authData = {
+            token: `mock-jwt-student-${Date.now()}`,
+            refresh: `mock-refresh-${Date.now()}`,
+            id: matched.id || 999,
+            username: matched.username || matched.email.split('@')[0],
+            email: matched.email,
+            role: 'STUDENT',
+            name: matched.name || matched.username,
+            department: matched.department || 'Computer Science & Engineering',
+            institutionalId: matched.institutionalId || '',
+            batch: matched.batch || 'Batch 2024',
+            designation: '',
+            profile_picture: matched.profile_picture || ''
+          };
+          setUser(authData);
+          setLoading(false);
+          return { success: true, user: authData };
+        }
+
+        // Check registered teachers network fallback
+        const registeredTeachers = JSON.parse(localStorage.getItem('qgenix_registered_teachers') || '[]');
+        const matchedTeacher = registeredTeachers.find(t => 
+          (t.email?.toLowerCase() === cleanUsername.toLowerCase() ||
+           t.institutionalId?.toLowerCase() === cleanUsername.toLowerCase() ||
+           t.id?.toLowerCase() === cleanUsername.toLowerCase() ||
+           t.username?.toLowerCase() === cleanUsername.toLowerCase() ||
+           t.email?.replace(/[_.-]/g, '').toLowerCase() === cleanUsername.replace(/[_.-]/g, '').toLowerCase()) &&
+          t.password === cleanPassword
+        );
+        if (matchedTeacher) {
+          const authData = {
+            token: `mock-jwt-teacher-${Date.now()}`,
+            refresh: `mock-refresh-${Date.now()}`,
+            id: matchedTeacher.id || 888,
+            username: matchedTeacher.username || matchedTeacher.email.split('@')[0],
+            email: matchedTeacher.email,
+            role: 'TEACHER',
+            name: matchedTeacher.name || matchedTeacher.username,
+            department: matchedTeacher.department || 'Computer Science & Engineering',
+            institutionalId: matchedTeacher.id || '',
+            designation: matchedTeacher.designation || 'Lecturer',
+            profile_picture: matchedTeacher.profile_picture || ''
+          };
+          setUser(authData);
+          setLoading(false);
+          return { success: true, user: authData };
+        }
+      } catch (e) {}
+
       const errorMsg = 'Cannot connect to server. Please try again later.';
       setAuthError(errorMsg);
       setLoading(false);

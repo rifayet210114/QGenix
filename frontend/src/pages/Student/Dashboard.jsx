@@ -26,8 +26,17 @@ import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, 
   Tooltip, CartesianGrid, PieChart, Pie, Cell 
 } from 'recharts';
+import { useAuth } from '../../contexts/AuthContext';
+import { useProfile } from '../../contexts/ProfileContext';
 
 export default function StudentDashboard() {
+  const { user } = useAuth();
+  const { profile } = useProfile();
+
+  const studentName = user?.name || (profile.firstName ? `${profile.firstName} ${profile.lastName}`.trim() : 'Student');
+  const studentFirstName = studentName.split(' ')[0] || 'Student';
+  const avatarPhoto = user?.profile_picture || profile.avatarUrl;
+
   // Theme state detection to adapt chart styles dynamically
   const [isLightMode, setIsLightMode] = useState(document.body.classList.contains('light-mode'));
   
@@ -181,33 +190,69 @@ export default function StudentDashboard() {
         }} />
 
         {/* Left Column: Greeting & Action */}
-        <div style={{ flex: '1', minWidth: '300px', display: 'flex', flexDirection: 'column', gap: '12px', zIndex: 2 }}>
-          <h1 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '2.1rem', fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.2 }}>
-            Welcome back, Rafiul! 👋
-          </h1>
-          <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '1.05rem', fontWeight: '500', maxWidth: '400px', lineHeight: 1.4 }}>
-            Keep learning, keep growing. You're doing great!
-          </p>
-          <button 
-            style={{
-              width: 'fit-content',
-              background: 'linear-gradient(to right, #8B5CF6, #6366F1)',
+        <div style={{ flex: '1', minWidth: '320px', display: 'flex', alignItems: 'center', gap: '20px', zIndex: 2 }}>
+          {avatarPhoto ? (
+            <img 
+              src={avatarPhoto} 
+              alt={studentName}
+              style={{
+                width: '76px',
+                height: '76px',
+                borderRadius: '50%',
+                objectFit: 'cover',
+                border: '3px solid #8B5CF6',
+                boxShadow: '0 0 20px rgba(139, 92, 246, 0.45)',
+                flexShrink: 0
+              }}
+            />
+          ) : (
+            <div style={{
+              width: '76px',
+              height: '76px',
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #8B5CF6, #3B82F6)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
               color: 'white',
-              border: 'none',
-              borderRadius: '12px',
-              padding: '10px 20px',
-              fontSize: '0.9rem',
-              fontWeight: '600',
-              cursor: 'pointer',
-              boxShadow: '0 4px 15px rgba(139, 92, 246, 0.3)',
-              transition: 'all 0.2s ease',
-              marginTop: '8px'
-            }}
-            className="navbar-btn-hover"
-            onClick={() => window.location.hash = '#/student/profile'}
-          >
-            View My Profile
-          </button>
+              fontSize: '1.8rem',
+              fontWeight: 800,
+              border: '3px solid #8B5CF6',
+              boxShadow: '0 0 20px rgba(139, 92, 246, 0.35)',
+              flexShrink: 0
+            }}>
+              {studentFirstName.charAt(0) || <User size={30} />}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <h1 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '2.1rem', fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.2 }}>
+              Welcome back, {studentFirstName}! 👋
+            </h1>
+            <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '0.95rem', fontWeight: '500', maxWidth: '420px', lineHeight: 1.4 }}>
+              Student ID: <strong style={{ color: 'var(--accent-primary)', fontFamily: 'monospace' }}>{user?.institutionalId || '2024101'}</strong> • Keep learning, keep growing!
+            </p>
+            <button 
+              style={{
+                width: 'fit-content',
+                background: 'linear-gradient(to right, #8B5CF6, #6366F1)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '10px',
+                padding: '8px 18px',
+                fontSize: '0.85rem',
+                fontWeight: '600',
+                cursor: 'pointer',
+                boxShadow: '0 4px 15px rgba(139, 92, 246, 0.3)',
+                transition: 'all 0.2s ease',
+                marginTop: '4px'
+              }}
+              className="navbar-btn-hover"
+              onClick={() => window.location.hash = '#/student/profile'}
+            >
+              View My Profile
+            </button>
+          </div>
         </div>
 
         {/* Right Column: Three Custom Sub-Cards */}

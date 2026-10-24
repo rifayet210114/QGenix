@@ -107,7 +107,7 @@ export default function AdminDashboard() {
         email: userEmail,
         designation: 'Assistant Professor',
         dept: userDept,
-        courseLoad: 3,
+        courseLoad: 0,
         status: 'Active'
       });
       showToast(`Faculty member ${userName} appointed!`);

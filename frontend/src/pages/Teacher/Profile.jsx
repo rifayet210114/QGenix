@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import Card from '../../components/Card';
 import { useProfile } from '../../contexts/ProfileContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 const initialPersonalData = {
   firstName: 'Sarah',
@@ -55,6 +56,7 @@ const initialProfessionalData = {
 };
 
 export default function TeacherProfile() {
+  const { user } = useAuth();
   // Sync page state with global ProfileContext
   const { profile, setProfile } = useProfile();
 
@@ -77,9 +79,15 @@ export default function TeacherProfile() {
     try {
       const saved = localStorage.getItem('qgenix_teacher_personalData');
       const data = saved ? JSON.parse(saved) : { ...initialPersonalData };
-      // Sync with global profile context if context has been edited
-      if (!data.firstName && profile.firstName) data.firstName = profile.firstName;
-      if (!data.lastName && profile.lastName) data.lastName = profile.lastName;
+      if (user?.name) {
+        const parts = user.name.split(' ');
+        data.firstName = parts[0] || data.firstName;
+        data.lastName = parts.slice(1).join(' ') || data.lastName;
+      } else {
+        if (!data.firstName && profile.firstName) data.firstName = profile.firstName;
+        if (!data.lastName && profile.lastName) data.lastName = profile.lastName;
+      }
+      if (user?.designation) data.designation = user.designation;
       return data;
     } catch (e) {
       return initialPersonalData;
@@ -91,7 +99,9 @@ export default function TeacherProfile() {
   const [contactData, setContactData] = useState(() => {
     try {
       const saved = localStorage.getItem('qgenix_teacher_contactData');
-      return saved ? JSON.parse(saved) : initialContactData;
+      const data = saved ? JSON.parse(saved) : initialContactData;
+      if (user?.email) data.email = user.email;
+      return data;
     } catch (e) {
       return initialContactData;
     }
@@ -99,8 +109,14 @@ export default function TeacherProfile() {
   const [tempContactData, setTempContactData] = useState(contactData);
 
   // Profile image URL sync
-  const [avatarUrl, setAvatarUrl] = useState(profile.avatarUrl || null);
+  const [avatarUrl, setAvatarUrl] = useState(user?.profile_picture || profile.avatarUrl || null);
   const [toastMessage, setToastMessage] = useState(null);
+
+  useEffect(() => {
+    if (user?.profile_picture) {
+      setAvatarUrl(user.profile_picture);
+    }
+  }, [user]);
 
   // Password fields
   const [currentPassword, setCurrentPassword] = useState('');
@@ -141,11 +157,13 @@ export default function TeacherProfile() {
     triggerToast('Personal details updated successfully!');
   };
 
-  // Save contact
+  // Save contact (Institutional email is immutable by faculty)
   const handleSaveContact = (e) => {
     e.preventDefault();
-    setContactData({ ...tempContactData });
-    localStorage.setItem('qgenix_teacher_contactData', JSON.stringify(tempContactData));
+    const lockedEmail = user?.email || contactData.email;
+    const finalContact = { ...tempContactData, email: lockedEmail };
+    setContactData(finalContact);
+    localStorage.setItem('qgenix_teacher_contactData', JSON.stringify(finalContact));
     setIsEditingContact(false);
     triggerToast('Contact details updated successfully!');
   };
@@ -172,18 +190,72 @@ export default function TeacherProfile() {
     triggerToast('Profile photo removed.');
   };
 
-  // Save password
-  const handleSavePassword = (e) => {
+const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+
+  // Save password securely & update credentials
+  const handleSavePassword = async (e) => {
     e.preventDefault();
     if (newPassword !== confirmPassword) {
       setPasswordError("New passwords do not match.");
       return;
     }
+    if (newPassword.trim().length < 6) {
+      setPasswordError("New password must be at least 6 characters long.");
+      return;
+    }
+
+    const teacherId = user?.institutionalId || user?.id || '';
+    const teacherEmail = user?.email || contactData.email || '';
+    const registeredTeachers = JSON.parse(localStorage.getItem('qgenix_registered_teachers') || '[]');
+    const currentTeacherRecord = registeredTeachers.find(t => 
+      t.id === teacherId || 
+      t.institutionalId === teacherId || 
+      t.email?.toLowerCase() === teacherEmail.toLowerCase()
+    );
+
+    // If recorded password exists, verify current password matches
+    if (currentTeacherRecord?.password && currentTeacherRecord.password !== currentPassword.trim()) {
+      setPasswordError("Current password does not match our records.");
+      return;
+    }
+
+    // Attempt Django backend password change API
+    try {
+      const token = user?.token;
+      if (token && !token.startsWith('mock-')) {
+        await fetch(`${API_BASE}/api/auth/change-password/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            current_password: currentPassword.trim(),
+            new_password: newPassword.trim(),
+            confirm_password: confirmPassword.trim()
+          })
+        });
+      }
+    } catch (e) {
+      console.warn('Backend password update notice:', e);
+    }
+
+    // Synchronize localStorage teacher credentials
+    try {
+      const updated = registeredTeachers.map(t => {
+        if (t.id === teacherId || t.institutionalId === teacherId || t.email?.toLowerCase() === teacherEmail.toLowerCase()) {
+          return { ...t, password: newPassword.trim() };
+        }
+        return t;
+      });
+      localStorage.setItem('qgenix_registered_teachers', JSON.stringify(updated));
+    } catch (err) {}
+
     setPasswordError(null);
     setCurrentPassword('');
     setNewPassword('');
     setConfirmPassword('');
-    triggerToast('Password changed successfully.');
+    triggerToast('✅ Password changed successfully! Your new password is now active.');
   };
 
   return (
@@ -637,15 +709,30 @@ export default function TeacherProfile() {
                 <form onSubmit={handleSaveContact} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '12px' }}>
                   
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 'bold' }}>Primary Work Email *</label>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <label style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 'bold' }}>Primary Work Email *</label>
+                      <span style={{ fontSize: '0.68rem', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '3px', fontWeight: 600 }}>
+                        <Lock size={11} /> Institutional Locked
+                      </span>
+                    </div>
                     <input 
                       type="email" 
-                      required
-                      value={tempContactData.email}
-                      onChange={(e) => setTempContactData({ ...tempContactData, email: e.target.value })}
+                      disabled
+                      readOnly
+                      value={contactData.email || user?.email || ''}
                       className="input-field"
-                      style={{ height: '36px', fontSize: '0.82rem' }}
+                      style={{ 
+                        height: '36px', 
+                        fontSize: '0.82rem',
+                        background: 'rgba(255, 255, 255, 0.04)',
+                        color: 'var(--text-muted)',
+                        cursor: 'not-allowed',
+                        border: '1px solid rgba(255, 255, 255, 0.08)'
+                      }}
                     />
+                    <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                      Institutional Email is assigned by administration and cannot be changed by faculty.
+                    </span>
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>

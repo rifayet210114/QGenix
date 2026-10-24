@@ -25,6 +25,8 @@ import {
 } from 'lucide-react';
 import Card from '../../components/Card';
 import { useProfile } from '../../contexts/ProfileContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { API_BASE } from '../../config';
 
 // All personal fields start empty — student fills their own info
 const initialPersonalData = {
@@ -92,6 +94,7 @@ const initialDocuments = [
 ];
 
 export default function Profile() {
+  const { user } = useAuth();
   // Global profile context — keeps Navbar name+avatar in sync
   const { profile, setProfile } = useProfile();
 
@@ -127,27 +130,57 @@ export default function Profile() {
   const [contactData, setContactData] = useState(() => {
     try {
       const saved = localStorage.getItem('qgenix_contactData');
-      return saved ? JSON.parse(saved) : initialContactData;
+      const data = saved ? JSON.parse(saved) : { ...initialContactData };
+      if (user?.email) data.email = user.email;
+      return data;
     } catch (e) {
-      return initialContactData;
+      return { ...initialContactData, email: user?.email || '' };
     }
   });
   const [tempContactData, setTempContactData] = useState(contactData);
 
-  // Academic Info (editable)
+  // Academic Info
   const [isEditingAcademic, setIsEditingAcademic] = useState(false);
   const [academicData, setAcademicData] = useState(() => {
     try {
       const saved = localStorage.getItem('qgenix_academicData');
-      return saved ? JSON.parse(saved) : initialAcademicData;
+      const data = saved ? JSON.parse(saved) : { ...initialAcademicData };
+      if (user?.institutionalId) data.studentId = user.institutionalId;
+      if (user?.department) data.department = user.department;
+      if (user?.batch) data.batch = user.batch;
+      return data;
     } catch (e) {
-      return initialAcademicData;
+      return {
+        ...initialAcademicData,
+        studentId: user?.institutionalId || '',
+        department: user?.department || '',
+        batch: user?.batch || ''
+      };
     }
   });
   const [tempAcademicData, setTempAcademicData] = useState(academicData);
 
-  // Profile Photo — also synced to global ProfileContext so Navbar updates immediately
-  const [avatarUrl, setAvatarUrl] = useState(profile.avatarUrl || null);
+  // Sync user properties if loaded dynamically
+  useEffect(() => {
+    if (user?.email) {
+      setContactData(prev => ({ ...prev, email: user.email }));
+      setTempContactData(prev => ({ ...prev, email: user.email }));
+    }
+    if (user?.institutionalId) {
+      setAcademicData(prev => ({
+        ...prev,
+        studentId: user.institutionalId,
+        department: user.department || prev.department,
+        batch: user.batch || prev.batch
+      }));
+    }
+    if (user?.profile_picture) {
+      setAvatarUrl(user.profile_picture);
+    }
+  }, [user]);
+
+  // Profile Photo — synced with user session & global ProfileContext
+  const [avatarUrl, setAvatarUrl] = useState(user?.profile_picture || profile.avatarUrl || null);
   const [toastMessage, setToastMessage] = useState(null);
 
   // Password fields
@@ -155,6 +188,7 @@ export default function Profile() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordError, setPasswordError] = useState(null);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   // Security & Privacy preferences toggles states
   const [is2FAEnabled, setIs2FAEnabled] = useState(false);
@@ -268,7 +302,7 @@ export default function Profile() {
   };
 
   // Password submission validation
-  const handlePasswordSubmit = (e) => {
+  const handlePasswordSubmit = async (e) => {
     e.preventDefault();
     setPasswordError(null);
     if (!currentPassword || !newPassword || !confirmPassword) {
@@ -283,11 +317,51 @@ export default function Profile() {
       setPasswordError('Confirm password does not match new password.');
       return;
     }
-    // Success simulation
-    triggerToast('Security password updated successfully!');
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
+
+    setIsChangingPassword(true);
+    try {
+      if (user?.token) {
+        const res = await fetch(`${API_BASE}/api/auth/change-password/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${user.token}`
+          },
+          body: JSON.stringify({
+            current_password: currentPassword,
+            new_password: newPassword,
+            confirm_password: confirmPassword
+          })
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          setPasswordError(errData.error || errData.detail || 'Current password is incorrect.');
+          setIsChangingPassword(false);
+          return;
+        }
+      }
+
+      // Synchronize credential storage in localStorage
+      try {
+        const registered = JSON.parse(localStorage.getItem('qgenix_registered_students') || '[]');
+        const updated = registered.map(s => 
+          (s.email === user?.email || s.username === user?.username || s.institutionalId === user?.institutionalId)
+            ? { ...s, password: newPassword }
+            : s
+        );
+        localStorage.setItem('qgenix_registered_students', JSON.stringify(updated));
+      } catch (e) {}
+
+      triggerToast('✅ Security password updated successfully! Please use your new password on next login.');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err) {
+      setPasswordError('Connection error while changing password. Please try again.');
+    } finally {
+      setIsChangingPassword(false);
+    }
   };
 
   // Documents upload simulation
@@ -1064,19 +1138,27 @@ export default function Profile() {
                 <form onSubmit={handleSaveContact} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '12px' }}>
                   
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Email Address</label>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Institutional Email Address</label>
+                      <span className="badge badge-primary" style={{ fontSize: '0.68rem', padding: '1px 6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Lock size={10} /> Permanent (Admin Assigned)
+                      </span>
+                    </div>
                     <div style={{ position: 'relative' }}>
                       <Mail size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                       <input 
                         type="email" 
-                        value={tempContactData.email}
-                        onChange={(e) => setTempContactData({ ...tempContactData, email: e.target.value })}
-                        disabled={!isEditingContact}
+                        value={user?.email || tempContactData.email}
+                        disabled={true}
+                        readOnly={true}
                         className="input-field"
-                        style={{ height: '38px', paddingLeft: '36px', fontSize: '0.85rem' }}
-                        required
+                        style={{ height: '38px', paddingLeft: '36px', fontSize: '0.85rem', opacity: 0.8, cursor: 'not-allowed', background: 'rgba(255,255,255,0.03)' }}
+                        title="Institutional email is permanently assigned by administration and cannot be changed"
                       />
                     </div>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                      🔒 Assigned by administration. You can only sign in with this email. Cannot be changed.
+                    </span>
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -1250,6 +1332,7 @@ export default function Profile() {
 
                   <button
                     type="submit"
+                    disabled={isChangingPassword}
                     style={{
                       background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))',
                       border: 'none',
@@ -1258,16 +1341,17 @@ export default function Profile() {
                       fontSize: '0.82rem',
                       color: 'white',
                       fontWeight: 700,
-                      cursor: 'pointer',
+                      cursor: isChangingPassword ? 'not-allowed' : 'pointer',
                       display: 'flex',
                       alignItems: 'center',
                       gap: '6px',
                       justifyContent: 'center',
-                      marginTop: '4px'
+                      marginTop: '4px',
+                      opacity: isChangingPassword ? 0.7 : 1
                     }}
                   >
                     <Lock size={14} />
-                    <span>Save Password</span>
+                    <span>{isChangingPassword ? 'Updating Password...' : 'Save Password'}</span>
                   </button>
 
                 </form>

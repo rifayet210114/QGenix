@@ -13,6 +13,7 @@
 import React, { useState } from 'react';
 import Card from '../../components/Card';
 import { useAdminData } from '../../contexts/AdminDataContext';
+import { useDeleteConfirm } from '../../contexts/DeleteConfirmContext';
 import { 
   Bell, 
   Pin, 
@@ -28,6 +29,7 @@ import {
 } from 'lucide-react';
 
 export default function NoticeBoard() {
+  const { confirmDelete } = useDeleteConfirm();
   const { notices, addNotice, deleteNotice, togglePinNotice } = useAdminData();
 
   const [toastMessage, setToastMessage] = useState('');
@@ -205,10 +207,17 @@ export default function NoticeBoard() {
                   </span>
                   <button 
                     onClick={() => {
-                      if (window.confirm(`Delete circular "${notice.title}"?`)) {
-                        deleteNotice(notice.id);
-                        showToast('Notice permanently deleted.');
-                      }
+                      confirmDelete({
+                        title: 'Delete Official Circular',
+                        itemName: `"${notice.title}"`,
+                        itemType: 'Notice Circular',
+                        warningText: 'This will permanently remove the circular announcement from student and teacher notice boards.',
+                        confirmBtnText: 'Delete Notice',
+                        onConfirm: () => {
+                          deleteNotice(notice.id);
+                          showToast('Notice permanently deleted.');
+                        }
+                      });
                     }}
                     style={{ background: 'none', border: 'none', color: 'var(--accent-danger)', cursor: 'pointer', padding: '4px' }}
                     title="Delete Notice"

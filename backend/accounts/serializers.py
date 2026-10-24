@@ -9,6 +9,7 @@
 # ৩. UserCreateUpdateSerializer: নতুন ইউজার তৈরি ও সম্পাদনার জন্য।
 # =========================================================================================
 
+from django.db import models
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .models import CustomUser
@@ -29,12 +30,62 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         return token
 
     def validate(self, attrs):
-        # Bengali Note: ইউজার ইমেইল অথবা ইউজারনেম—যেকোনোটি দিয়ে লগইন করার সুবিধা
+        # Bengali Note: ইউজার প্রাতিষ্ঠানিক ইমেইল, স্টুডেন্ট আইডি অথবা ইউজারনেম যেকোনো ফরম্যাটে দিলে তা খুঁজে বের করে লগইন নিশ্চিত করে
         username_or_email = attrs.get('username', '').strip()
-        if username_or_email and '@' in username_or_email:
-            matched_user = CustomUser.objects.filter(email__iexact=username_or_email).first()
-            if matched_user:
-                attrs['username'] = matched_user.username
+        matched_user = None
+
+        if username_or_email:
+            # 1. Direct exact / case-insensitive matches
+            matched_user = CustomUser.objects.filter(
+                models.Q(email__iexact=username_or_email) |
+                models.Q(institutional_id__iexact=username_or_email) |
+                models.Q(username__iexact=username_or_email)
+            ).first()
+
+            # 2. If not matched and has '@'
+            if not matched_user and '@' in username_or_email:
+                local_part, domain = username_or_email.split('@', 1)
+                clean_local = local_part.replace('_', '').replace('.', '').replace('-', '')
+                
+                # Check if local_part or stripped local_part matches institutional_id or username
+                matched_user = CustomUser.objects.filter(
+                    models.Q(institutional_id__iexact=local_part) |
+                    models.Q(institutional_id__iexact=clean_local) |
+                    models.Q(username__iexact=local_part)
+                ).first()
+
+                # Check if stripping underscores/punctuation from email matches
+                if not matched_user:
+                    for u in CustomUser.objects.all():
+                        if u.email and '@' in u.email:
+                            u_local, u_domain = u.email.split('@', 1)
+                            u_clean = u_local.replace('_', '').replace('.', '').replace('-', '')
+                            if (clean_local.lower() == u_clean.lower() or 
+                                (u.institutional_id and u.institutional_id.lower() in local_part.lower())) and (domain.lower() == u_domain.lower()):
+                                matched_user = u
+                                break
+
+            # 3. If not matched and NO '@'
+            if not matched_user and '@' not in username_or_email:
+                clean_input = username_or_email.replace('_', '').replace('.', '').replace('-', '')
+                matched_user = CustomUser.objects.filter(
+                    models.Q(institutional_id__iexact=username_or_email) |
+                    models.Q(institutional_id__iexact=clean_input) |
+                    models.Q(email__istartswith=f"{username_or_email}@") |
+                    models.Q(email__istartswith=f"{clean_input}@")
+                ).first()
+
+                if not matched_user:
+                    for u in CustomUser.objects.all():
+                        if u.email and '@' in u.email:
+                            u_local = u.email.split('@', 1)[0]
+                            u_clean = u_local.replace('_', '').replace('.', '').replace('-', '')
+                            if clean_input.lower() == u_clean.lower():
+                                matched_user = u
+                                break
+
+        if matched_user:
+            attrs['username'] = matched_user.username
 
         data = super().validate(attrs)
         # Add user profile metadata directly in login response JSON
@@ -51,7 +102,8 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             'batch': self.user.batch,
             'section': self.user.section,
             'cgpa': f"{self.user.get_dynamic_cgpa():.2f}",
-            'designation': self.user.designation
+            'designation': self.user.designation,
+            'profile_picture': self.user.profile_picture or ''
         }
         return data
 
@@ -64,7 +116,7 @@ class UserSerializer(serializers.ModelSerializer):
             'id', 'username', 'email', 'first_name', 'last_name', 
             'role', 'department', 'phone_number', 'institutional_id', 
             'registration_no', 'batch', 'section', 'cgpa', 'dynamic_cgpa', 
-            'designation', 'is_active', 'date_joined'
+            'designation', 'profile_picture', 'is_active', 'date_joined'
         ]
         read_only_fields = ['id', 'date_joined']
 
@@ -79,7 +131,8 @@ class UserCreateUpdateSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'username', 'email', 'password', 'first_name', 'last_name', 
             'role', 'department', 'phone_number', 'institutional_id', 
-            'registration_no', 'batch', 'section', 'cgpa', 'designation', 'is_active'
+            'registration_no', 'batch', 'section', 'cgpa', 'designation', 
+            'profile_picture', 'is_active'
         ]
 
     def create(self, validated_data):

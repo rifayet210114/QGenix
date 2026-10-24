@@ -513,7 +513,10 @@ export function AdminDataProvider({ children }) {
           batch: newStudent.batch || 'Batch 2024',
           section: newStudent.section,
           id: newStudent.id,
-          cgpa: newStudent.cgpa || '3.75'
+          institutional_id: newStudent.id,
+          password: newStudent.password,
+          cgpa: newStudent.cgpa || '3.75',
+          profile_picture: newStudent.profile_picture || ''
         })
       });
       await refreshFromDB();
@@ -524,18 +527,42 @@ export function AdminDataProvider({ children }) {
 
   // Edit Student
   const editStudent = async (id, updatedFields) => {
+    const targetStudent = students.find(s => s.id === id || s.db_id === id);
+    const lookupKey = targetStudent?.db_id || id;
+
     setStudents(prev => prev.map(s => (s.id === id || s.db_id === id) ? { ...s, ...updatedFields } : s));
-    addAuditLog('Student Profile Modified', 'User Management', `${id}`);
+    addAuditLog(
+      updatedFields.password ? 'Student Password Reset' : 'Student Profile Modified', 
+      'User Management', 
+      `${targetStudent?.name || id} (${targetStudent?.email || id})`
+    );
 
     try {
-      await fetch(`${API_BASE}/api/auth/users/${id}/`, {
+      await fetch(`${API_BASE}/api/auth/users/${lookupKey}/`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedFields)
+        body: JSON.stringify({
+          ...updatedFields,
+          institutional_id: targetStudent?.id || id
+        })
       });
       await refreshFromDB();
     } catch (e) {
       console.warn('Error updating student in DB:', e);
+    }
+
+    // Synchronize localStorage credentials immediately
+    if (updatedFields.password) {
+      try {
+        const registered = JSON.parse(localStorage.getItem('qgenix_registered_students') || '[]');
+        const updated = registered.map(s => {
+          if (s.institutionalId === id || s.id === id || s.email === targetStudent?.email || s.email === id) {
+            return { ...s, password: updatedFields.password };
+          }
+          return s;
+        });
+        localStorage.setItem('qgenix_registered_students', JSON.stringify(updated));
+      } catch (err) {}
     }
   };
 
@@ -555,11 +582,43 @@ export function AdminDataProvider({ children }) {
     }
   };
 
-  // Delete Student (Deleted directly from Django SQLite Database)
+  // Delete Student (Deleted directly from Django SQLite Database & Login Revoked)
   const deleteStudent = async (id) => {
+    const targetStudent = students.find(s => s.id === id || s.db_id === id);
     setStudents(prev => prev.filter(s => s.id !== id && s.db_id !== id));
-    addAuditLog('Student Account Removed', 'User Management', `${id}`);
+    addAuditLog('Student Account Permanently Deleted', 'User Management', `${targetStudent?.name || id} (${id})`);
 
+    // 1. Purge from registered students cache
+    try {
+      const registeredStudents = JSON.parse(localStorage.getItem('qgenix_registered_students') || '[]');
+      const filtered = registeredStudents.filter(s => 
+        s.id !== id && 
+        s.institutionalId !== id && 
+        s.email?.toLowerCase() !== targetStudent?.email?.toLowerCase()
+      );
+      localStorage.setItem('qgenix_registered_students', JSON.stringify(filtered));
+    } catch (e) {}
+
+    // 2. Blacklist in deleted users register so login is permanently blocked
+    try {
+      const deletedUsers = JSON.parse(localStorage.getItem('qgenix_deleted_users') || '[]');
+      const identifiers = [
+        id, 
+        targetStudent?.id, 
+        targetStudent?.institutional_id, 
+        targetStudent?.email,
+        targetStudent?.email?.split('@')[0]
+      ].filter(Boolean).map(x => String(x).toLowerCase());
+      
+      identifiers.forEach(ident => {
+        if (!deletedUsers.includes(ident)) {
+          deletedUsers.push(ident);
+        }
+      });
+      localStorage.setItem('qgenix_deleted_users', JSON.stringify(deletedUsers));
+    } catch (e) {}
+
+    // 3. Delete from Django backend DB
     try {
       await fetch(`${API_BASE}/api/auth/users/${id}/`, {
         method: 'DELETE'
@@ -590,7 +649,11 @@ export function AdminDataProvider({ children }) {
 
   // Add Faculty (Saved directly into Django SQLite Database)
   const addFaculty = async (fac) => {
-    const newFac = { ...fac, status: fac.status || 'Active' };
+    const newFac = { 
+      ...fac, 
+      profile_picture: fac.profile_picture || '',
+      status: fac.status || 'Active' 
+    };
     setFaculty(prev => [newFac, ...prev]);
     addAuditLog('Faculty Appointed', 'User Management', `${fac.id} - ${fac.name}`);
 
@@ -604,26 +667,122 @@ export function AdminDataProvider({ children }) {
           email: fac.email,
           dept: fac.dept,
           designation: fac.designation || 'Assistant Professor',
-          id: fac.id
+          id: fac.id,
+          institutional_id: fac.id,
+          password: fac.password || 'teacher123',
+          profile_picture: fac.profile_picture || ''
         })
       });
       await refreshFromDB();
     } catch (e) {
       console.warn('Error saving faculty to DB:', e);
     }
+
+    // Synchronize localStorage credentials for instant teacher login
+    try {
+      const registeredTeachers = JSON.parse(localStorage.getItem('qgenix_registered_teachers') || '[]');
+      const teacherObj = {
+        id: fac.id,
+        institutionalId: fac.id,
+        username: fac.email.split('@')[0],
+        email: fac.email,
+        password: fac.password || 'teacher123',
+        role: 'TEACHER',
+        name: fac.name,
+        department: fac.dept,
+        designation: fac.designation || 'Assistant Professor',
+        profile_picture: fac.profile_picture || ''
+      };
+      const existingIdx = registeredTeachers.findIndex(t => t.id === fac.id || t.email === fac.email);
+      if (existingIdx >= 0) {
+        registeredTeachers[existingIdx] = teacherObj;
+      } else {
+        registeredTeachers.push(teacherObj);
+      }
+      localStorage.setItem('qgenix_registered_teachers', JSON.stringify(registeredTeachers));
+    } catch (err) {}
   };
 
   // Edit Faculty
-  const editFaculty = (id, updatedFields) => {
-    setFaculty(prev => prev.map(f => f.id === id ? { ...f, ...updatedFields } : f));
-    addAuditLog('Faculty Profile Modified', 'User Management', `${id}`);
+  const editFaculty = async (id, updatedFields) => {
+    const targetFaculty = faculty.find(f => f.id === id || f.db_id === id);
+    const lookupKey = targetFaculty?.db_id || id;
+
+    setFaculty(prev => prev.map(f => (f.id === id || f.db_id === id) ? { ...f, ...updatedFields } : f));
+    addAuditLog(
+      updatedFields.password ? 'Faculty Password Reset by Admin' : 'Faculty Profile Modified', 
+      'User Management', 
+      `${targetFaculty?.name || id} (${targetFaculty?.email || id})`
+    );
+
+    try {
+      await fetch(`${API_BASE}/api/auth/users/${lookupKey}/`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...updatedFields,
+          institutional_id: targetFaculty?.id || id
+        })
+      });
+      await refreshFromDB();
+    } catch (e) {
+      console.warn('Error updating faculty in DB:', e);
+    }
+
+    // Synchronize localStorage credentials immediately (including updated password)
+    try {
+      const registeredTeachers = JSON.parse(localStorage.getItem('qgenix_registered_teachers') || '[]');
+      const updated = registeredTeachers.map(t => {
+        if (t.institutionalId === id || t.id === id || t.email?.toLowerCase() === targetFaculty?.email?.toLowerCase() || t.email?.toLowerCase() === id?.toLowerCase()) {
+          return { 
+            ...t, 
+            ...updatedFields,
+            ...(updatedFields.password ? { password: updatedFields.password } : {})
+          };
+        }
+        return t;
+      });
+      localStorage.setItem('qgenix_registered_teachers', JSON.stringify(updated));
+    } catch (err) {}
   };
 
-  // Delete Faculty (Deleted directly from Django SQLite Database)
+  // Delete Faculty (Deleted directly from Django SQLite Database & Login Revoked)
   const deleteFaculty = async (id) => {
+    const targetFaculty = faculty.find(f => f.id === id || f.db_id === id);
     setFaculty(prev => prev.filter(f => f.id !== id && f.db_id !== id));
-    addAuditLog('Faculty Record Deleted', 'User Management', `${id}`);
+    addAuditLog('Faculty Record Permanently Deleted', 'User Management', `${targetFaculty?.name || id} (${id})`);
 
+    // 1. Purge from registered teachers cache
+    try {
+      const registeredTeachers = JSON.parse(localStorage.getItem('qgenix_registered_teachers') || '[]');
+      const filtered = registeredTeachers.filter(t => 
+        t.id !== id && 
+        t.institutionalId !== id && 
+        t.email?.toLowerCase() !== targetFaculty?.email?.toLowerCase()
+      );
+      localStorage.setItem('qgenix_registered_teachers', JSON.stringify(filtered));
+    } catch (e) {}
+
+    // 2. Blacklist in deleted users register so login is permanently blocked
+    try {
+      const deletedUsers = JSON.parse(localStorage.getItem('qgenix_deleted_users') || '[]');
+      const identifiers = [
+        id, 
+        targetFaculty?.id, 
+        targetFaculty?.institutional_id, 
+        targetFaculty?.email,
+        targetFaculty?.email?.split('@')[0]
+      ].filter(Boolean).map(x => String(x).toLowerCase());
+
+      identifiers.forEach(ident => {
+        if (!deletedUsers.includes(ident)) {
+          deletedUsers.push(ident);
+        }
+      });
+      localStorage.setItem('qgenix_deleted_users', JSON.stringify(deletedUsers));
+    } catch (e) {}
+
+    // 3. Delete from Django backend DB
     try {
       await fetch(`${API_BASE}/api/auth/users/${id}/`, {
         method: 'DELETE'
@@ -688,11 +847,17 @@ export function AdminDataProvider({ children }) {
   // Check Clash: returns { hasConflict: boolean, reason: string }
   const checkRoutineClash = (newSlot) => {
     for (const slot of routineSlots) {
+      // Ignore self when editing existing slot
+      if (newSlot.id && slot.id === newSlot.id) continue;
       if (slot.day === newSlot.day && slot.time === newSlot.time) {
-        if (slot.room.toLowerCase().trim() === newSlot.room.toLowerCase().trim()) {
+        const slotRoom = (slot.room || '').toLowerCase().trim();
+        const newRoom = (newSlot.room || '').toLowerCase().trim();
+        if (slotRoom && newRoom && slotRoom === newRoom) {
           return { hasConflict: true, reason: `Room Clash: ${slot.room} is already booked for ${slot.course} (${slot.teacher})` };
         }
-        if (slot.teacher.toLowerCase().trim() === newSlot.teacher.toLowerCase().trim()) {
+        const slotTeacher = (slot.teacher || '').toLowerCase().trim();
+        const newTeacher = (newSlot.teacher || '').toLowerCase().trim();
+        if (slotTeacher && newTeacher && slotTeacher === newTeacher) {
           return { hasConflict: true, reason: `Instructor Clash: ${slot.teacher} already has a lecture in ${slot.room} at this time!` };
         }
       }
@@ -724,6 +889,33 @@ export function AdminDataProvider({ children }) {
       await refreshFromDB();
     } catch (e) {
       console.warn('Error saving routine to DB:', e);
+    }
+    return clash;
+  };
+
+  // Edit Routine Slot
+  const editRoutineSlot = async (id, updatedSlot) => {
+    const clash = checkRoutineClash({ ...updatedSlot, id });
+    setRoutineSlots(prev => prev.map(s => s.id === id ? { ...s, ...updatedSlot, conflict: clash.hasConflict } : s));
+    addAuditLog(`Routine Slot Updated ${clash.hasConflict ? '(CONFLICT FLAGGED)' : ''}`, 'Routine', `${updatedSlot.course} in ${updatedSlot.room}`);
+
+    try {
+      await fetch(`${API_BASE}/api/auth/routines/${id}/`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          day: updatedSlot.day,
+          time: updatedSlot.time,
+          course: updatedSlot.course,
+          teacher: updatedSlot.teacher,
+          room: updatedSlot.room,
+          batch: updatedSlot.batch,
+          conflict: clash.hasConflict
+        })
+      });
+      await refreshFromDB();
+    } catch (e) {
+      console.warn('Error updating routine in DB:', e);
     }
     return clash;
   };
@@ -933,6 +1125,7 @@ export function AdminDataProvider({ children }) {
 
       checkRoutineClash,
       addRoutineSlot,
+      editRoutineSlot,
       deleteRoutineSlot,
 
       addNotice,

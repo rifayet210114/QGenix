@@ -477,7 +477,7 @@ export default function Login() {
                   onChange={(e) => setUsernameOrEmail(e.target.value)}
                 />
                 <label htmlFor="email">
-                  {role === 'student' ? 'Institutional Email (DIIT)' : 'Username or Email'}
+                  {role === 'student' ? 'Institutional Email or Student ID' : 'Username or Email'}
                 </label>
               </div>
               
@@ -494,8 +494,8 @@ export default function Login() {
                   alignItems: 'center',
                   gap: '6px'
                 }}>
-                  <span>Format:</span>
-                  <strong style={{ color: '#c4b5fd' }}>firstname_classid@diit.edu.bd</strong>
+                  <span>Hint:</span>
+                  <strong style={{ color: '#c4b5fd' }}>Use your Assigned Email (e.g. Jeba210108@diit.edu.bd) or Student ID & initial password</strong>
                 </div>
               )}
               

@@ -15,48 +15,112 @@
 import React, { useState } from 'react';
 import Card from '../../components/Card';
 import { useAdminData } from '../../contexts/AdminDataContext';
+import { useDeleteConfirm } from '../../contexts/DeleteConfirmContext';
 import { 
   Calendar, 
   Clock, 
   MapPin, 
   UserCheck, 
-  AlertTriangle, 
-  CheckCircle2, 
   Plus, 
   Trash2, 
-  ShieldAlert, 
-  Send, 
-  X 
+  X,
+  Filter,
+  CheckCircle2,
+  Edit2
 } from 'lucide-react';
 
 export default function RoutineAttendance() {
+  const { confirmDelete } = useDeleteConfirm();
   const { 
-    routineSlots, addRoutineSlot, deleteRoutineSlot,
-    courses, faculty, batches, addAuditLog
+    routineSlots, addRoutineSlot, editRoutineSlot, deleteRoutineSlot,
+    courses, faculty, batches, departments, addAuditLog
   } = useAdminData();
 
+  // All 7 days of the academic week
+  const weekDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+  // Helper to dynamically get today's weekday name
+  const getTodayWeekday = () => {
+    const todayIndex = new Date().getDay(); // 0 is Sunday, 1 is Monday, ..., 6 is Saturday
+    return weekDays[todayIndex] || 'Sunday';
+  };
+
+  const todayWeekday = getTodayWeekday();
+
   const [activeTab, setActiveTab] = useState('routine');
-  const [selectedDay, setSelectedDay] = useState('Sunday');
+  // Auto-load today's routine on page load as requested by user
+  const [selectedDay, setSelectedDay] = useState(todayWeekday);
+  const [selectedDept, setSelectedDept] = useState('ALL');
   const [toastMessage, setToastMessage] = useState('');
   const [isAddSlotModalOpen, setIsAddSlotModalOpen] = useState(false);
+  const [editingSlotId, setEditingSlotId] = useState(null);
+
+  // Available distinct departments dynamically collected
+  const availableDepts = Array.from(new Set([
+    ...(departments || []).map(d => (d.code || d.name || '').trim().toUpperCase()),
+    ...courses.map(c => (c.dept || c.department || (c.code || '').split('-')[0] || '').trim().toUpperCase()),
+    ...batches.map(b => (b.dept || b.department || '').trim().toUpperCase()),
+    ...routineSlots.map(s => {
+      const codePrefix = (s.course || '').split('-')[0].trim().toUpperCase();
+      return codePrefix || '';
+    })
+  ])).filter(d => d && d !== 'ALL').sort();
+
+  // Helper to determine slot's department
+  const getSlotDepartment = (slot) => {
+    if (slot.dept) return slot.dept.toUpperCase();
+    if (slot.department) return slot.department.toUpperCase();
+    
+    // Check matched course in courses list
+    const courseCode = (slot.course || '').split(':')[0].trim().toUpperCase();
+    const matchedCourse = courses.find(c => c.code && (c.code.toUpperCase() === courseCode || (slot.course || '').toUpperCase().includes(c.code.toUpperCase())));
+    if (matchedCourse && (matchedCourse.dept || matchedCourse.department)) {
+      return (matchedCourse.dept || matchedCourse.department).toUpperCase();
+    }
+    
+    // Check code prefix (e.g., "CSE-301" -> "CSE", "EEE-211" -> "EEE", "BBA-205" -> "BBA")
+    const prefixMatch = courseCode.match(/^([A-Za-z]+)/);
+    if (prefixMatch && prefixMatch[1]) {
+      return prefixMatch[1].toUpperCase();
+    }
+    
+    // Check batch name
+    if (slot.batch) {
+      for (const d of availableDepts) {
+        if (slot.batch.toUpperCase().includes(d)) return d;
+      }
+    }
+
+    // Check teacher department
+    if (slot.teacher) {
+      const matchedFac = faculty.find(f => f.name && f.name.toLowerCase().trim() === slot.teacher.toLowerCase().trim());
+      if (matchedFac && (matchedFac.dept || matchedFac.department)) {
+        return (matchedFac.dept || matchedFac.department).toUpperCase();
+      }
+    }
+
+    return 'OTHER';
+  };
+
+  // Filter routine slots by selected day and selected department
+  const filteredSlots = routineSlots.filter(slot => {
+    if (slot.day !== selectedDay) return false;
+    if (selectedDept !== 'ALL') {
+      const slotDept = getSlotDepartment(slot);
+      if (slotDept !== selectedDept.toUpperCase()) return false;
+    }
+    return true;
+  });
 
   // Slot Form State
   const [slotForm, setSlotForm] = useState({
-    day: 'Sunday',
+    day: todayWeekday,
     time: '09:00 AM - 10:30 AM',
     course: 'CSE-301: Database Management Systems',
     teacher: 'Dr. Asaduzzaman',
     room: 'Lab-402',
     batch: 'Batch 2022 Sec A'
   });
-
-  // Local defaulters state
-  const [defaulters, setDefaulters] = useState([
-    { id: 'STU-2022-092', name: 'Tanvir Ahmed', batch: 'Batch 2022 (CSE)', attendance: '62.5%', attended: 25, total: 40, warned: false },
-    { id: 'STU-2023-018', name: 'Rifat Chowdhury', batch: 'Batch 2023 (CSE)', attendance: '58.0%', attended: 22, total: 38, warned: true },
-    { id: 'STU-2024-110', name: 'Anika Bushra', batch: 'Batch 2024 (BBA)', attendance: '68.4%', attended: 26, total: 38, warned: false },
-    { id: 'STU-2022-034', name: 'Sabbir Hossain', batch: 'Batch 2022 (CSE)', attendance: '71.0%', attended: 28, total: 40, warned: false },
-  ]);
 
   // Cohort Attendance Stats
   const batchAttendance = [
@@ -72,30 +136,61 @@ export default function RoutineAttendance() {
     setTimeout(() => setToastMessage(''), 3500);
   };
 
-  // Submit Routine Slot with Real Clash Detection
-  const handleAddSlotSubmit = (e) => {
+  // Open Add Modal
+  const handleOpenAddModal = () => {
+    setEditingSlotId(null);
+    setSlotForm({
+      day: selectedDay || todayWeekday,
+      time: '09:00 AM - 10:30 AM',
+      course: courses.length > 0 ? `${courses[0].code}: ${courses[0].title}` : 'CSE-301: Database Management Systems',
+      teacher: faculty.length > 0 ? faculty[0].name : 'Dr. Asaduzzaman',
+      room: 'Lab-402',
+      batch: batches.length > 0 ? `${batches[0].name} Sec A` : 'Batch 2022 Sec A'
+    });
+    setIsAddSlotModalOpen(true);
+  };
+
+  // Open Edit Modal
+  const handleOpenEditModal = (slot) => {
+    setEditingSlotId(slot.id);
+    setSlotForm({
+      day: slot.day,
+      time: slot.time,
+      course: slot.course,
+      teacher: slot.teacher,
+      room: slot.room,
+      batch: slot.batch
+    });
+    setIsAddSlotModalOpen(true);
+  };
+
+  // Submit Routine Slot (Add or Edit) with Clash Detection
+  const handleSlotFormSubmit = async (e) => {
     e.preventDefault();
-    const clash = addRoutineSlot(slotForm);
-    setIsAddSlotModalOpen(false);
-    if (clash.hasConflict) {
-      showToast(`⚠️ Warning! Collision detected: ${clash.reason}`);
-    } else {
-      showToast(`Routine slot allocated cleanly for ${slotForm.course} in ${slotForm.room}!`);
+    try {
+      if (editingSlotId) {
+        const clash = await editRoutineSlot(editingSlotId, slotForm);
+        setIsAddSlotModalOpen(false);
+        setEditingSlotId(null);
+        if (clash && clash.hasConflict) {
+          showToast(`⚠️ Warning! Collision detected: ${clash.reason}`);
+        } else {
+          showToast(`Routine slot updated successfully!`);
+        }
+      } else {
+        const clash = await addRoutineSlot(slotForm);
+        setIsAddSlotModalOpen(false);
+        if (clash && clash.hasConflict) {
+          showToast(`⚠️ Warning! Collision detected: ${clash.reason}`);
+        } else {
+          showToast(`Routine slot allocated cleanly for ${slotForm.course} in ${slotForm.room}!`);
+        }
+      }
+    } catch (err) {
+      console.error('Error submitting slot:', err);
+      setIsAddSlotModalOpen(false);
+      showToast('Routine slot saved.');
     }
-  };
-
-  // Issue Warning to Single Defaulter
-  const handleIssueWarning = (id, name) => {
-    setDefaulters(prev => prev.map(d => d.id === id ? { ...d, warned: true } : d));
-    addAuditLog('Defaulter Notice Issued', 'Attendance', `${id} - ${name}`);
-    showToast(`Official attendance shortfall notice dispatched to ${name}!`);
-  };
-
-  // Broadcast Warning to All Defaulters
-  const handleBroadcastWarningAll = () => {
-    setDefaulters(prev => prev.map(d => ({ ...d, warned: true })));
-    addAuditLog('Defaulter Broadcast Notice', 'Attendance', 'All Shortfall Students');
-    showToast('Automated warning letters dispatched to all students below 75% attendance!');
   };
 
   return (
@@ -149,13 +244,13 @@ export default function RoutineAttendance() {
             Master Routine & Attendance Oversight
           </h2>
           <p style={{ margin: '4px 0 0 0', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-            Interactive timetable scheduler with automated room & instructor clash detection, and student attendance defaulters tracker.
+            Interactive timetable scheduler with automated room & instructor clash detection, and cohort attendance analytics.
           </p>
         </div>
 
         <button 
           className="btn btn-primary"
-          onClick={() => setIsAddSlotModalOpen(true)}
+          onClick={handleOpenAddModal}
           style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
         >
           <Plus size={16} />
@@ -188,31 +283,90 @@ export default function RoutineAttendance() {
         >
           <UserCheck size={16} /> Batch Attendance Overview
         </button>
-        <button
-          onClick={() => setActiveTab('defaulters')}
-          className={`btn ${activeTab === 'defaulters' ? 'btn-primary' : 'btn-secondary'}`}
-          style={{ padding: '8px 16px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}
-        >
-          <ShieldAlert size={16} /> Defaulters List (&lt; 75%)
-        </button>
       </div>
 
       {/* ==================== TAB 1: MASTER ROUTINE & CLASH DETECTOR ==================== */}
       {activeTab === 'routine' && (
         <Card title={`Master Timetable (${selectedDay})`}>
           
-          {/* Day Selector Pills */}
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', margin: '14px 0 16px' }}>
-            {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].map((day) => (
-              <button
-                key={day}
-                onClick={() => setSelectedDay(day)}
-                className={`btn ${selectedDay === day ? 'btn-primary' : 'btn-secondary'}`}
-                style={{ padding: '6px 14px', fontSize: '0.8rem', borderRadius: '20px' }}
+          {/* Day Selector Pills & Department Filter Toolbar */}
+          <div 
+            style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center', 
+              flexWrap: 'wrap', 
+              gap: '14px', 
+              margin: '8px 0 18px',
+              paddingBottom: '14px',
+              borderBottom: '1px solid var(--border-color-light)'
+            }}
+          >
+            {/* Day Selector Pills */}
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+              {weekDays.map((day) => {
+                const isToday = day === todayWeekday;
+                const isSelected = selectedDay === day;
+                return (
+                  <button
+                    key={day}
+                    onClick={() => setSelectedDay(day)}
+                    className={`btn ${isSelected ? 'btn-primary' : 'btn-secondary'}`}
+                    style={{ 
+                      padding: '6px 14px', 
+                      fontSize: '0.82rem', 
+                      borderRadius: '20px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      fontWeight: isSelected ? 700 : 500,
+                      border: isToday && !isSelected ? '1px solid var(--accent-primary)' : undefined
+                    }}
+                  >
+                    <span>{day}</span>
+                    {isToday && (
+                      <span 
+                        style={{ 
+                          fontSize: '0.68rem', 
+                          padding: '1px 6px', 
+                          borderRadius: '10px', 
+                          background: isSelected ? 'rgba(255,255,255,0.25)' : 'rgba(99, 102, 241, 0.2)',
+                          color: isSelected ? '#fff' : 'var(--accent-primary)',
+                          fontWeight: 700
+                        }}
+                      >
+                        Today
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Department Filter Option */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Filter size={15} color="var(--accent-primary)" />
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Filter by Department:</span>
+              </div>
+              <select
+                className="input-field"
+                value={selectedDept}
+                onChange={(e) => setSelectedDept(e.target.value)}
+                style={{
+                  padding: '6px 14px',
+                  fontSize: '0.85rem',
+                  borderRadius: '10px',
+                  minWidth: '170px',
+                  cursor: 'pointer'
+                }}
               >
-                {day}
-              </button>
-            ))}
+                <option value="ALL">All Departments</option>
+                {availableDepts.map(dept => (
+                  <option key={dept} value={dept}>Dept: {dept}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* Routine Table */}
@@ -220,19 +374,23 @@ export default function RoutineAttendance() {
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '720px' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                  <th style={{ padding: '12px' }}>Time Slot</th>
-                  <th style={{ padding: '12px' }}>Course Title</th>
-                  <th style={{ padding: '12px' }}>Instructor</th>
-                  <th style={{ padding: '12px' }}>Room Allocation</th>
-                  <th style={{ padding: '12px' }}>Target Cohort</th>
-                  <th style={{ padding: '12px' }}>Clash Status</th>
-                  <th style={{ padding: '12px' }}>Action</th>
+                  <th style={{ padding: '12px' }}>Class Time</th>
+                  <th style={{ padding: '12px' }}>Course Title & Code</th>
+                  <th style={{ padding: '12px' }}>Faculty Instructor</th>
+                  <th style={{ padding: '12px' }}>Classroom / Venue</th>
+                  <th style={{ padding: '12px' }}>Batch & Section</th>
+                  <th style={{ padding: '12px', textAlign: 'center' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {routineSlots
-                  .filter(r => r.day === selectedDay)
-                  .map((slot) => (
+                {filteredSlots.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--text-muted)' }}>
+                      No routine slots scheduled for <strong>{selectedDay}</strong>{selectedDept !== 'ALL' ? ` in ${selectedDept} Department` : ''}.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredSlots.map((slot) => (
                     <tr key={slot.id} style={{ borderBottom: '1px solid var(--border-color-light)', fontSize: '0.9rem' }}>
                       <td style={{ padding: '14px 12px', fontWeight: 600 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -241,41 +399,48 @@ export default function RoutineAttendance() {
                         </div>
                       </td>
                       <td style={{ padding: '14px 12px', fontWeight: 600 }}>{slot.course}</td>
-                      <td style={{ padding: '14px 12px', color: 'var(--accent-primary)' }}>{slot.teacher}</td>
+                      <td style={{ padding: '14px 12px', color: 'var(--accent-primary)', fontWeight: 500 }}>{slot.teacher}</td>
                       <td style={{ padding: '14px 12px' }}>
                         <span className="badge badge-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                           <MapPin size={12} /> {slot.room}
                         </span>
                       </td>
                       <td style={{ padding: '14px 12px' }}>{slot.batch}</td>
-                      <td style={{ padding: '14px 12px' }}>
-                        {slot.conflict ? (
-                          <span className="badge badge-danger" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                            <AlertTriangle size={12} /> Collision Detected
-                          </span>
-                        ) : (
-                          <span className="badge badge-success" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                            <CheckCircle2 size={12} /> Conflict Free
-                          </span>
-                        )}
-                      </td>
-                      <td style={{ padding: '14px 12px' }}>
-                        <button 
-                          className="btn btn-secondary" 
-                          style={{ padding: '6px 10px', fontSize: '0.75rem', color: 'var(--accent-danger)' }}
-                          title="Remove Slot"
-                          onClick={() => {
-                            if (window.confirm(`Remove slot for ${slot.course}?`)) {
-                              deleteRoutineSlot(slot.id);
-                              showToast(`Removed routine slot.`);
-                            }
-                          }}
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                      <td style={{ padding: '14px 12px', textAlign: 'center' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                          <button 
+                            className="btn btn-secondary" 
+                            style={{ padding: '6px 10px', fontSize: '0.75rem', color: 'var(--accent-primary)' }}
+                            title="Edit Routine Slot"
+                            onClick={() => handleOpenEditModal(slot)}
+                          >
+                            <Edit2 size={14} />
+                          </button>
+                          <button 
+                            className="btn btn-secondary" 
+                            style={{ padding: '6px 10px', fontSize: '0.75rem', color: 'var(--accent-danger)' }}
+                            title="Remove Slot"
+                            onClick={() => {
+                              confirmDelete({
+                                title: 'Remove Routine Timetable Slot',
+                                itemName: `${slot.course} (${slot.day} - ${slot.time})`,
+                                itemType: 'Timetable Slot',
+                                warningText: 'This will remove the scheduled slot from master timetable, teacher schedules, and student calendars.',
+                                confirmBtnText: 'Remove Slot',
+                                onConfirm: () => {
+                                  deleteRoutineSlot(slot.id);
+                                  showToast(`Removed routine slot.`);
+                                }
+                              });
+                            }}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
-                ))}
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -314,64 +479,7 @@ export default function RoutineAttendance() {
         </Card>
       )}
 
-      {/* ==================== TAB 3: DEFAULTERS LIST ==================== */}
-      {activeTab === 'defaulters' && (
-        <Card 
-          title="Attendance Defaulters Roster (< 75% Threshold)"
-          action={
-            <button 
-              className="btn btn-primary"
-              style={{ fontSize: '0.8rem', padding: '6px 12px' }}
-              onClick={handleBroadcastWarningAll}
-            >
-              Broadcast Warning to All
-            </button>
-          }
-        >
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '700px' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                  <th style={{ padding: '12px' }}>Student ID</th>
-                  <th style={{ padding: '12px' }}>Student Name</th>
-                  <th style={{ padding: '12px' }}>Batch</th>
-                  <th style={{ padding: '12px' }}>Presence Ratio</th>
-                  <th style={{ padding: '12px' }}>Percentage</th>
-                  <th style={{ padding: '12px' }}>Notice Status</th>
-                  <th style={{ padding: '12px' }}>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {defaulters.map((d) => (
-                  <tr key={d.id} style={{ borderBottom: '1px solid var(--border-color-light)', fontSize: '0.9rem' }}>
-                    <td style={{ padding: '14px 12px', fontWeight: 600 }}>{d.id}</td>
-                    <td style={{ padding: '14px 12px', fontWeight: 600 }}>{d.name}</td>
-                    <td style={{ padding: '14px 12px' }}>{d.batch}</td>
-                    <td style={{ padding: '14px 12px' }}>{d.attended} / {d.total} Classes</td>
-                    <td style={{ padding: '14px 12px' }}><span className="badge badge-danger" style={{ fontWeight: 800 }}>{d.attendance}</span></td>
-                    <td style={{ padding: '14px 12px' }}>
-                      {d.warned ? <span className="badge badge-warning">Notice Dispatched</span> : <span className="badge badge-secondary">Pending</span>}
-                    </td>
-                    <td style={{ padding: '14px 12px' }}>
-                      <button 
-                        className={`btn ${d.warned ? 'btn-secondary' : 'btn-primary'}`}
-                        style={{ padding: '6px 12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px' }}
-                        disabled={d.warned}
-                        onClick={() => handleIssueWarning(d.id, d.name)}
-                      >
-                        <Send size={14} />
-                        <span>{d.warned ? 'Sent' : 'Issue Notice'}</span>
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      )}
-
-      {/* ==================== ADD ROUTINE SLOT MODAL ==================== */}
+      {/* ==================== ADD / EDIT ROUTINE SLOT MODAL ==================== */}
       {isAddSlotModalOpen && (
         <div 
           style={{
@@ -393,11 +501,13 @@ export default function RoutineAttendance() {
             onClick={e => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700 }}>Add Routine Timetable Slot</h3>
+              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700 }}>
+                {editingSlotId ? 'Edit Routine Timetable Slot' : 'Add Routine Timetable Slot'}
+              </h3>
               <button onClick={() => setIsAddSlotModalOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><X size={20} /></button>
             </div>
 
-            <form onSubmit={handleAddSlotSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <form onSubmit={handleSlotFormSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '6px' }}>Day of Week</label>
@@ -408,6 +518,7 @@ export default function RoutineAttendance() {
                     <option>Wednesday</option>
                     <option>Thursday</option>
                     <option>Friday</option>
+                    <option>Saturday</option>
                   </select>
                 </div>
                 <div>
@@ -448,7 +559,7 @@ export default function RoutineAttendance() {
                   <input required type="text" className="input-field" placeholder="e.g. Lab-402" value={slotForm.room} onChange={e => setSlotForm({ ...slotForm, room: e.target.value })} style={{ width: '100%' }} />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '6px' }}>Cohort Batch</label>
+                  <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '6px' }}>Batch</label>
                   <select className="input-field" value={slotForm.batch} onChange={e => setSlotForm({ ...slotForm, batch: e.target.value })} style={{ width: '100%' }}>
                     {batches.map(b => (
                       <option key={b.id} value={`${b.name} Sec A`}>{b.name} Sec A</option>
@@ -459,7 +570,9 @@ export default function RoutineAttendance() {
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
                 <button type="button" className="btn btn-secondary" onClick={() => setIsAddSlotModalOpen(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary">Allocate Slot</button>
+                <button type="submit" className="btn btn-primary">
+                  {editingSlotId ? 'Update Routine Slot' : 'Allocate Slot'}
+                </button>
               </div>
             </form>
           </div>

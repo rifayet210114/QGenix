@@ -15,6 +15,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from .views import (
     CustomLoginView, 
     CurrentUserView, 
+    ChangePasswordView,
     AdminUserViewSet, 
     StudentRegistrationView,
     DashboardStatsView,
@@ -31,7 +32,8 @@ from .views import (
     DatabaseBackupView,
     SemesterArchiveViewSet,
     ArchiveSemesterActionView,
-    SystemSettingView
+    SystemSettingView,
+    FacultyDossierView
 )
 
 router = DefaultRouter()
@@ -48,6 +50,8 @@ router.register(r'notices', NoticeViewSet, basename='admin-notices')
 router.register(r'audit-logs', AuditLogViewSet, basename='admin-audit-logs')
 
 urlpatterns = [
+    # 100% Real Database Faculty Dossier (Class Routine, Biometrics & Leaves)
+    path('faculty-dossier/<str:identifier>/', FacultyDossierView.as_view(), name='faculty-dossier'),
     # Dynamic DB Metrics for Executive Dashboard
     path('dashboard-stats/', DashboardStatsView.as_view(), name='dashboard-stats'),
     # System Settings & Email Formats Configuration
@@ -66,6 +70,8 @@ urlpatterns = [
     path('login/', CustomLoginView.as_view(), name='auth-login'),
     # Refresh JWT access token
     path('token/refresh/', TokenRefreshView.as_view(), name='token-refresh'),
+    # Change Password for Authenticated User
+    path('change-password/', ChangePasswordView.as_view(), name='change-password'),
     # Current User Profile
     path('me/', CurrentUserView.as_view(), name='auth-me'),
     # Admin User & Academics CRUD routes

@@ -26,6 +26,8 @@ import {
   Bookmark, AlertTriangle, RefreshCw, Eye, BookMarked, UserCheck, X
 } from 'lucide-react';
 import Card from '../../components/Card';
+import { useAuth } from '../../contexts/AuthContext';
+import { API_BASE } from '../../config';
 
 // ----------------------------------------------------------------------------
 // 1. MOCK DATA: TEACHER ASSIGNED COURSES & SCHEDULE MATRIX
@@ -213,6 +215,146 @@ export default function TeacherRoutine() {
     observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
     return () => observer.disconnect();
   }, []);
+
+  const { user } = useAuth();
+  
+  // Realtime Live Routine synchronization with database / localStorage
+  const [liveRoutines, setLiveRoutines] = useState(() => {
+    try {
+      const saved = localStorage.getItem('qgenix_routineSlots');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    const fetchLiveRoutines = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/routines/`);
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data)) {
+            setLiveRoutines(data);
+            localStorage.setItem('qgenix_routineSlots', JSON.stringify(data));
+          }
+        }
+      } catch (err) {
+        // Fallback to cache
+      }
+    };
+    fetchLiveRoutines();
+    const interval = setInterval(fetchLiveRoutines, 6000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const currentTeacherName = (user?.name || user?.first_name || user?.username || 'Dr. Asaduzzaman').toLowerCase();
+  const cleanTeacherName = currentTeacherName.replace(/^(dr\.|mr\.|mrs\.|ms\.|prof\.|engr\.)\s*/i, '').trim();
+
+  const isMySlot = (slot) => {
+    if (!slot || !slot.teacher) return false;
+    const t = slot.teacher.toLowerCase().trim();
+    const cleanT = t.replace(/^(dr\.|mr\.|mrs\.|ms\.|prof\.|engr\.)\s*/i, '').trim();
+    return t.includes(cleanTeacherName) || cleanTeacherName.includes(cleanT) || t === currentTeacherName;
+  };
+
+  const effectiveTimetableGrid = useMemo(() => {
+    if (!liveRoutines || liveRoutines.length === 0) return teacherTimetableGrid;
+
+    const slots = [
+      { id: 1, name: 'Slot 1', time: '09:00 AM - 10:30 AM' },
+      { id: 2, name: 'Slot 2', time: '10:45 AM - 12:15 PM' },
+      { id: 3, name: 'Slot 3', time: '01:00 PM - 02:30 PM' },
+      { id: 4, name: 'Slot 4', time: '02:45 PM - 04:15 PM' }
+    ];
+
+    const daysList = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const days = {};
+
+    daysList.forEach(day => {
+      days[day] = slots.map(slot => {
+        const matched = liveRoutines.find(r => 
+          r.day === day && 
+          (r.time === slot.time || r.time?.includes(slot.time.split(' - ')[0]))
+        );
+
+        if (matched) {
+          const courseParts = (matched.course || '').split(':');
+          const code = courseParts[0]?.trim() || 'CLASS';
+          const title = courseParts[1]?.trim() || matched.course;
+          const isTaught = isMySlot(matched);
+
+          return {
+            code,
+            title,
+            type: code.toLowerCase().includes('lab') ? 'Lab' : 'Lecture',
+            room: matched.room || 'Room TBA',
+            batch: matched.batch || 'General Batch',
+            isTaughtByMe: isTaught,
+            teacher: matched.teacher,
+            time: matched.time || slot.time
+          };
+        }
+
+        return {
+          code: null,
+          title: 'Free Period / Office Hour',
+          type: 'Office',
+          room: 'Office Room',
+          batch: '-',
+          isTaughtByMe: false
+        };
+      });
+    });
+
+    return { slots, days };
+  }, [liveRoutines, currentTeacherName]);
+
+  const todayName = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+  const effectiveDailySchedule = useMemo(() => {
+    if (!liveRoutines || liveRoutines.length === 0) return dailySchedule;
+
+    const todaySlots = liveRoutines.filter(r => r.day === todayName && isMySlot(r));
+    if (todaySlots.length === 0) {
+      const anyToday = liveRoutines.filter(r => r.day === todayName);
+      if (anyToday.length > 0 && !showTaughtOnly) {
+        return anyToday.map(r => {
+          const parts = (r.course || '').split(':');
+          return {
+            code: parts[0]?.trim() || 'CLASS',
+            subject: parts[1]?.trim() || r.course,
+            batch: r.batch,
+            room: r.room,
+            startTime: (r.time || '').split(' - ')[0] || '09:00 AM',
+            endTime: (r.time || '').split(' - ')[1] || '10:30 AM',
+            duration: '1.5 Hours',
+            status: 'Scheduled',
+            isTaughtByMe: false
+          };
+        });
+      }
+    }
+
+    if (todaySlots.length > 0) {
+      return todaySlots.map((r, idx) => {
+        const parts = (r.course || '').split(':');
+        return {
+          code: parts[0]?.trim() || 'CLASS',
+          subject: parts[1]?.trim() || r.course,
+          batch: r.batch,
+          room: r.room,
+          startTime: (r.time || '').split(' - ')[0] || '09:00 AM',
+          endTime: (r.time || '').split(' - ')[1] || '10:30 AM',
+          duration: '1.5 Hours',
+          status: idx === 0 ? 'Ongoing' : 'Upcoming',
+          isCurrent: idx === 0,
+          isTaughtByMe: true
+        };
+      });
+    }
+
+    return dailySchedule;
+  }, [liveRoutines, todayName, currentTeacherName, showTaughtOnly]);
 
   const [activeTab, setActiveTab] = useState('weekly'); // 'weekly' | 'today'
   const [selectedClass, setSelectedClass] = useState(null);
@@ -750,7 +892,7 @@ export default function TeacherRoutine() {
                     </tr>
                   </thead>
                   <tbody>
-                    {teacherTimetableGrid.slots.map((slot, sIdx) => (
+                    {effectiveTimetableGrid.slots.map((slot, sIdx) => (
                       <tr key={slot.id}>
                         {/* Time Slot column */}
                         <td className="time-slot-column">
@@ -762,7 +904,7 @@ export default function TeacherRoutine() {
 
                         {/* Days column values */}
                         {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday'].map(day => {
-                          const slotItem = teacherTimetableGrid.days[day][sIdx];
+                          const slotItem = effectiveTimetableGrid.days[day]?.[sIdx] || { code: null, title: 'Free Period', type: 'Office', isTaughtByMe: false };
                           const isTaught = slotItem.isTaughtByMe;
                           const code = slotItem.code;
 
@@ -848,10 +990,10 @@ export default function TeacherRoutine() {
             exit={{ opacity: 0, y: -15 }}
             style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '800px', margin: '0 auto', width: '100%' }}
           >
-            <Card title="Today's Timetable Flow (Monday Layout)" className="glass-card-routine" style={{ padding: '24px' }}>
+            <Card title={`Today's Timetable Flow (${todayName} Layout)`} className="glass-card-routine" style={{ padding: '24px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '18px', position: 'relative', paddingLeft: '24px', borderLeft: '1px solid var(--border-color)', marginLeft: '12px', marginTop: '16px' }}>
                 
-                {dailySchedule.map((session, index) => (
+                {effectiveDailySchedule.map((session, index) => (
                   <div 
                     key={index}
                     style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '10px' }}
