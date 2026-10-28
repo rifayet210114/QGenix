@@ -2,11 +2,7 @@
 # backend/seed_users.py — Seed Initial Roles & Users with DIIT Institutional Email Format
 # -----------------------------------------------------------------------------------------
 # Bengali Note:
-# এই স্ক্রিপ্টের মাধ্যমে DIIT ইন্সটিটিউশনাল ইমেইল ফরম্যাট অনুযায়ী টেস্ট ইউজার তৈরি করা হয়:
-# ১. Student: tanvir_2022014@diit.edu.bd (পাসওয়ার্ড: student123, ফরম্যাট: first_name_with_class_id@diit.edu.bd)
-#    - অতিরিক্ত ইউজারনেম: tanvir_2022014 অথবা student
-# ২. Teacher: teacher@diit.edu.bd (পাসওয়ার্ড: teacher123)
-# ৩. Admin: admin@diit.edu.bd (পাসওয়ার্ড: admin123)
+# Standard institutional email format test credentials
 # =========================================================================================
 
 import os

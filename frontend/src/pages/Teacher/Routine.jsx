@@ -13,8 +13,6 @@
 //   7. PDF & Printing integration.
 //
 // [Bengali Note]:
-// এই ফাইলটি শিক্ষকের ক্লাস রুটিন ভিউয়ার। শিক্ষক তার নিজের ক্লাসগুলোর সময়সূচী ও শিডিউল
-// রুটিনে হাইলাইটেড অবস্থায় দেখতে পাবেন এবং বিস্তারিত ভিউ ও প্রিন্ট করতে পারবেন।
 // ============================================================================
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -248,8 +246,29 @@ export default function TeacherRoutine() {
     return () => clearInterval(interval);
   }, []);
 
-  const currentTeacherName = (user?.name || user?.first_name || user?.username || 'Dr. Asaduzzaman').toLowerCase();
+  const currentTeacherName = (
+    user?.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : (user?.name || user?.username || 'Teacher')
+  ).toLowerCase();
   const cleanTeacherName = currentTeacherName.replace(/^(dr\.|mr\.|mrs\.|ms\.|prof\.|engr\.)\s*/i, '').trim();
+
+  // All UI State declarations (properly initialized before useMemo)
+  const [activeTab, setActiveTab] = useState('weekly'); // 'weekly' | 'today'
+  const [selectedClass, setSelectedClass] = useState(null);
+  const [showTaughtOnly, setShowTaughtOnly] = useState(true);
+
+  // Reminders / alerts state
+  const [toastMessage, setToastMessage] = useState(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(0);
+
+  // Countdown timer for next class: CSE-302 DBMS at 3:00 PM
+  const [countdownSeconds, setCountdownSeconds] = useState(8075);
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCountdownSeconds(prev => (prev > 0 ? prev - 1 : 8075));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const isMySlot = (slot) => {
     if (!slot || !slot.teacher) return false;
@@ -273,8 +292,13 @@ export default function TeacherRoutine() {
 
     daysList.forEach(day => {
       days[day] = slots.map(slot => {
-        const matched = liveRoutines.find(r => 
-          r.day === day && 
+        const mySlotMatch = liveRoutines.find(r => 
+          r.day.toLowerCase() === day.toLowerCase() && 
+          (r.time === slot.time || r.time?.includes(slot.time.split(' - ')[0])) &&
+          isMySlot(r)
+        );
+        const matched = mySlotMatch || liveRoutines.find(r => 
+          r.day.toLowerCase() === day.toLowerCase() && 
           (r.time === slot.time || r.time?.includes(slot.time.split(' - ')[0]))
         );
 
@@ -312,11 +336,11 @@ export default function TeacherRoutine() {
 
   const todayName = new Date().toLocaleDateString('en-US', { weekday: 'long' });
   const effectiveDailySchedule = useMemo(() => {
-    if (!liveRoutines || liveRoutines.length === 0) return dailySchedule;
+    if (!liveRoutines || liveRoutines.length === 0) return [];
 
-    const todaySlots = liveRoutines.filter(r => r.day === todayName && isMySlot(r));
+    const todaySlots = liveRoutines.filter(r => r.day.toLowerCase() === todayName.toLowerCase() && isMySlot(r));
     if (todaySlots.length === 0) {
-      const anyToday = liveRoutines.filter(r => r.day === todayName);
+      const anyToday = liveRoutines.filter(r => r.day.toLowerCase() === todayName.toLowerCase());
       if (anyToday.length > 0 && !showTaughtOnly) {
         return anyToday.map(r => {
           const parts = (r.course || '').split(':');
@@ -333,46 +357,25 @@ export default function TeacherRoutine() {
           };
         });
       }
+      return [];
     }
 
-    if (todaySlots.length > 0) {
-      return todaySlots.map((r, idx) => {
-        const parts = (r.course || '').split(':');
-        return {
-          code: parts[0]?.trim() || 'CLASS',
-          subject: parts[1]?.trim() || r.course,
-          batch: r.batch,
-          room: r.room,
-          startTime: (r.time || '').split(' - ')[0] || '09:00 AM',
-          endTime: (r.time || '').split(' - ')[1] || '10:30 AM',
-          duration: '1.5 Hours',
-          status: idx === 0 ? 'Ongoing' : 'Upcoming',
-          isCurrent: idx === 0,
-          isTaughtByMe: true
-        };
-      });
-    }
-
-    return dailySchedule;
+    return todaySlots.map((r, idx) => {
+      const parts = (r.course || '').split(':');
+      return {
+        code: parts[0]?.trim() || 'CLASS',
+        subject: parts[1]?.trim() || r.course,
+        batch: r.batch,
+        room: r.room,
+        startTime: (r.time || '').split(' - ')[0] || '09:00 AM',
+        endTime: (r.time || '').split(' - ')[1] || '10:30 AM',
+        duration: '1.5 Hours',
+        status: idx === 0 ? 'Ongoing' : 'Upcoming',
+        isCurrent: idx === 0,
+        isTaughtByMe: true
+      };
+    });
   }, [liveRoutines, todayName, currentTeacherName, showTaughtOnly]);
-
-  const [activeTab, setActiveTab] = useState('weekly'); // 'weekly' | 'today'
-  const [selectedClass, setSelectedClass] = useState(null);
-  const [showTaughtOnly, setShowTaughtOnly] = useState(true);
-
-  // Reminders / alerts state
-  const [toastMessage, setToastMessage] = useState(null);
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [downloadProgress, setDownloadProgress] = useState(0);
-
-  // Countdown timer for next class: CSE-302 DBMS at 3:00 PM
-  const [countdownSeconds, setCountdownSeconds] = useState(8075);
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCountdownSeconds(prev => (prev > 0 ? prev - 1 : 8075));
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
 
   const formatCountdown = (totalSeconds) => {
     const hrs = Math.floor(totalSeconds / 3600);
@@ -993,61 +996,67 @@ export default function TeacherRoutine() {
             <Card title={`Today's Timetable Flow (${todayName} Layout)`} className="glass-card-routine" style={{ padding: '24px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '18px', position: 'relative', paddingLeft: '24px', borderLeft: '1px solid var(--border-color)', marginLeft: '12px', marginTop: '16px' }}>
                 
-                {effectiveDailySchedule.map((session, index) => (
-                  <div 
-                    key={index}
-                    style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '10px' }}
-                  >
-                    {/* Timeline bullet */}
-                    <div style={{
-                      position: 'absolute',
-                      left: '-31px',
-                      top: '4px',
-                      width: '13px',
-                      height: '13px',
-                      borderRadius: '50%',
-                      background: session.isCurrent ? '#8B5CF6' : (session.status === 'Completed' ? 'var(--accent-success)' : 'var(--border-color)'),
-                      border: '3px solid var(--bg-primary)',
-                      boxShadow: session.isCurrent ? '0 0 10px rgba(139, 92, 246, 0.6)' : 'none'
-                    }} />
-
-                    {/* Class card content */}
+                {effectiveDailySchedule.length > 0 ? (
+                  effectiveDailySchedule.map((session, index) => (
                     <div 
-                      onClick={() => openClassDetails(session)}
-                      className="glass-card-routine hover-resource-row" 
-                      style={{ padding: '16px', borderRadius: '14px', cursor: 'pointer' }}
+                      key={index}
+                      style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '10px' }}
                     >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#8B5CF6', background: 'rgba(139, 92, 246, 0.1)', padding: '2px 8px', borderRadius: '6px' }}>
-                            {session.code}
-                          </span>
-                          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>{session.startTime} - {session.endTime}</span>
-                        </div>
-                        
-                        <span style={{
-                          fontSize: '0.68rem',
-                          fontWeight: 'bold',
-                          padding: '3px 8px',
-                          borderRadius: '6px',
-                          background: session.isCurrent ? 'rgba(139, 92, 246, 0.15)' : (session.status === 'Completed' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(255, 255, 255, 0.02)'),
-                          color: session.isCurrent ? 'var(--accent-primary)' : (session.status === 'Completed' ? 'var(--accent-success)' : 'var(--text-secondary)')
-                        }}>
-                          {session.status}
-                        </span>
-                      </div>
+                      {/* Timeline bullet */}
+                      <div style={{
+                        position: 'absolute',
+                        left: '-31px',
+                        top: '4px',
+                        width: '13px',
+                        height: '13px',
+                        borderRadius: '50%',
+                        background: session.isCurrent ? '#8B5CF6' : (session.status === 'Completed' ? 'var(--accent-success)' : 'var(--border-color)'),
+                        border: '3px solid var(--bg-primary)',
+                        boxShadow: session.isCurrent ? '0 0 10px rgba(139, 92, 246, 0.6)' : 'none'
+                      }} />
 
-                      <div style={{ marginTop: '8px' }}>
-                        <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 'bold', color: 'var(--text-primary)' }}>{session.subject}</h4>
-                        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                          <span>Target: {session.batch}</span>
-                          <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'var(--text-muted)' }} />
-                          <span>Venue: {session.room}</span>
+                      {/* Class card content */}
+                      <div 
+                        onClick={() => openClassDetails(session)}
+                        className="glass-card-routine hover-resource-row" 
+                        style={{ padding: '16px', borderRadius: '14px', cursor: 'pointer' }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#8B5CF6', background: 'rgba(139, 92, 246, 0.1)', padding: '2px 8px', borderRadius: '6px' }}>
+                              {session.code}
+                            </span>
+                            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>{session.startTime} - {session.endTime}</span>
+                          </div>
+                          
+                          <span style={{
+                            fontSize: '0.68rem',
+                            fontWeight: 'bold',
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            background: session.isCurrent ? 'rgba(139, 92, 246, 0.15)' : (session.status === 'Completed' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(255, 255, 255, 0.02)'),
+                            color: session.isCurrent ? 'var(--accent-primary)' : (session.status === 'Completed' ? 'var(--accent-success)' : 'var(--text-secondary)')
+                          }}>
+                            {session.status}
+                          </span>
+                        </div>
+
+                        <div style={{ marginTop: '8px' }}>
+                          <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 'bold', color: 'var(--text-primary)' }}>{session.subject}</h4>
+                          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                            <span>Target: {session.batch}</span>
+                            <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'var(--text-muted)' }} />
+                            <span>Venue: {session.room}</span>
+                          </div>
                         </div>
                       </div>
                     </div>
+                  ))
+                ) : (
+                  <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.88rem' }}>
+                    No lectures scheduled for today ({todayName}). Click "Weekly Schedule Grid" to view full schedule.
                   </div>
-                ))}
+                )}
 
               </div>
             </Card>

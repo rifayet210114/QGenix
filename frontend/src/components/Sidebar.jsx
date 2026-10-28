@@ -57,7 +57,7 @@ export default function Sidebar({ links, role, isOpen, setIsOpen }) {
       {/* 
         [CHANGE: Added className="sidebar-scroll" and overflowY: "auto" style to enable sidebar scrolling]
         This allows the sidebar menu items to scroll on screens with smaller viewport height.
-        [Bengali Note]: ছোট স্ক্রিনে সাইডবার মেনু স্ক্রল করার সুবিধা দেওয়ার জন্য 'sidebar-scroll' ক্লাস এবং 'overflowY: auto' স্টাইল যুক্ত করা হয়েছে।
+        [Bengali Note]:          'sidebar-scroll'   'overflowY: auto'    ।
       */}
       <div className="sidebar-scroll" style={{ padding: '20px 0', flex: 1, overflowY: 'auto' }}>
 
@@ -75,7 +75,7 @@ export default function Sidebar({ links, role, isOpen, setIsOpen }) {
               [CHANGE: Reverted to standard React Link configuration without framer-motion active capsule]
               This keeps the hover and click color rendering identical to the original behavior,
               while the smooth transition time is managed seamlessly in the stylesheet.
-              [Bengali Note]: আগের মতো সাধারণ রিয়্যাক্ট রাউটার লিংক স্ট্রাকচারে রিভার্ট করা হয়েছে।
+              [Bengali Note]:          ।
             */
             <Link 
               key={link.path} 

@@ -2,8 +2,6 @@
 // DeleteConfirmContext.jsx — Universal Modern Delete Confirmation Modal System
 // -----------------------------------------------------------------------------------------
 // Bengali Note:
-// পুরো প্রোজেক্টের যেকোনো জায়গা থেকে ডিলিট বাটনে ক্লিক করলে ব্রাউজারের সাধারণ window.confirm
-// এর পরিবর্তে যাতে একটি আল্ট্রা-মডার্ন, গ্লাস-মরফিক ডিলিট কনফার্মেশন কার্ড/মডাল প্রদর্শিত হয়।
 // =========================================================================================
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';

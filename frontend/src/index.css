@@ -501,6 +501,7 @@ body.light-mode .dashboard-header {
 .badge-warning { background: rgba(245, 158, 11, 0.2); color: var(--accent-warning); }
 .badge-danger  { background: rgba(239, 68, 68, 0.2);  color: var(--accent-danger); }
 .badge-primary { background: rgba(99, 102, 241, 0.2); color: var(--accent-primary); }
+.badge-info    { background: rgba(6, 182, 212, 0.2); color: #06B6D4; }
 
 
 /* =========================================================================
@@ -1068,8 +1069,8 @@ body.light-mode .navbar-theme-toggle-wrapper button:hover {
    to match the futuristic dark glassmorphic branding of QGenix.
    Includes smooth micro-interactions, subtle borders, custom font color, and neon glows.
    
-   [Bengali Note]: প্রিমিয়াম ডার্ক গ্লাসমরফিজম সিটিএ বাটন স্টাইল।
-   ডিফল্ট বাটনগুলোকে ডার্ক গ্লাসের টেক্সচার, বেগুনী রঙের গ্লো এবং মসৃণ অ্যানিমেশন দেওয়ার জন্য এটি ব্যবহার করা হয়েছে।
+   [Bengali Note]:      ।
+       ,            ।
    ========================================================================= */
 
 .btn-glass-cta {
@@ -1115,7 +1116,6 @@ body.light-mode .navbar-theme-toggle-wrapper button:hover {
 
 /* ---------- 22a. Light Mode Overrides for Glass Buttons ---------- */
 /* Swaps dark translucent styles for soft violet border layers and high-contrast texts. */
-/* [Bengali Note]: লাইট মোডের জন্য গ্লাস বাটনের মানানসই রঙের ওভাররাইড ও বেগুনী বর্ডার */
 body.light-mode .btn-glass-cta {
   background: rgba(139, 92, 246, 0.04) !important;
   border: 1px solid rgba(139, 92, 246, 0.12) !important;
@@ -1141,7 +1141,7 @@ body.light-mode .btn-glass-cta:disabled {
    =========================================================================
    Provides standard fallback colors for SVG icons since Tailwind is not configured.
    
-   [Bengali Note]: আইকন এবং অন্যান্য টেক্সট বা সাজসজ্জার কালার ইফেক্ট এর জন্য এই ইউটিলিটিগুলো যোগ করা হলো।
+   [Bengali Note]:               ।
    ========================================================================= */
 .text-violet-500 { color: #8B5CF6 !important; }
 .text-violet-400 { color: #A78BFA !important; }
@@ -1155,7 +1155,7 @@ body.light-mode .btn-glass-cta:disabled {
    Adds custom flex/grid gaps matching Tailwind specifications to resolve
    icon-to-text spacing across the application.
    
-   [Bengali Note]: আইকন ও লেখার মাঝখানের দূরত্ব বা গ্যাপ নিয়ন্ত্রণের জন্য এই কাস্টম ক্লাসগুলো ডিফাইন করা হলো।
+   [Bengali Note]:               ।
    ========================================================================= */
 .gap-1\.5 { gap: 6px !important; }
 .gap-3 { gap: 12px !important; }
@@ -1166,7 +1166,7 @@ body.light-mode .btn-glass-cta:disabled {
    Adds custom scrollbar styles for the sidebar navigation container.
    Ensures the scrollbar is extremely thin and matches the glassmorphic theme.
    
-   [Bengali Note]: সাইডবার মেনু স্ক্রল করার জন্য একটি কাস্টম চিকন ও মানানসই স্ক্রলবার স্টাইল এখানে ডিফাইন করা হয়েছে।
+   [Bengali Note]:                ।
    ========================================================================= */
 .sidebar-scroll {
   scrollbar-width: thin;

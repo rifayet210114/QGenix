@@ -3,9 +3,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Calendar, CalendarCheck, Users, FileText, CheckSquare, TrendingUp, Award, Clock, Bell, LogOut, BookOpen, AlertTriangle, ShieldAlert,
   ArrowUpRight, ArrowDownRight, MoreVertical, Plus, Edit, Trash2, Eye, User, Sparkles, MessageSquare, Clipboard, PieChart as PieIcon,
-  RefreshCw, CheckCircle2, ChevronRight, Activity, PlusCircle, Check, BookMarked, HelpCircle, FileCheck
+  RefreshCw, CheckCircle2, ChevronRight, Activity, PlusCircle, Check, BookMarked, HelpCircle, FileCheck, LogIn, CheckCircle,
+  Download, RotateCcw
 } from 'lucide-react';
 import Card from '../../components/Card';
+import { useAuth } from '../../contexts/AuthContext';
+import { API_BASE } from '../../config';
+import { downloadFacultyAttendancePDF } from '../../utils/facultyAttendancePdf';
 import { 
   ResponsiveContainer, BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend,
   PieChart, Pie, Cell, AreaChart, Area
@@ -110,9 +114,124 @@ export default function TeacherDashboard() {
     return () => observer.disconnect();
   }, []);
 
-  const triggerToast = (msg) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3000);
+  const { user } = useAuth();
+  const [isCheckedIn, setIsCheckedIn] = useState(false);
+  const [checkInTime, setCheckInTime] = useState(null);
+  const [checkOutTime, setCheckOutTime] = useState(null);
+  const [duration, setDuration] = useState(null);
+  const [isCheckLoading, setIsCheckLoading] = useState(false);
+  const [biometricLogs, setBiometricLogs] = useState([]);
+  const [avgCheckIn, setAvgCheckIn] = useState('--:--');
+  const [avgCheckOut, setAvgCheckOut] = useState('--:--');
+
+  const currentMonthStr = useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }, []);
+  const [selectedMonth, setSelectedMonth] = useState(currentMonthStr);
+
+  const availableMonths = useMemo(() => {
+    const months = [];
+    const d = new Date();
+    for (let i = 0; i < 6; i++) {
+      const target = new Date(d.getFullYear(), d.getMonth() - i, 1);
+      const val = `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, '0')}`;
+      const label = target.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) + (i === 0 ? ' (Current Month)' : '');
+      months.push({ val, label });
+    }
+    return months;
+  }, []);
+
+  const displayedBiometricLogs = useMemo(() => {
+    if (!biometricLogs) return [];
+    if (selectedMonth === 'all') return biometricLogs;
+    return biometricLogs.filter(log => log.date && log.date.startsWith(selectedMonth));
+  }, [biometricLogs, selectedMonth]);
+
+  // Load teacher biometric attendance logs & status directly from DB
+  const loadBiometricStatus = async () => {
+    try {
+      const teacherId = user?.id || user?.institutional_id || user?.email;
+      const url = teacherId 
+        ? `${API_BASE}/api/auth/teacher-checkin/?teacher_id=${encodeURIComponent(teacherId)}`
+        : `${API_BASE}/api/auth/teacher-checkin/`;
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        setIsCheckedIn(Boolean(data.is_checked_in));
+        setCheckInTime(data.check_in_time || null);
+        setCheckOutTime(data.check_out_time || null);
+        setDuration(data.duration || null);
+        if (data.logs && data.logs.length > 0) {
+          setBiometricLogs(data.logs);
+        }
+      }
+
+      // Also get averages from faculty dossier API
+      if (teacherId) {
+        const dossierRes = await fetch(`${API_BASE}/api/auth/faculty-dossier/${encodeURIComponent(teacherId)}/`);
+        if (dossierRes.ok) {
+          const dossier = await dossierRes.json();
+          if (dossier.averageCheckIn) setAvgCheckIn(dossier.averageCheckIn);
+          if (dossier.averageCheckOut) setAvgCheckOut(dossier.averageCheckOut);
+          if (dossier.biometricLogs && dossier.biometricLogs.length > 0) {
+            setBiometricLogs(dossier.biometricLogs);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Error loading teacher biometric data:', e);
+    }
+  };
+
+  useEffect(() => {
+    loadBiometricStatus();
+    const handleSync = () => loadBiometricStatus();
+    window.addEventListener('qgenix_teacher_checkin_updated', handleSync);
+    return () => window.removeEventListener('qgenix_teacher_checkin_updated', handleSync);
+  }, [user]);
+
+  // Handle Check-In / Check-Out Toggle from Dashboard
+  const handleToggleCheckInOut = async () => {
+    if (isCheckLoading) return;
+    setIsCheckLoading(true);
+    const teacherId = user?.id || user?.institutional_id || user?.email;
+    const actionToPerform = isCheckedIn ? 'check_out' : 'check_in';
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/teacher-checkin/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          teacher_id: teacherId,
+          action: actionToPerform,
+          terminal: 'Web Turnstile - Teacher Dashboard Quick Action'
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setIsCheckedIn(Boolean(data.is_checked_in));
+        setCheckInTime(data.check_in_time || null);
+        setCheckOutTime(data.check_out_time || null);
+        setDuration(data.duration || null);
+        triggerToast(data.message || (isCheckedIn ? 'Checked out successfully!' : 'Checked in successfully!'));
+        // Broadcast across components (Navbar, Admin, Dashboard)
+        window.dispatchEvent(new CustomEvent('qgenix_teacher_checkin_updated', { detail: data }));
+        try {
+          const bc = new BroadcastChannel('qgenix_teacher_biometrics');
+          bc.postMessage({ type: 'CHECKIN_UPDATED', teacherId, data, timestamp: Date.now() });
+          bc.close();
+        } catch (e) {}
+        loadBiometricStatus();
+      } else {
+        const err = await res.json();
+        triggerToast(`❌ ${err.error || 'Check-in request failed'}`);
+      }
+    } catch (err) {
+      console.error('Failed to toggle check-in/out:', err);
+      triggerToast('❌ Network error while connecting to biometric server');
+    } finally {
+      setIsCheckLoading(false);
+    }
   };
 
   // Custom Chart Tooltip
@@ -164,48 +283,6 @@ export default function TeacherDashboard() {
           </div>
         </div>
 
-        {/* Upcoming Exams */}
-        <div className="glass-panel premium-card hover-lift" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Upcoming Exams</span>
-            <div style={{ padding: '10px', background: 'rgba(139, 92, 246, 0.1)', borderRadius: '10px', color: 'var(--accent-primary)' }}>
-              <FileText size={20} />
-            </div>
-          </div>
-          <div>
-            <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-heading)' }}>3</div>
-            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginTop: '2px', fontWeight: 600 }}>Within next 7 days</span>
-          </div>
-        </div>
-
-        {/* Low Attendance Alerts */}
-        <div className="glass-panel premium-card hover-lift" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Low Attendance Alerts</span>
-            <div style={{ padding: '10px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '10px', color: 'var(--accent-danger)' }}>
-              <AlertTriangle size={20} />
-            </div>
-          </div>
-          <div>
-            <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-heading)' }}>4</div>
-            <span style={{ fontSize: '0.72rem', color: 'var(--accent-danger)', display: 'block', marginTop: '2px', fontWeight: 600 }}>Attendance below 75% limit</span>
-          </div>
-        </div>
-
-        {/* Total Students */}
-        <div className="glass-panel premium-card hover-lift" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Total Students</span>
-            <div style={{ padding: '10px', background: 'rgba(16, 185, 129, 0.1)', borderRadius: '10px', color: 'var(--accent-success)' }}>
-              <Users size={20} />
-            </div>
-          </div>
-          <div>
-            <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-heading)' }}>154</div>
-            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginTop: '2px', fontWeight: 600 }}>Across 4 active sections</span>
-          </div>
-        </div>
-
         {/* Active Courses */}
         <div className="glass-panel premium-card hover-lift" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -220,45 +297,76 @@ export default function TeacherDashboard() {
           </div>
         </div>
 
-        {/* Pending Assignment Reviews */}
-        <div className="glass-panel premium-card hover-lift" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {/* Biometric Duty Status & Real-Time Check-In/Out Quick Control */}
+        <div 
+          className="glass-panel premium-card hover-lift" 
+          style={{ 
+            padding: '20px', 
+            display: 'flex', 
+            flexDirection: 'column', 
+            justifyContent: 'space-between',
+            gap: '12px',
+            border: isCheckedIn ? '1px solid rgba(239, 68, 68, 0.35)' : '1px solid rgba(16, 185, 129, 0.35)',
+            background: isCheckedIn 
+              ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(22, 30, 49, 0.7) 100%)'
+              : 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(22, 30, 49, 0.7) 100%)',
+          }}
+        >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Pending Reviews</span>
-            <div style={{ padding: '10px', background: 'rgba(245, 158, 11, 0.1)', borderRadius: '10px', color: 'var(--accent-warning)' }}>
-              <CheckSquare size={20} />
+            <div>
+              <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Campus Duty Status</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+                <span 
+                  style={{
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    background: isCheckedIn ? '#10B981' : '#EF4444',
+                    boxShadow: isCheckedIn ? '0 0 8px #10B981' : '0 0 8px #EF4444'
+                  }} 
+                />
+                <span style={{ fontSize: '0.82rem', fontWeight: 800, color: isCheckedIn ? '#10B981' : '#EF4444' }}>
+                  {isCheckedIn ? 'ON DUTY (Checked In)' : 'OFF DUTY (Checked Out)'}
+                </span>
+              </div>
+            </div>
+            <div style={{ 
+              padding: '10px', 
+              background: isCheckedIn ? 'rgba(239, 68, 68, 0.12)' : 'rgba(16, 185, 129, 0.12)', 
+              borderRadius: '10px', 
+              color: isCheckedIn ? '#EF4444' : '#10B981' 
+            }}>
+              {isCheckedIn ? <LogOut size={20} /> : <LogIn size={20} />}
             </div>
           </div>
-          <div>
-            <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-heading)' }}>20</div>
-            <span style={{ fontSize: '0.72rem', color: 'var(--text-warning)', display: 'block', marginTop: '2px', fontWeight: 600 }}>2 tasks awaiting grading</span>
-          </div>
-        </div>
 
-        {/* Running Exams */}
-        <div className="glass-panel premium-card hover-lift" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Running Exams</span>
-            <div style={{ padding: '10px', background: 'rgba(16, 185, 129, 0.1)', borderRadius: '10px', color: 'var(--accent-success)' }}>
-              <Clock size={20} />
-            </div>
-          </div>
           <div>
-            <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-heading)' }}>1</div>
-            <span style={{ fontSize: '0.72rem', color: 'var(--accent-success)', display: 'block', marginTop: '2px', fontWeight: 600 }}>CSE-302 Exam currently active</span>
-          </div>
-        </div>
-
-        {/* Average Attendance Rate */}
-        <div className="glass-panel premium-card hover-lift" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Avg Attendance</span>
-            <div style={{ padding: '10px', background: 'rgba(139, 92, 246, 0.1)', borderRadius: '10px', color: 'var(--accent-primary)' }}>
-              <TrendingUp size={20} />
+            <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-heading)' }}>
+              {isCheckedIn ? (checkInTime ? `Checked In: ${checkInTime}` : 'Checked In') : (checkOutTime && checkOutTime !== '--:--' ? `Last Out: ${checkOutTime}` : 'Not Checked In')}
             </div>
-          </div>
-          <div>
-            <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-heading)' }}>91.2%</div>
-            <span style={{ fontSize: '0.72rem', color: '#10B981', display: 'block', marginTop: '2px', fontWeight: 600 }}>Consistent student presence</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                {isCheckedIn ? `Duration: ${duration || 'In Progress'}` : (duration ? `Office: ${duration}` : 'Click below to register')}
+              </span>
+              <button
+                type="button"
+                onClick={handleToggleCheckInOut}
+                disabled={isCheckLoading}
+                className="hover-lift"
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: '20px',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  border: isCheckedIn ? '1px solid #EF4444' : '1px solid #10B981',
+                  background: isCheckedIn ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)',
+                  color: isCheckedIn ? '#FCA5A5' : '#6EE7B7',
+                  cursor: isCheckLoading ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {isCheckLoading ? 'Syncing...' : isCheckedIn ? 'Check OUT' : 'Check IN'}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -878,15 +986,10 @@ const styleOverrides = (
     }
     .stats-cards-grid {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(3, 1fr);
       gap: 20px;
     }
-    @media (max-width: 1200px) {
-      .stats-cards-grid {
-        grid-template-columns: repeat(2, 1fr);
-      }
-    }
-    @media (max-width: 576px) {
+    @media (max-width: 992px) {
       .stats-cards-grid {
         grid-template-columns: 1fr;
       }

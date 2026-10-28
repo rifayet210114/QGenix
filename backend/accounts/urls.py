@@ -2,11 +2,6 @@
 # accounts/urls.py — Authentication & RBAC User Management Endpoints
 # -----------------------------------------------------------------------------------------
 # Bengali Note:
-# এই ফাইলে অ্যাকাউন্টস অ্যাপের ইউআরএল রুটগুলো কনফিগার করা হয়েছে:
-# ১. /login/ -> JWT টোকেন ও রোল ভিত্তিক তথ্যসহ লগইন হ্যান্ডলার
-# ২. /token/refresh/ -> মেয়াদোত্তীর্ণ টোকেন রিফ্রেশ করার এন্ডপয়েন্ট
-# ৩. /me/ -> বর্তমানে লগইন থাকা ইউজারের প্রোফাইল
-# ৪. /users/ -> শুধুমাত্র অ্যাডমিনের জন্য ইউজার ম্যানেজমেন্ট CRUD রাউট
 # =========================================================================================
 
 from django.urls import path, include
@@ -33,7 +28,16 @@ from .views import (
     SemesterArchiveViewSet,
     ArchiveSemesterActionView,
     SystemSettingView,
-    FacultyDossierView
+    FacultyDossierView,
+    ClassAttendanceViewSet,
+    AIQuestionPaperViewSet,
+    TeacherBiometricCheckInOutView,
+    BiometricShiftPolicyView,
+    FacultyTimesheetView,
+    TeacherCourseResourceView,
+    AIGenerateExamView,
+    AIPublishExamView,
+    StudentAssignedExamView
 )
 
 router = DefaultRouter()
@@ -45,13 +49,30 @@ router.register(r'batches', BatchViewSet, basename='admin-batches')
 router.register(r'archives', SemesterArchiveViewSet, basename='admin-archives')
 router.register(r'routines', ClassRoutineViewSet, basename='admin-routines')
 router.register(r'allocations', CourseAllocationViewSet, basename='admin-allocations')
+router.register(r'attendances', ClassAttendanceViewSet, basename='admin-attendances')
 router.register(r'exam-sessions', ExamSessionViewSet, basename='admin-exam-sessions')
 router.register(r'notices', NoticeViewSet, basename='admin-notices')
 router.register(r'audit-logs', AuditLogViewSet, basename='admin-audit-logs')
+router.register(r'ai-questions', AIQuestionPaperViewSet, basename='admin-ai-questions')
+
 
 urlpatterns = [
     # 100% Real Database Faculty Dossier (Class Routine, Biometrics & Leaves)
     path('faculty-dossier/<str:identifier>/', FacultyDossierView.as_view(), name='faculty-dossier'),
+    # Teacher Real-Time Biometric Check-In & Check-Out
+    path('teacher-checkin/', TeacherBiometricCheckInOutView.as_view(), name='teacher-checkin'),
+    # Faculty Biometric Shift Rules & Punctuality Policy (100% DB-driven)
+    path('biometric-shift-policy/', BiometricShiftPolicyView.as_view(), name='biometric-shift-policy'),
+    # Faculty Timesheet Logging & Reporting API (100% Real-Time DB Synced)
+    path('faculty-timesheet/', FacultyTimesheetView.as_view(), name='faculty-timesheet'),
+    path('faculty-timesheet/<int:pk>/', FacultyTimesheetView.as_view(), name='faculty-timesheet-detail'),
+    # Teacher Course Resources, Books & Notes Management (100% DB Table: teacher_course_resources)
+    path('teacher-resources/', TeacherCourseResourceView.as_view(), name='teacher-resources'),
+    path('teacher-resources/<int:pk>/', TeacherCourseResourceView.as_view(), name='teacher-resources-detail'),
+    # AI Exam Generation & Publish Endpoints
+    path('ai-generate-exam/', AIGenerateExamView.as_view(), name='ai-generate-exam'),
+    path('ai-publish-exam/', AIPublishExamView.as_view(), name='ai-publish-exam'),
+    path('student-assigned-exam/', StudentAssignedExamView.as_view(), name='student-assigned-exam'),
     # Dynamic DB Metrics for Executive Dashboard
     path('dashboard-stats/', DashboardStatsView.as_view(), name='dashboard-stats'),
     # System Settings & Email Formats Configuration

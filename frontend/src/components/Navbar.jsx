@@ -6,7 +6,7 @@
 //   1. Hamburger menu button (visible on mobile only)
 //   2. Dynamic page title passed from the layout
 //   3. Theme toggle switch (dark ↔ light mode)
-//   4. Notification bell icon
+//   4. Notification bell icon (shortcut to role notice board + unread badge)
 //   5. User info pill (avatar + name + role badge) — driven by
 //      ProfileContext so profile edits reflect here instantly
 //   6. Logout button that redirects to /login
@@ -16,16 +16,17 @@
 // overall QGenix design language.
 // ============================================================
 
-import React from 'react';
-// Bell — notification icon, User — avatar fallback, LogOut — sign-out icon, Menu — hamburger, Search — search bar icon
-import { Bell, User, LogOut, Menu, Search } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+// Bell — notification icon, User — avatar fallback, LogOut — sign-out icon, Menu — hamburger, Search — search bar icon, LogIn & Clock for Check-In
+import { Bell, User, LogOut, Menu, Search, LogIn, Clock } from 'lucide-react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 // ThemeToggle provides the dark/light mode switcher button
 import ThemeToggle from './ThemeToggle';
 // ProfileContext — shared profile store updated from Profile page
 import { useProfile } from '../contexts/ProfileContext';
 // AuthContext — handles session state and role clearance upon logout
 import { useAuth } from '../contexts/AuthContext';
+import { API_BASE } from '../config';
 
 /**
  * Navbar Component
@@ -39,6 +40,185 @@ export default function Navbar({ title, role, onMenuClick }) {
   const { profile } = useProfile();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Teacher Biometric Check-In & Check-Out state
+  const [isCheckedIn, setIsCheckedIn] = useState(false);
+  const [checkInTime, setCheckInTime] = useState(null);
+  const [isCheckLoading, setIsCheckLoading] = useState(false);
+
+  // Poll or fetch initial teacher check-in status from DB
+  const fetchTeacherCheckInStatus = async () => {
+    if (role !== 'Teacher') return;
+    try {
+      const teacherId = user?.id || user?.institutional_id || user?.email;
+      const url = teacherId 
+        ? `${API_BASE}/api/auth/teacher-checkin/?teacher_id=${encodeURIComponent(teacherId)}`
+        : `${API_BASE}/api/auth/teacher-checkin/`;
+      const token = localStorage.getItem('token') || (user && user.token);
+      const headers = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch(url, { headers });
+      if (res.ok) {
+        const data = await res.json();
+        setIsCheckedIn(Boolean(data.is_checked_in));
+        setCheckInTime(data.check_in_time || null);
+      }
+    } catch (e) {
+      console.warn('Error fetching teacher check-in status:', e);
+    }
+  };
+
+  useEffect(() => {
+    if (role === 'Teacher') {
+      fetchTeacherCheckInStatus();
+    }
+    // Listen to custom event for across-component synchronization
+    const handleSync = () => fetchTeacherCheckInStatus();
+    window.addEventListener('qgenix_teacher_checkin_updated', handleSync);
+    return () => window.removeEventListener('qgenix_teacher_checkin_updated', handleSync);
+  }, [role, user]);
+
+  // Handle Toggle Check-In / Check-Out
+  const handleToggleCheckInOut = async () => {
+    if (role !== 'Teacher' || isCheckLoading) return;
+    setIsCheckLoading(true);
+    const teacherId = user?.id || user?.institutional_id || user?.email;
+    const actionToPerform = isCheckedIn ? 'check_out' : 'check_in';
+    const token = localStorage.getItem('token') || (user && user.token);
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/teacher-checkin/`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          teacher_id: teacherId,
+          action: actionToPerform,
+          terminal: 'Web Turnstile - Teacher Top Navbar'
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setIsCheckedIn(Boolean(data.is_checked_in));
+        setCheckInTime(data.check_in_time || null);
+        // Broadcast custom event so Teacher Dashboard and Admin Panel immediately sync
+        window.dispatchEvent(new CustomEvent('qgenix_teacher_checkin_updated', { detail: data }));
+        try {
+          const bc = new BroadcastChannel('qgenix_teacher_biometrics');
+          bc.postMessage({ type: 'CHECKIN_UPDATED', teacherId, data, timestamp: Date.now() });
+          bc.close();
+        } catch (e) {}
+      }
+    } catch (err) {
+      console.error('Failed to toggle check-in/out:', err);
+    } finally {
+      setIsCheckLoading(false);
+    }
+  };
+
+  // Shortcut destination based on user role
+  const noticeTargetUrl = role === 'Student' 
+    ? '/student/notices' 
+    : role === 'Teacher' 
+      ? '/teacher/notices' 
+      : '/admin/notices';
+
+  // Calculate unread notices targeted to this specific user role (Student & Teacher only)
+  const checkUnreadNotices = () => {
+    // Admin does not need an unread badge on their notice icon
+    if (role !== 'Student' && role !== 'Teacher') {
+      setUnreadCount(0);
+      return;
+    }
+
+    try {
+      const roleKey = (role || 'student').toLowerCase();
+      const raw = localStorage.getItem('qgenix_notices');
+      if (!raw) {
+        setUnreadCount(0);
+        return;
+      }
+      const list = JSON.parse(raw);
+      if (!Array.isArray(list)) {
+        setUnreadCount(0);
+        return;
+      }
+
+      // Filter notices targeted to this user's role
+      const targeted = list.filter(n => {
+        const aud = (n.audience || '').toLowerCase();
+        if (role === 'Student') {
+          return !n.audience || aud === 'all students & teachers' || aud === 'students only' || aud === 'all students' || (aud.includes('student') && !aud.includes('teacher'));
+        }
+        if (role === 'Teacher') {
+          return !n.audience || aud === 'all students & teachers' || aud === 'teachers only' || (aud.includes('teacher') && !aud.includes('student'));
+        }
+        return false;
+      });
+
+      const readIds = JSON.parse(localStorage.getItem(`qgenix_read_notices_${roleKey}`) || '[]');
+      const unread = targeted.filter(n => !readIds.includes(String(n.id)));
+      setUnreadCount(unread.length);
+    } catch (e) {
+      console.warn('Error checking unread notices:', e);
+    }
+  };
+
+  // Mark all currently targeted notices as read
+  const markAllAsRead = () => {
+    try {
+      const roleKey = (role || 'student').toLowerCase();
+      const raw = localStorage.getItem('qgenix_notices');
+      if (!raw) return;
+      const list = JSON.parse(raw);
+      if (!Array.isArray(list)) return;
+
+      const targeted = list.filter(n => {
+        const aud = (n.audience || '').toLowerCase();
+        if (role === 'Student') {
+          return !n.audience || aud === 'all students & teachers' || aud === 'students only' || aud === 'all students' || (aud.includes('student') && !aud.includes('teacher'));
+        }
+        if (role === 'Teacher') {
+          return !n.audience || aud === 'all students & teachers' || aud === 'teachers only' || (aud.includes('teacher') && !aud.includes('student'));
+        }
+        return true;
+      });
+
+      const allTargetedIds = targeted.map(n => String(n.id));
+      localStorage.setItem(`qgenix_read_notices_${roleKey}`, JSON.stringify(allTargetedIds));
+      setUnreadCount(0);
+      window.dispatchEvent(new Event('qgenix_read_status_updated'));
+    } catch (e) {
+      console.warn('Error marking notices read:', e);
+    }
+  };
+
+  useEffect(() => {
+    checkUnreadNotices();
+
+    // If the user navigates directly into the notice board page, mark as read
+    if (location.pathname === noticeTargetUrl) {
+      markAllAsRead();
+    }
+
+    const handleSync = () => {
+      checkUnreadNotices();
+    };
+
+    window.addEventListener('storage', handleSync);
+    window.addEventListener('qgenix_notices_updated', handleSync);
+    window.addEventListener('qgenix_read_status_updated', handleSync);
+    return () => {
+      window.removeEventListener('storage', handleSync);
+      window.removeEventListener('qgenix_notices_updated', handleSync);
+      window.removeEventListener('qgenix_read_status_updated', handleSync);
+    };
+  }, [location.pathname, role, noticeTargetUrl]);
 
   // Derive display name: check user session first, then profile context, then fallback
   const displayName = user?.name || (profile.firstName || profile.lastName
@@ -111,30 +291,119 @@ export default function Navbar({ title, role, onMenuClick }) {
       {/* ==================== RIGHT SECTION: Actions & User Info ==================== */}
       <div className="flex items-center" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
 
+        {/* Teacher Real-Time Biometric Check-In & Check-Out Button (Only visible for Teacher role) */}
+        {role === 'Teacher' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              type="button"
+              onClick={handleToggleCheckInOut}
+              disabled={isCheckLoading}
+              className="hover-lift"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '7px 16px',
+                borderRadius: '30px',
+                fontSize: '0.82rem',
+                fontWeight: 700,
+                letterSpacing: '0.02em',
+                cursor: isCheckLoading ? 'not-allowed' : 'pointer',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                border: isCheckedIn ? '1px solid rgba(239, 68, 68, 0.5)' : '1px solid rgba(16, 185, 129, 0.5)',
+                background: isCheckedIn 
+                  ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(220, 38, 38, 0.35) 100%)'
+                  : 'linear-gradient(135deg, rgba(16, 185, 129, 0.25) 0%, rgba(5, 150, 105, 0.4) 100%)',
+                color: isCheckedIn ? '#FCA5A5' : '#6EE7B7',
+                boxShadow: isCheckedIn 
+                  ? '0 0 16px rgba(239, 68, 68, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+                  : '0 0 16px rgba(16, 185, 129, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.15)',
+                backdropFilter: 'blur(10px)',
+              }}
+              title={isCheckedIn ? `Checked In at ${checkInTime || 'Morning'}. Click to Check Out` : "Click to Check In for Campus Duty"}
+            >
+              <span 
+                style={{
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  background: isCheckedIn ? '#EF4444' : '#10B981',
+                  boxShadow: isCheckedIn ? '0 0 8px #EF4444' : '0 0 8px #10B981',
+                  display: 'inline-block'
+                }} 
+              />
+              {isCheckLoading ? (
+                <span>Syncing...</span>
+              ) : isCheckedIn ? (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                  <LogOut size={14} /> Check OUT
+                </span>
+              ) : (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                  <LogIn size={14} /> Check IN
+                </span>
+              )}
+            </button>
+            
+            {isCheckedIn && checkInTime && (
+              <span 
+                style={{ 
+                  fontSize: '0.72rem', 
+                  color: 'var(--text-secondary)',
+                  background: 'rgba(255, 255, 255, 0.03)',
+                  padding: '4px 8px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border-color)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+                className="hidden sm:inline-flex"
+              >
+                <Clock size={12} color="#10B981" /> In: {checkInTime}
+              </span>
+            )}
+          </div>
+        )}
+
         {/* Dark / Light mode toggle component (Custom Styled Button) */}
         <div className="navbar-theme-toggle-wrapper">
           <ThemeToggle />
         </div>
 
-        {/* Notification bell — links to the Student notices / notification page */}
+        {/* Notification bell shortcut — links to Student / Teacher / Admin notice board with unread indicator */}
         <Link 
-          to={role === 'Student' ? '/student/notices' : '#'}
+          to={noticeTargetUrl}
+          onClick={markAllAsRead}
           className="navbar-btn-hover" 
           style={iconButtonStyle}
-          title="Notifications"
+          title={(role === 'Student' || role === 'Teacher') && unreadCount > 0 ? `${unreadCount} Unread Notice${unreadCount > 1 ? 's' : ''}` : "Notice Board"}
         >
           <Bell size={18} />
-          {/* Small circular notification badge dot */}
-          <span style={{
-            position: 'absolute',
-            top: '2px',
-            right: '2px',
-            width: '7px',
-            height: '7px',
-            background: '#8B5CF6',
-            borderRadius: '50%',
-            boxShadow: '0 0 8px #8B5CF6'
-          }} />
+          {/* Dynamic Unread Indicator Badge (Shown only for Students & Teachers when unread notices exist) */}
+          {(role === 'Student' || role === 'Teacher') && unreadCount > 0 && (
+            <span style={{
+              position: 'absolute',
+              top: '-3px',
+              right: '-3px',
+              minWidth: '18px',
+              height: '18px',
+              padding: '0 4px',
+              background: '#EF4444',
+              borderRadius: '9px',
+              color: '#fff',
+              fontSize: '0.65rem',
+              fontWeight: 800,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 0 10px rgba(239, 68, 68, 0.85)',
+              border: '2px solid var(--bg-primary, #0B0F19)',
+              lineHeight: 1
+            }}>
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </span>
+          )}
         </Link>
 
         {/* ---- User Profile Pill Card ---- */}

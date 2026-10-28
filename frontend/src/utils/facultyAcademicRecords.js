@@ -7,6 +7,7 @@
 // 3. Official Leave Balances (Casual, Medical, Academic Duty, Earned) & Approval History
 // 4. Institutional Profile, Contact Info, Office Hours, and Academic Portfolio
 // =========================================================================================
+import { API_BASE } from '../config';
 
 export function getFacultyDetailedRecord(faculty, allocations = [], routineSlots = []) {
   if (!faculty) return null;
@@ -159,20 +160,8 @@ export function getFacultyDetailedRecord(faculty, allocations = [], routineSlots
   const totalWeeklyHours = assignedCourses.reduce((sum, c) => sum + (c.weeklyDays.includes(',') ? 3 : 2.5), 0);
 
   // 2. Daily Biometric RFID Gate Check-In & Check-Out Attendance Logs
-  const biometricLogs = [
-    { date: '2026-10-24', day: 'Saturday', checkIn: '08:48 AM', checkOut: '05:12 PM', duration: '8 hrs 24 mins', terminal: 'Gate 1 (Faculty RFID-01)', status: 'On Time', badge: 'badge-success' },
-    { date: '2026-10-22', day: 'Thursday', checkIn: '08:52 AM', checkOut: '05:04 PM', duration: '8 hrs 12 mins', terminal: 'Gate 2 (Academic RFID-02)', status: 'On Time', badge: 'badge-success' },
-    { date: '2026-10-21', day: 'Wednesday', checkIn: '08:45 AM', checkOut: '05:30 PM', duration: '8 hrs 45 mins', terminal: 'Gate 1 (Faculty RFID-01)', status: 'On Time', badge: 'badge-success' },
-    { date: '2026-10-20', day: 'Tuesday', checkIn: '09:05 AM', checkOut: '05:10 PM', duration: '8 hrs 05 mins', terminal: 'Gate 1 (Faculty RFID-01)', status: 'Grace In (Late 5m)', badge: 'badge-warning' },
-    { date: '2026-10-19', day: 'Monday', checkIn: '08:42 AM', checkOut: '05:01 PM', duration: '8 hrs 19 mins', terminal: 'Gate 1 (Faculty RFID-01)', status: 'On Time', badge: 'badge-success' },
-    { date: '2026-10-18', day: 'Sunday', checkIn: '08:50 AM', checkOut: '05:18 PM', duration: '8 hrs 28 mins', terminal: 'Gate 2 (Academic RFID-02)', status: 'On Time', badge: 'badge-success' },
-    { date: '2026-10-15', day: 'Thursday', checkIn: '08:47 AM', checkOut: '05:06 PM', duration: '8 hrs 19 mins', terminal: 'Gate 1 (Faculty RFID-01)', status: 'On Time', badge: 'badge-success' },
-    { date: '2026-10-14', day: 'Wednesday', checkIn: '08:55 AM', checkOut: '05:14 PM', duration: '8 hrs 19 mins', terminal: 'Gate 1 (Faculty RFID-01)', status: 'On Time', badge: 'badge-success' },
-    { date: '2026-10-11', day: 'Sunday', checkIn: '08:44 AM', checkOut: '05:09 PM', duration: '8 hrs 25 mins', terminal: 'Gate 1 (Faculty RFID-01)', status: 'On Time', badge: 'badge-success' },
-    { date: '2026-10-08', day: 'Thursday', checkIn: '08:51 AM', checkOut: '05:02 PM', duration: '8 hrs 11 mins', terminal: 'Gate 2 (Academic RFID-02)', status: 'On Time', badge: 'badge-success' },
-    { date: '2026-10-07', day: 'Wednesday', checkIn: '08:49 AM', checkOut: '05:22 PM', duration: '8 hrs 33 mins', terminal: 'Gate 1 (Faculty RFID-01)', status: 'On Time', badge: 'badge-success' },
-    { date: '2026-10-06', day: 'Tuesday', checkIn: '08:50 AM', checkOut: '05:15 PM', duration: '8 hrs 25 mins', terminal: 'Gate 1 (Faculty RFID-01)', status: 'On Time', badge: 'badge-success' },
-  ];
+  // Default to empty array; populated 100% dynamically from Django SQLite database
+  const biometricLogs = [];
 
   // 3. Official Faculty Leave Records & Quota
   const leaveSummary = {
@@ -247,6 +236,9 @@ export function getFacultyDetailedRecord(faculty, allocations = [], routineSlots
     highestDegree: 'Ph.D. in Computer Science & Engineering',
     assignedCourses,
     biometricLogs,
+    timesheetEntries: [],
+    totalTimesheetHours: 0,
+    timesheetCount: 0,
     leaveSummary
   };
 }
@@ -258,15 +250,29 @@ export function getFacultyDetailedRecord(faculty, allocations = [], routineSlots
  */
 export async function fetchFacultyDetailedRecordFromDB(faculty, allocations = [], routineSlots = []) {
   if (!faculty) return null;
-  const idToQuery = faculty.id || faculty.institutional_id || faculty.email;
+  const idToQuery = faculty.db_id || faculty.id || faculty.institutional_id || faculty.email;
   try {
-    const res = await fetch(`/api/auth/faculty-dossier/${encodeURIComponent(idToQuery)}/`);
+    const res = await fetch(`${API_BASE}/api/auth/faculty-dossier/${encodeURIComponent(idToQuery)}/`);
     if (res.ok) {
       const data = await res.json();
-      return data;
+      const localBase = getFacultyDetailedRecord(faculty, allocations, routineSlots);
+      return {
+        ...localBase,
+        ...data,
+        averageCheckIn: data.averageCheckIn || localBase.averageCheckIn,
+        averageCheckOut: data.averageCheckOut || localBase.averageCheckOut,
+        biometricLogs: Array.isArray(data.biometricLogs) ? data.biometricLogs : [],
+        timesheetEntries: Array.isArray(data.timesheetEntries) ? data.timesheetEntries : [],
+        totalTimesheetHours: data.totalTimesheetHours !== undefined ? data.totalTimesheetHours : 0,
+        timesheetCount: data.timesheetCount !== undefined ? data.timesheetCount : 0,
+        leaveSummary: {
+          ...localBase.leaveSummary,
+          ...(data.leaveSummary || {})
+        }
+      };
     }
   } catch (err) {
-    console.warn('Backend faculty dossier API unreachable, using local record:', err);
+    console.warn('Backend faculty dossier API unreachable:', err);
   }
   return getFacultyDetailedRecord(faculty, allocations, routineSlots);
 }

@@ -2,15 +2,7 @@
 // UserManagement.jsx — 100% Functional Advanced User Directory & RBAC Control
 // -----------------------------------------------------------------------------------------
 // Bengali Note:
-// এই পেজটি সম্পূর্ণ কার্যকর (100% Functional)। প্রতিটি বাটনে আসল অ্যাকশন রয়েছে:
-// ১. Add User: শিক্ষার্থী বা শিক্ষকের সম্পূর্ণ তথ্য দিয়ে রিয়েল একাউন্ট তৈরি ও টেবিলে যুক্ত হওয়া।
-// ২. Edit User Modal: যেকোনো শিক্ষার্থী বা শিক্ষকের "Edit" বাটনে চাপ দিলে তাদের আসল নাম, রোল,
-//    ডিপার্টমেন্ট, ব্যাচ ও সিজিপিএ এডিট করে সেভ করার কার্যকর মোডাল।
-// ৩. Delete User: অপ্রয়োজনীয় শিক্ষার্থী বা শিক্ষককে তালিকা থেকে রিমুভ করা।
-// ৪. One-Click Status Toggle: Active <-> Suspended এক ক্লিকে পরিবর্তন।
-// ৫. Bulk CSV/Excel Upload: এক্সেল শিটের শিক্ষার্থীদের এক ক্লিকে আসল ডাটাবেসে ইম্পোর্ট করা।
-// ৬. RBAC Permission Matrix: চেকবক্স পরিবর্তন করে পারমিশন সংরক্ষণ।
-// সকল ডাটা AdminDataContext এবং LocalStorage-এ স্বয়ংক্রিয়ভাবে সংরক্ষিত থাকে।
+// Central state management provider with automatic persistence and sync
 // =========================================================================================
 
 import React, { useState, useEffect } from 'react';
@@ -60,6 +52,9 @@ import {
 import { optimizeAvatarImage } from '../../utils/imageOptimizer';
 import { getStudentDetailedRecord } from '../../utils/studentAcademicRecords';
 import { getFacultyDetailedRecord, fetchFacultyDetailedRecordFromDB } from '../../utils/facultyAcademicRecords';
+import { downloadFacultyAttendancePDF } from '../../utils/facultyAttendancePdf';
+import { downloadFacultyTimesheetPDF } from '../../utils/facultyTimesheetPdf';
+import { API_BASE } from '../../config';
 import { useDeleteConfirm } from '../../contexts/DeleteConfirmContext';
 
 export default function UserManagement() {
@@ -71,6 +66,7 @@ export default function UserManagement() {
     batches,
     departments,
     routineSlots,
+    attendances,
     addStudent, 
     editStudent, 
     deleteStudent, 
@@ -121,6 +117,47 @@ export default function UserManagement() {
   const [editingStudent, setEditingStudent] = useState(null);
   const [editingFaculty, setEditingFaculty] = useState(null);
   const [bulkFileUploaded, setBulkFileUploaded] = useState(false);
+  const [facultyBiometricMonth, setFacultyBiometricMonth] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [facultyTimesheetMonth, setFacultyTimesheetMonth] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [facultyTimesheetEntries, setFacultyTimesheetEntries] = useState([]);
+  const [facultyTimesheetTotalHours, setFacultyTimesheetTotalHours] = useState(0);
+  const [isLoadingFacultyTimesheet, setIsLoadingFacultyTimesheet] = useState(false);
+
+  // Helper to query real-time timesheet records for a faculty member directly from DB
+  const fetchTimesheetForFaculty = async (facultyMember, monthStr) => {
+    if (!facultyMember) return;
+    setIsLoadingFacultyTimesheet(true);
+    try {
+      const idToQuery = facultyMember.db_id || facultyMember.id || facultyMember.institutional_id || facultyMember.email;
+      const m = monthStr !== undefined ? monthStr : facultyTimesheetMonth;
+      const url = `${API_BASE}/api/auth/faculty-timesheet/?teacher_id=${encodeURIComponent(idToQuery)}&month=${m}`;
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        setFacultyTimesheetEntries(data.entries || []);
+        setFacultyTimesheetTotalHours(data.total_hours || 0);
+        setViewingFaculty(prev => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            timesheetEntries: data.entries || [],
+            totalTimesheetHours: data.total_hours || 0,
+            timesheetCount: (data.entries || []).length
+          };
+        });
+      }
+    } catch (e) {
+      console.warn('Error fetching faculty timesheet:', e);
+    } finally {
+      setIsLoadingFacultyTimesheet(false);
+    }
+  };
 
   // Helper to open Add User modal in specific role mode (Student only vs Teacher only)
   const handleOpenAddUserModal = (targetRole) => {
@@ -152,11 +189,98 @@ export default function UserManagement() {
 
   // Faculty Academic Details Card Modal State
   const [viewingFaculty, setViewingFaculty] = useState(null);
-  const [facultyCardTab, setFacultyCardTab] = useState('routine'); // 'routine' | 'biometric' | 'leaves' | 'profile'
+  const [facultyCardTab, setFacultyCardTab] = useState('routine'); // 'routine' | 'biometric' | 'timesheet' | 'leaves' | 'profile'
+  const [isRefreshingFacultyLogs, setIsRefreshingFacultyLogs] = useState(false);
+
+  // Real-time synchronization when Teacher Checks In, Checks Out, or writes Timesheet
+  useEffect(() => {
+    if (!viewingFaculty) return;
+
+    let biometricsBc;
+    let timesheetBc;
+
+    const refreshLiveDossier = async () => {
+      try {
+        const freshData = await fetchFacultyDetailedRecordFromDB(viewingFaculty, allocations, routineSlots);
+        if (freshData) {
+          setViewingFaculty(prev => prev ? { ...prev, ...freshData } : freshData);
+          if (freshData.timesheetEntries) {
+            setFacultyTimesheetEntries(freshData.timesheetEntries);
+            setFacultyTimesheetTotalHours(freshData.totalTimesheetHours || 0);
+          }
+        }
+      } catch (e) {
+        console.warn('Real-time faculty sync error:', e);
+      }
+    };
+
+    const refreshTimesheet = () => {
+      fetchTimesheetForFaculty(viewingFaculty, facultyTimesheetMonth);
+    };
+
+    try {
+      biometricsBc = new BroadcastChannel('qgenix_teacher_biometrics');
+      biometricsBc.onmessage = () => {
+        refreshLiveDossier();
+      };
+    } catch (err) {}
+
+    try {
+      timesheetBc = new BroadcastChannel('qgenix_faculty_timesheet');
+      timesheetBc.onmessage = () => {
+        refreshTimesheet();
+        refreshLiveDossier();
+      };
+    } catch (err) {}
+
+    const handleStorage = (e) => {
+      if (e.key === 'qgenix_timesheet_last_update') {
+        refreshTimesheet();
+        refreshLiveDossier();
+      }
+    };
+
+    window.addEventListener('qgenix_teacher_checkin_updated', refreshLiveDossier);
+    window.addEventListener('qgenix_faculty_timesheet_updated', () => {
+      refreshTimesheet();
+      refreshLiveDossier();
+    });
+    window.addEventListener('storage', handleStorage);
+
+    // Auto-poll every 3.5 seconds when Timesheet or Biometric tab is active for 100% real-time reflection across devices
+    const pollInterval = setInterval(() => {
+      if (facultyCardTab === 'timesheet') {
+        fetchTimesheetForFaculty(viewingFaculty, facultyTimesheetMonth);
+      } else if (facultyCardTab === 'biometric') {
+        refreshLiveDossier();
+      }
+    }, 3500);
+
+    return () => {
+      if (biometricsBc) biometricsBc.close();
+      if (timesheetBc) timesheetBc.close();
+      window.removeEventListener('qgenix_teacher_checkin_updated', refreshLiveDossier);
+      window.removeEventListener('qgenix_faculty_timesheet_updated', refreshTimesheet);
+      window.removeEventListener('storage', handleStorage);
+      clearInterval(pollInterval);
+    };
+  }, [viewingFaculty, allocations, routineSlots, facultyTimesheetMonth, facultyCardTab]);
+
+  const [rawStudentForModal, setRawStudentForModal] = useState(null);
+
+  // Real-time synchronization for student dossier when attendance is recorded
+  useEffect(() => {
+    if (!rawStudentForModal || !viewingStudent) return;
+    const updated = getStudentDetailedRecord(rawStudentForModal, attendances);
+    if (updated) {
+      setViewingStudent(prev => prev ? { ...prev, ...updated } : updated);
+    }
+  }, [attendances, rawStudentForModal]);
 
   // Handler to open student detailed dossier card
   const handleOpenStudentDetails = (student) => {
-    const detailedData = getStudentDetailedRecord(student);
+    setRawStudentForModal(student);
+    const detailedData = getStudentDetailedRecord(student, attendances);
     setViewingStudent(detailedData);
     setActiveSemIndex(detailedData.activeSemesterIndex !== undefined ? detailedData.activeSemesterIndex : 0);
     setStudentCardTab('attendance');
@@ -168,12 +292,21 @@ export default function UserManagement() {
     const initialData = getFacultyDetailedRecord(teacher, allocations, routineSlots);
     setViewingFaculty(initialData);
     setFacultyCardTab('routine');
+    setFacultyTimesheetEntries(initialData.timesheetEntries || []);
+    setFacultyTimesheetTotalHours(initialData.totalTimesheetHours || 0);
+
+    // Fetch live timesheet records immediately
+    fetchTimesheetForFaculty(teacher, facultyTimesheetMonth);
 
     // 2. Fetch 100% genuine live database records from Django backend API
     try {
       const liveDbData = await fetchFacultyDetailedRecordFromDB(teacher, allocations, routineSlots);
       if (liveDbData) {
         setViewingFaculty(liveDbData);
+        if (liveDbData.timesheetEntries) {
+          setFacultyTimesheetEntries(liveDbData.timesheetEntries);
+          setFacultyTimesheetTotalHours(liveDbData.totalTimesheetHours || 0);
+        }
       }
     } catch (e) {
       console.warn('Using local dossier cache:', e);
@@ -607,7 +740,7 @@ export default function UserManagement() {
       profile_picture: editingStudent.profile_picture || '',
       status: editingStudent.status
     };
-    if (editingStudent.newPassword && editingStudent.newPassword.trim().length >= 6) {
+    if (editingStudent.newPassword && editingStudent.newPassword.trim()) {
       payload.password = editingStudent.newPassword.trim();
     }
 
@@ -659,7 +792,7 @@ export default function UserManagement() {
       profile_picture: editingFaculty.profile_picture || '',
       status: editingFaculty.status
     };
-    if (editingFaculty.newPassword && editingFaculty.newPassword.trim().length >= 6) {
+    if (editingFaculty.newPassword && editingFaculty.newPassword.trim()) {
       payload.password = editingFaculty.newPassword.trim();
     }
 
@@ -3666,6 +3799,12 @@ export default function UserManagement() {
                     icon: Clock 
                   },
                   { 
+                    id: 'timesheet', 
+                    label: 'Daily Work Timesheet', 
+                    badge: `${facultyTimesheetEntries?.length || viewingFaculty.timesheetCount || 0} Logs`, 
+                    icon: FileText 
+                  },
+                  { 
                     id: 'leaves', 
                     label: 'Leave Records & Quota', 
                     badge: `${viewingFaculty.leaveSummary?.totalRemaining || 0} Days Left`, 
@@ -3684,7 +3823,18 @@ export default function UserManagement() {
                     <button
                       key={tab.id}
                       type="button"
-                      onClick={() => setFacultyCardTab(tab.id)}
+                      onClick={async () => {
+                        setFacultyCardTab(tab.id);
+                        if (tab.id === 'biometric' && viewingFaculty) {
+                          try {
+                            const fresh = await fetchFacultyDetailedRecordFromDB(viewingFaculty, allocations, routineSlots);
+                            if (fresh) setViewingFaculty(fresh);
+                          } catch (e) {}
+                        }
+                        if (tab.id === 'timesheet' && viewingFaculty) {
+                          fetchTimesheetForFaculty(viewingFaculty, facultyTimesheetMonth);
+                        }
+                      }}
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
@@ -3833,63 +3983,368 @@ export default function UserManagement() {
               )}
 
               {/* TAB 2: BIOMETRIC CHECK-IN / OUT LOGS */}
-              {facultyCardTab === 'biometric' && (
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                    <div>
-                      <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                        Daily Biometric Check-In & Check-Out Record
-                      </h4>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                        Institutional RFID gate turnstile scan logs with exact entry and departure timestamps.
+              {facultyCardTab === 'biometric' && (() => {
+                const availableMonths = [];
+                const d = new Date();
+                for (let i = 0; i < 6; i++) {
+                  const target = new Date(d.getFullYear(), d.getMonth() - i, 1);
+                  const val = `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, '0')}`;
+                  const label = target.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) + (i === 0 ? ' (Current Month)' : '');
+                  availableMonths.push({ val, label });
+                }
+
+                const displayedLogs = (viewingFaculty.biometricLogs || []).filter(log => {
+                  if (!facultyBiometricMonth || facultyBiometricMonth === 'all') return true;
+                  return log.date && log.date.startsWith(facultyBiometricMonth);
+                });
+
+                return (
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+                      <div>
+                        <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                          Daily Biometric Check-In & Check-Out Record
+                        </h4>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                          Institutional RFID gate turnstile scan logs with exact entry and departure timestamps.
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                        {/* Month Selector */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Month:</span>
+                          <select
+                            value={facultyBiometricMonth}
+                            onChange={(e) => setFacultyBiometricMonth(e.target.value)}
+                            style={{
+                              background: 'var(--bg-secondary)',
+                              color: 'var(--text-primary)',
+                              border: '1px solid var(--border-color)',
+                              borderRadius: '8px',
+                              padding: '5px 10px',
+                              fontSize: '0.76rem',
+                              fontWeight: 600,
+                              cursor: 'pointer'
+                            }}
+                          >
+                            {availableMonths.map(m => (
+                              <option key={m.val} value={m.val}>{m.label}</option>
+                            ))}
+                            <option value="all">All Available Records</option>
+                          </select>
+                        </div>
+
+                        <span className="badge badge-success" style={{ fontSize: '0.75rem' }}>
+                          Avg Check-In: {viewingFaculty.averageCheckIn || '--:--'}
+                        </span>
+                        <span className="badge badge-primary" style={{ fontSize: '0.75rem' }}>
+                          Avg Check-Out: {viewingFaculty.averageCheckOut || '--:--'}
+                        </span>
+
+                        {/* Download PDF Button */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            downloadFacultyAttendancePDF({
+                              faculty: viewingFaculty,
+                              logs: displayedLogs,
+                              monthStr: facultyBiometricMonth,
+                              avgCheckIn: viewingFaculty.averageCheckIn,
+                              avgCheckOut: viewingFaculty.averageCheckOut
+                            });
+                          }}
+                          className="btn btn-secondary"
+                          style={{
+                            padding: '6px 12px',
+                            fontSize: '0.75rem',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            background: 'rgba(59, 130, 246, 0.15)',
+                            borderColor: '#3B82F6',
+                            color: '#60A5FA',
+                            fontWeight: 700
+                          }}
+                          title="Download Monthly Attendance Report (PDF)"
+                        >
+                          <Download size={13} />
+                          Download PDF
+                        </button>
+
+                        <button
+                          onClick={async () => {
+                            setIsRefreshingFacultyLogs(true);
+                            try {
+                              const fresh = await fetchFacultyDetailedRecordFromDB(viewingFaculty, allocations, routineSlots);
+                              if (fresh) setViewingFaculty(fresh);
+                            } finally {
+                              setIsRefreshingFacultyLogs(false);
+                            }
+                          }}
+                          className="btn btn-secondary"
+                          style={{ padding: '6px 12px', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '6px', borderRadius: '8px', cursor: 'pointer' }}
+                          title="Live Sync with Database"
+                          disabled={isRefreshingFacultyLogs}
+                        >
+                          <RotateCcw size={13} style={{ animation: isRefreshingFacultyLogs ? 'spin 1s linear infinite' : 'none' }} />
+                          {isRefreshingFacultyLogs ? 'Syncing...' : 'Live Sync'}
+                        </button>
                       </div>
                     </div>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <span className="badge badge-success" style={{ fontSize: '0.75rem' }}>
-                        Avg Check-In: {viewingFaculty.averageCheckIn}
-                      </span>
-                      <span className="badge badge-primary" style={{ fontSize: '0.75rem' }}>
-                        Avg Check-Out: {viewingFaculty.averageCheckOut}
-                      </span>
+
+                    <div style={{ overflowX: 'auto', background: 'var(--bg-secondary)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.84rem' }}>
+                        <thead>
+                          <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+                            <th style={{ padding: '12px 14px' }}>Date</th>
+                            <th style={{ padding: '12px 14px' }}>Day</th>
+                            <th style={{ padding: '12px 14px' }}>Check-In</th>
+                            <th style={{ padding: '12px 14px' }}>Check-Out</th>
+                            <th style={{ padding: '12px 14px' }}>Duration</th>
+                            <th style={{ padding: '12px 14px', textAlign: 'center' }}>Punctuality</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {displayedLogs.length === 0 ? (
+                            <tr>
+                              <td colSpan={6} style={{ padding: '36px 14px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                                <Clock size={32} style={{ opacity: 0.4, marginBottom: '8px' }} />
+                                <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>No Biometric Scan Logs Recorded for This Month</div>
+                                <div style={{ fontSize: '0.78rem', marginTop: '4px', opacity: 0.75 }}>
+                                  Showing records from 1st to 30/31st of {facultyBiometricMonth === 'all' ? 'All Months' : facultyBiometricMonth}. When the teacher logs attendance, records will appear here in real-time.
+                                </div>
+                              </td>
+                            </tr>
+                          ) : (
+                            displayedLogs.map((log, idx) => (
+                              <tr key={idx} style={{ borderBottom: '1px solid var(--border-color-light)' }}>
+                                <td style={{ padding: '12px 14px', fontFamily: 'monospace', fontWeight: 600 }}>{log.date}</td>
+                                <td style={{ padding: '12px 14px', color: 'var(--text-secondary)' }}>{log.day}</td>
+                                <td style={{ padding: '12px 14px', color: 'var(--accent-success)', fontWeight: 700 }}>{log.checkIn}</td>
+                                <td style={{ padding: '12px 14px', color: '#3B82F6', fontWeight: 700 }}>{log.checkOut}</td>
+                                <td style={{ padding: '12px 14px', color: 'var(--text-primary)' }}>{log.duration}</td>
+                                <td style={{ padding: '12px 14px', textAlign: 'center' }}>
+                                  <span className={`badge ${log.badge}`} style={{ fontSize: '0.72rem' }}>
+                                    {log.status}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
+                );
+              })()}
 
-                  <div style={{ overflowX: 'auto', background: 'var(--bg-secondary)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.84rem' }}>
-                      <thead>
-                        <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '0.78rem' }}>
-                          <th style={{ padding: '12px 14px' }}>Date</th>
-                          <th style={{ padding: '12px 14px' }}>Day</th>
-                          <th style={{ padding: '12px 14px' }}>Check-In</th>
-                          <th style={{ padding: '12px 14px' }}>Check-Out</th>
-                          <th style={{ padding: '12px 14px' }}>Duration</th>
-                          <th style={{ padding: '12px 14px' }}>Terminal Gate</th>
-                          <th style={{ padding: '12px 14px', textAlign: 'center' }}>Punctuality</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {viewingFaculty.biometricLogs.map((log, idx) => (
-                          <tr key={idx} style={{ borderBottom: '1px solid var(--border-color-light)' }}>
-                            <td style={{ padding: '12px 14px', fontFamily: 'monospace', fontWeight: 600 }}>{log.date}</td>
-                            <td style={{ padding: '12px 14px', color: 'var(--text-secondary)' }}>{log.day}</td>
-                            <td style={{ padding: '12px 14px', color: 'var(--accent-success)', fontWeight: 700 }}>{log.checkIn}</td>
-                            <td style={{ padding: '12px 14px', color: '#3B82F6', fontWeight: 700 }}>{log.checkOut}</td>
-                            <td style={{ padding: '12px 14px', color: 'var(--text-primary)' }}>{log.duration}</td>
-                            <td style={{ padding: '12px 14px', color: 'var(--text-muted)', fontSize: '0.76rem' }}>{log.terminal}</td>
-                            <td style={{ padding: '12px 14px', textAlign: 'center' }}>
-                              <span className={`badge ${log.badge}`} style={{ fontSize: '0.72rem' }}>
-                                {log.status}
-                              </span>
-                            </td>
+              {/* TAB 3: DAILY WORK TIMESHEET (100% REAL-TIME DB SYNCED) */}
+              {facultyCardTab === 'timesheet' && (() => {
+                const availableMonths = [];
+                const d = new Date();
+                for (let i = 0; i < 6; i++) {
+                  const target = new Date(d.getFullYear(), d.getMonth() - i, 1);
+                  const val = `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, '0')}`;
+                  const label = target.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) + (i === 0 ? ' (Current Month)' : '');
+                  availableMonths.push({ val, label });
+                }
+
+                const displayedEntries = facultyTimesheetEntries || [];
+
+                return (
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                            Daily Work Timesheet & Academic Activity Record
+                          </h4>
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            background: 'rgba(16, 185, 129, 0.12)',
+                            color: '#10B981',
+                            padding: '2px 8px',
+                            borderRadius: '12px',
+                            fontSize: '0.7rem',
+                            fontWeight: 700,
+                            border: '1px solid rgba(16, 185, 129, 0.25)'
+                          }}>
+                            <span style={{
+                              width: '6px',
+                              height: '6px',
+                              borderRadius: '50%',
+                              background: '#10B981',
+                              boxShadow: '0 0 8px #10B981',
+                              display: 'inline-block'
+                            }} />
+                            Real-Time Synced
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                          Real-time duty records and daily tasks submitted by {viewingFaculty.name} from their Teacher Portal.
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                        {/* Month Selector */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Month:</span>
+                          <select
+                            value={facultyTimesheetMonth}
+                            onChange={(e) => {
+                              const newMonth = e.target.value;
+                              setFacultyTimesheetMonth(newMonth);
+                              fetchTimesheetForFaculty(viewingFaculty, newMonth);
+                            }}
+                            style={{
+                              background: 'var(--bg-secondary)',
+                              color: 'var(--text-primary)',
+                              border: '1px solid var(--border-color)',
+                              borderRadius: '8px',
+                              padding: '5px 10px',
+                              fontSize: '0.76rem',
+                              fontWeight: 600,
+                              cursor: 'pointer'
+                            }}
+                          >
+                            {availableMonths.map(m => (
+                              <option key={m.val} value={m.val}>{m.label}</option>
+                            ))}
+                            <option value="all">All Available Records</option>
+                          </select>
+                        </div>
+
+                        <span className="badge badge-primary" style={{ fontSize: '0.75rem' }}>
+                          Recorded Days: {displayedEntries.length}
+                        </span>
+
+                        <span className="badge badge-success" style={{ fontSize: '0.75rem' }}>
+                          Logged Hours: {facultyTimesheetTotalHours || 0} hrs
+                        </span>
+
+                        {/* Download PDF Button */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            downloadFacultyTimesheetPDF({
+                              faculty: {
+                                name: viewingFaculty.name,
+                                id: viewingFaculty.id,
+                                email: viewingFaculty.email,
+                                dept: viewingFaculty.dept || 'CSE',
+                                designation: viewingFaculty.designation || 'Faculty Member'
+                              },
+                              entries: displayedEntries,
+                              monthStr: facultyTimesheetMonth === 'all' ? availableMonths[0]?.val : facultyTimesheetMonth,
+                              totalHours: facultyTimesheetTotalHours
+                            });
+                          }}
+                          className="btn btn-secondary"
+                          style={{
+                            padding: '6px 12px',
+                            fontSize: '0.75rem',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            background: 'rgba(99, 102, 241, 0.15)',
+                            borderColor: '#6366F1',
+                            color: '#A5B4FC',
+                            fontWeight: 700
+                          }}
+                          title="Download Monthly Timesheet Report (PDF)"
+                        >
+                          <Download size={13} />
+                          Download PDF
+                        </button>
+
+                        {/* Live Sync Button */}
+                        <button
+                          type="button"
+                          onClick={() => fetchTimesheetForFaculty(viewingFaculty, facultyTimesheetMonth)}
+                          disabled={isLoadingFacultyTimesheet}
+                          className="btn btn-secondary"
+                          style={{ padding: '6px 12px', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '6px', borderRadius: '8px', cursor: 'pointer' }}
+                          title="Live Sync with Database"
+                        >
+                          <RotateCcw size={13} style={{ animation: isLoadingFacultyTimesheet ? 'spin 1s linear infinite' : 'none' }} />
+                          {isLoadingFacultyTimesheet ? 'Syncing...' : 'Live Sync'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Timesheet Entries Table */}
+                    <div style={{ overflowX: 'auto', background: 'var(--bg-secondary)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.84rem' }}>
+                        <thead>
+                          <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+                            <th style={{ padding: '12px 14px', width: '130px' }}>Date</th>
+                            <th style={{ padding: '12px 14px', width: '120px' }}>Day</th>
+                            <th style={{ padding: '12px 14px' }}>Daily Work Description</th>
+                            <th style={{ padding: '12px 14px', textAlign: 'center', width: '110px' }}>Status</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {displayedEntries.length === 0 ? (
+                            <tr>
+                              <td colSpan={4} style={{ padding: '36px 14px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                                <Briefcase size={32} style={{ opacity: 0.4, marginBottom: '8px' }} />
+                                <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>No Timesheet Records Found for This Month</div>
+                                <div style={{ fontSize: '0.78rem', marginTop: '4px', opacity: 0.75 }}>
+                                  Showing records for {facultyTimesheetMonth === 'all' ? 'All Months' : facultyTimesheetMonth}. When the teacher writes their daily timesheet from their panel, entries will appear here instantly.
+                                </div>
+                              </td>
+                            </tr>
+                          ) : (
+                            displayedEntries.map((item, idx) => (
+                              <tr key={item.id || idx} style={{ borderBottom: '1px solid var(--border-color-light)' }}>
+                                <td style={{ padding: '14px', fontFamily: 'monospace', fontWeight: 600, verticalAlign: 'top' }}>
+                                  {item.date}
+                                  {item.created_at && (
+                                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px', fontWeight: 400 }}>
+                                      {item.created_at}
+                                    </div>
+                                  )}
+                                </td>
+                                <td style={{ padding: '14px', color: 'var(--text-secondary)', verticalAlign: 'top' }}>
+                                  <span style={{ fontWeight: 600 }}>{item.day}</span>
+                                </td>
+                                <td style={{ padding: '14px', verticalAlign: 'top' }}>
+                                  <div style={{
+                                    color: 'var(--text-primary)',
+                                    whiteSpace: 'pre-line',
+                                    lineHeight: '1.6',
+                                    fontSize: '0.86rem',
+                                    background: 'rgba(255, 255, 255, 0.02)',
+                                    padding: '10px 14px',
+                                    borderRadius: '8px',
+                                    border: '1px solid rgba(255, 255, 255, 0.05)'
+                                  }}>
+                                    {item.description || item.task_title}
+                                  </div>
+                                </td>
+                                <td style={{ padding: '14px', textAlign: 'center', verticalAlign: 'top' }}>
+                                  <span className="badge badge-success" style={{ fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                    <CheckCircle2 size={12} />
+                                    {item.status || 'Completed'}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
-              {/* TAB 3: LEAVE RECORDS & QUOTA */}
+              {/* TAB 4: LEAVE RECORDS & QUOTA */}
               {facultyCardTab === 'leaves' && (
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>

@@ -9,8 +9,6 @@
 //   4. Roster Sync: Shares notice list with student board via 'qgenix_notices'.
 //
 // [Bengali Note]:
-// এই ফাইলটি শিক্ষকের নোটিশ বোর্ড। শিক্ষক এখানে বিদ্যমান নোটিশগুলো দেখার পাশাপাশি
-// নির্দিষ্ট ব্যাচ ও সেমিস্টার ফিল্টার করে নতুন নোটিশ প্রকাশ ও মুছে ফেলতে পারবেন।
 // ============================================================================
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -109,8 +107,41 @@ export default function TeacherNotices() {
     return saved ? JSON.parse(saved) : initialNoticesData;
   });
 
+  // Re-sync whenever notices are updated across any tab/portal
   useEffect(() => {
-    localStorage.setItem('qgenix_notices', JSON.stringify(notices));
+    const handleSync = () => {
+      const saved = localStorage.getItem('qgenix_notices');
+      if (saved) {
+        try {
+          const list = JSON.parse(saved);
+          if (Array.isArray(list) && list.length > 0) {
+            setNotices(list);
+          }
+        } catch (e) {}
+      }
+    };
+
+    window.addEventListener('storage', handleSync);
+    window.addEventListener('qgenix_notices_updated', handleSync);
+    handleSync();
+
+    return () => {
+      window.removeEventListener('storage', handleSync);
+      window.removeEventListener('qgenix_notices_updated', handleSync);
+    };
+  }, []);
+
+  // Mark all teacher notices as read upon opening this page
+  useEffect(() => {
+    try {
+      const teacherNotices = notices.filter(n => {
+        const aud = (n.audience || '').toLowerCase();
+        return !n.audience || aud === 'all students & teachers' || aud === 'teachers only' || (aud.includes('teacher') && !aud.includes('student'));
+      });
+      const ids = teacherNotices.map(n => String(n.id));
+      localStorage.setItem('qgenix_read_notices_teacher', JSON.stringify(ids));
+      window.dispatchEvent(new Event('qgenix_read_status_updated'));
+    } catch (e) {}
   }, [notices]);
 
   // Tab State: 'feed' | 'publish'
@@ -122,7 +153,9 @@ export default function TeacherNotices() {
 
   // Active notice focus
   const [selectedNoticeId, setSelectedNoticeId] = useState(() => {
-    return notices[0]?.id || 1;
+    const saved = localStorage.getItem('qgenix_notices');
+    const list = saved ? JSON.parse(saved) : initialNoticesData;
+    return list[0]?.id || 1;
   });
 
   // Mobile split view state
@@ -149,9 +182,17 @@ export default function TeacherNotices() {
   // Filter notice records computed list
   const filteredNotices = useMemo(() => {
     return notices.filter(notice => {
-      const matchesSearch = notice.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                            notice.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                            notice.sender.toLowerCase().includes(searchQuery.toLowerCase());
+      // 1. Audience filtering: Only notices meant for teachers!
+      const aud = (notice.audience || '').trim().toLowerCase();
+      const isForTeacher = !notice.audience || aud === 'all students & teachers' || aud === 'teachers only' || (aud.includes('teacher') && !aud.includes('student'));
+      if (!isForTeacher) return false;
+
+      const titleStr = (notice.title || '').toLowerCase();
+      const contentStr = (notice.content || '').toLowerCase();
+      const senderStr = (notice.sender || notice.author || '').toLowerCase();
+      const q = searchQuery.toLowerCase();
+      const matchesSearch = titleStr.includes(q) || contentStr.includes(q) || senderStr.includes(q);
+
       const matchesCategory = activeCategory === 'All' || notice.category === activeCategory;
       return matchesSearch && matchesCategory;
     });
@@ -159,8 +200,44 @@ export default function TeacherNotices() {
 
   // Selected Notice record metadata
   const selectedNotice = useMemo(() => {
-    return notices.find(n => n.id === selectedNoticeId) || notices[0];
-  }, [notices, selectedNoticeId]);
+    return filteredNotices.find(n => n.id === selectedNoticeId) || filteredNotices[0] || notices[0];
+  }, [filteredNotices, notices, selectedNoticeId]);
+
+  // Normalize attachments list from array or individual fields
+  const attachmentsList = useMemo(() => {
+    if (!selectedNotice) return [];
+    const list = [];
+    if (Array.isArray(selectedNotice.attachments)) {
+      selectedNotice.attachments.forEach(att => {
+        if (typeof att === 'string') {
+          list.push({ name: att, size: selectedNotice.attachmentSize || 'Document' });
+        } else if (att && typeof att === 'object') {
+          list.push({ name: att.name || 'Attachment.pdf', size: att.size || 'Document' });
+        }
+      });
+    }
+    if (selectedNotice.attachment && !list.some(f => f.name === selectedNotice.attachment)) {
+      list.push({
+        name: selectedNotice.attachment,
+        size: selectedNotice.attachmentSize || 'Document'
+      });
+    }
+    return list;
+  }, [selectedNotice]);
+
+  const triggerAttachmentDownload = (fileName) => {
+    if (selectedNotice?.attachmentData) {
+      const link = document.createElement('a');
+      link.href = selectedNotice.attachmentData;
+      link.download = fileName || selectedNotice.attachment || 'Notice_Attachment.pdf';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      triggerToast(`Downloaded file: "${fileName || selectedNotice.attachment}" successfully.`);
+      return;
+    }
+    triggerToast(`Downloaded file: "${fileName}" successfully.`);
+  };
 
   // Publish dynamic notices submit
   const handlePublishNotice = (e) => {
@@ -211,17 +288,23 @@ export default function TeacherNotices() {
           title: pubTitle,
           content: pubContent,
           category: pubCategory,
+          audience: 'All Students & Teachers',
           sender: 'Dr. Sarah Ahmed',
+          author: 'Dr. Sarah Ahmed',
           senderRole: 'Course Instructor',
           senderEmail: 'sarah.ahmed@qgenix.edu',
           date: formattedDate,
           time: formattedTime,
           targetBatch: pubBatch,
           targetSemester: pubSemester,
-          attachments: attachmentsArray
+          attachments: attachmentsArray,
+          isPinned: true
         };
 
-        setNotices(prev => [newNoticeItem, ...prev]);
+        const updatedList = [newNoticeItem, ...notices];
+        setNotices(updatedList);
+        localStorage.setItem('qgenix_notices', JSON.stringify(updatedList));
+        window.dispatchEvent(new Event('qgenix_notices_updated'));
         setSelectedNoticeId(newNoticeItem.id);
 
         // Reset fields
@@ -246,12 +329,14 @@ export default function TeacherNotices() {
     confirmDelete({
       title: 'Delete Notice Announcement',
       itemName: targetNotice?.title ? `"${targetNotice.title}"` : 'Notice',
-      itemType: 'Broadcast Circular',
-      warningText: 'This action cannot be undone. The notice will be permanently deleted from the student broadcast feed.',
+      itemType: 'Broadcast Notice',
+      warningText: 'This action cannot be undone. The notice will be permanently deleted from the broadcast feed.',
       confirmBtnText: 'Delete Notice',
       onConfirm: () => {
         const remainingNotices = notices.filter(n => n.id !== id);
         setNotices(remainingNotices);
+        localStorage.setItem('qgenix_notices', JSON.stringify(remainingNotices));
+        window.dispatchEvent(new Event('qgenix_notices_updated'));
         
         // Auto select first notice after delete
         if (remainingNotices.length > 0) {
@@ -585,7 +670,7 @@ export default function TeacherNotices() {
                           </div>
 
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-color)', paddingTop: '8px', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                            <span>Sender: {notice.sender.substring(0, 18)}</span>
+                            <span>Sender: {(notice.sender || notice.author || 'Admin').substring(0, 18)}</span>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                               <span>Batch: {notice.targetBatch || 'All'}</span>
                               <ChevronRight size={12} className="text-violet-500" />
@@ -644,8 +729,8 @@ export default function TeacherNotices() {
                         <User size={18} />
                       </div>
                       <div style={{ flex: 1, minWidth: '180px' }}>
-                        <h4 style={{ margin: 0, fontSize: '0.88rem', fontWeight: '700', color: 'var(--text-primary)' }}>{selectedNotice.sender}</h4>
-                        <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'block', marginTop: '2px' }}>{selectedNotice.senderRole} ({selectedNotice.senderEmail})</span>
+                        <h4 style={{ margin: 0, fontSize: '0.88rem', fontWeight: '700', color: 'var(--text-primary)' }}>{selectedNotice.sender || selectedNotice.author || 'Office of the Administrator'}</h4>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'block', marginTop: '2px' }}>{selectedNotice.senderRole || 'Official Administration'} ({selectedNotice.senderEmail || 'admin@qgenix.edu'})</span>
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
                         <span style={{ fontWeight: '700' }} className="flex items-center gap-1">
@@ -654,7 +739,7 @@ export default function TeacherNotices() {
                         </span>
                         <span className="flex items-center gap-1">
                           <Clock size={12} />
-                          {selectedNotice.time}
+                          {selectedNotice.time || '10:00 AM'}
                         </span>
                       </div>
                     </div>
@@ -672,14 +757,14 @@ export default function TeacherNotices() {
                         ATTACHMENTS
                       </h4>
 
-                      {!selectedNotice.attachments || selectedNotice.attachments.length === 0 ? (
+                      {attachmentsList.length === 0 ? (
                         <div style={{ padding: '12px', background: 'rgba(255,255,255,0.01)', border: '1px dashed var(--border-color)', borderRadius: '12px', color: 'var(--text-muted)', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <Info size={14} />
                           <span>No attachment files referenced with this circular.</span>
                         </div>
                       ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                          {selectedNotice.attachments.map((file, idx) => (
+                          {attachmentsList.map((file, idx) => (
                             <div 
                               key={idx}
                               style={{ padding: '10px 14px', borderRadius: '10px', background: 'rgba(255,255,255,0.015)', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem' }}
@@ -691,6 +776,27 @@ export default function TeacherNotices() {
                                   <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', display: 'block' }}>{file.size}</span>
                                 </div>
                               </div>
+
+                              <button 
+                                type="button"
+                                onClick={() => triggerAttachmentDownload(file.name)}
+                                style={{
+                                  background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(59, 130, 246, 0.05) 100%)',
+                                  border: '1px solid rgba(139, 92, 246, 0.25)',
+                                  borderRadius: '8px',
+                                  padding: '5px 12px',
+                                  fontSize: '0.75rem',
+                                  color: 'var(--text-primary)',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '6px',
+                                  fontWeight: '700'
+                                }}
+                              >
+                                <Download size={12} />
+                                <span>Get</span>
+                              </button>
                             </div>
                           ))}
                         </div>
@@ -698,7 +804,7 @@ export default function TeacherNotices() {
                     </div>
 
                     {/* Delete capability if posted by Sarah */}
-                    {selectedNotice.sender === 'Dr. Sarah Ahmed' && (
+                    {(selectedNotice.sender === 'Dr. Sarah Ahmed' || selectedNotice.author === 'Dr. Sarah Ahmed') && (
                       <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
                         <button
                           onClick={() => handleDeleteNotice(selectedNotice.id)}

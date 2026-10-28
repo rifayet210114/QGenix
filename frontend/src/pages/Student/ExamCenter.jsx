@@ -11,18 +11,16 @@
 //   6. Academic rules and proctoring protocols advisory panel
 //
 // [Bengali Note]:
-// এই ফাইলটি শিক্ষার্থীদের পরীক্ষার রুটিন এবং পরীক্ষার নিয়মাবলি প্রদর্শন করে।
-// এতে ৪টি ক্যাটাগরি (Mid Term, Internal Final, Nu Final, Class Test) এর জন্য
-// রুটিন টেবিল, পিডিএফ ডাউনলোড করার অ্যানিমেশন এবং রেসপন্সিভ লেআউট রয়েছে।
 // ============================================================================
 
 import React, { useState, useEffect, useMemo } from 'react'; // React library and state/memo hooks
 import { motion, AnimatePresence } from 'framer-motion'; // Motion engine for smooth page loading
 import { 
   FileText, Calendar, Clock, Download, AlertTriangle, ShieldCheck, 
-  CheckCircle, RefreshCw, Info, UserCheck, BookOpen, Users, Bell
+  CheckCircle, RefreshCw, Info, UserCheck, BookOpen, Users, Bell, Award, Layers
 } from 'lucide-react'; // Lucide icons library
 import Card from '../../components/Card'; // Custom glass card wrapper
+import { downloadUniversitySubjectiveExamPDF } from '../../utils/entranceModelQuestionPdf';
 
 // ----------------------------------------------------------------------------
 // 1. MOCK DATA: DETAILED EXAM ROUTINES DATABASE
@@ -89,7 +87,56 @@ export default function ExamCenter() {
     return () => observer.disconnect();
   }, []);
 
-  // Page active tab state ('Mid Term' | 'Internal Final' | 'Nu Final' | 'Class Test')
+  // Multi-Set Assigned Exam State
+  const [assignedExam, setAssignedExam] = useState(null);
+  const [loadingAssignedExam, setLoadingAssignedExam] = useState(true);
+
+  // Fetch student assigned exam on mount
+  useEffect(() => {
+    fetchAssignedExam();
+  }, []);
+
+  const fetchAssignedExam = async () => {
+    setLoadingAssignedExam(true);
+    try {
+      const token = localStorage.getItem('access') || localStorage.getItem('token');
+      const studentId = localStorage.getItem('institutional_id') || localStorage.getItem('user_id') || localStorage.getItem('user_name') || '';
+      const url = `http://127.0.0.1:8000/api/auth/student-assigned-exam/?student_id=${encodeURIComponent(studentId)}`;
+      const res = await fetch(url, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.has_exam) {
+          setAssignedExam(data);
+        }
+      }
+    } catch (err) {
+      console.warn('Could not fetch student assigned exam:', err);
+    } finally {
+      setLoadingAssignedExam(false);
+    }
+  };
+
+  // Download assigned official exam paper as PDF
+  const handleDownloadAssignedExamPDF = () => {
+    if (!assignedExam) return;
+    downloadUniversitySubjectiveExamPDF({
+      institution: assignedExam.institution || 'DAFFODIL INSTITUTE OF IT',
+      degreeProgram: assignedExam.degree_program || 'B.Sc (Hons) in Computer Science & Engineering',
+      semesterExam: assignedExam.semester_exam || 'Midterm Examination',
+      courseCode: assignedExam.course_code || '',
+      courseTitle: assignedExam.course_title || assignedExam.course || '',
+      timeAllowed: assignedExam.time_allowed || '1 hour 20 minutes',
+      fullMarks: assignedExam.full_marks || 40,
+      setName: assignedExam.assigned_set_name || 'SET: A',
+      instructions: assignedExam.instructions || '[N.B. -- The figures in the right margin indicate full marks. Answer any two questions. All parts of the questions must be answered sequentially.]',
+      questionSets: assignedExam.question_sets || [],
+      includeModelAnswers: false
+    });
+  };
+
+  // Page active tab state ('Mid Term' | 'Internal Final' | 'Nu Final' | 'Class Test' | 'Assigned Paper')
   const [activeTab, setActiveTab] = useState('Mid Term');
 
   // Simulated download triggers
@@ -375,8 +422,8 @@ export default function ExamCenter() {
       {/* =======================================================================
          SECTION 3: CLIKABLE NAVIGATION OPTIONS / TAB MENU
          ======================================================================= */}
-      {/* Dynamic menu button layout corresponding to the 4 routines */}
-      <div className="interactive-tabs-container">
+      {/* Dynamic menu button layout corresponding to the 4 routines + Assigned Paper */}
+      <div className="interactive-tabs-container" style={{ flexWrap: 'wrap' }}>
         {Object.keys(examRoutines).map((key) => (
           <button 
             key={key}
@@ -386,13 +433,276 @@ export default function ExamCenter() {
             {key}
           </button>
         ))}
+
+        <button 
+          onClick={() => setActiveTab('Assigned Paper')} 
+          className={`tab-item-btn ${activeTab === 'Assigned Paper' ? 'tab-item-btn-active' : ''}`}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+        >
+          <ShieldCheck size={16} /> 
+          <span>My Assigned Question Paper</span>
+          {assignedExam && (
+            <span style={{ 
+              fontSize: '0.72rem', 
+              padding: '2px 8px', 
+              borderRadius: '6px', 
+              background: activeTab === 'Assigned Paper' ? 'rgba(255,255,255,0.25)' : 'var(--accent-primary)', 
+              color: '#ffffff',
+              fontWeight: 800 
+            }}>
+              {assignedExam.assigned_set_name}
+            </span>
+          )}
+        </button>
       </div>
 
+      {/* Glowing Exam Notification Banner when teacher publishes a paper */}
+      {assignedExam && activeTab !== 'Assigned Paper' && (
+        <div 
+          onClick={() => setActiveTab('Assigned Paper')}
+          style={{
+            cursor: 'pointer',
+            padding: '14px 20px',
+            borderRadius: '14px',
+            background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%)',
+            border: '1.5px solid var(--accent-primary)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '12px',
+            zIndex: 10,
+            position: 'relative',
+            boxShadow: '0 8px 25px rgba(99, 102, 241, 0.2)'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div style={{ width: '42px', height: '42px', borderRadius: '50%', background: 'var(--accent-primary)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <ShieldCheck size={22} />
+            </div>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span>Official Question Paper Allocated:</span>
+                <span style={{ background: 'var(--accent-primary)', color: 'white', padding: '2px 8px', borderRadius: '6px', fontSize: '0.85rem' }}>
+                  {assignedExam.assigned_set_name}
+                </span>
+              </div>
+              <div style={{ fontSize: '0.83rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                {assignedExam.course_code} • {assignedExam.course_title || assignedExam.course} ({assignedExam.question_sets?.length || 2} Problem Groups) • Allocated by {assignedExam.teacher}
+              </div>
+            </div>
+          </div>
+          <button 
+            className="btn btn-primary"
+            style={{ fontSize: '0.82rem', padding: '7px 16px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+          >
+            View My Exam Paper <FileText size={14} />
+          </button>
+        </div>
+      )}
+
       {/* =======================================================================
-         SECTION 4: ACTIVE ROUTINE VIEW LAYOUT & RULES SECTION
+         SECTION 4: ACTIVE ROUTINE VIEW OR ASSIGNED QUESTION PAPER
          ======================================================================= */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', zIndex: 10, position: 'relative' }}>
-        {activeRoutine && (
+        
+        {/* ASSIGNED QUESTION PAPER TAB */}
+        {activeTab === 'Assigned Paper' && (
+          <Card title="Official University Examination Paper">
+            
+            {!assignedExam ? (
+              <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)' }}>
+                {loadingAssignedExam ? (
+                  <>
+                    <RefreshCw size={24} className="animate-spin text-purple-500" style={{ margin: '0 auto 12px' }} />
+                    <p style={{ margin: 0, fontSize: '0.92rem' }}>Retrieving your allocated question set...</p>
+                  </>
+                ) : (
+                  <>
+                    <AlertTriangle size={32} style={{ color: '#f59e0b', margin: '0 auto 12px' }} />
+                    <p style={{ margin: 0, fontSize: '0.92rem' }}>No approved examination papers published for your student ID yet.</p>
+                  </>
+                )}
+              </div>
+            ) : (
+              <div>
+                
+                {/* Anti-Cheating Allocation Notice Card */}
+                <div style={{
+                  padding: '14px 18px',
+                  borderRadius: '12px',
+                  background: 'rgba(99, 102, 241, 0.08)',
+                  border: '1.5px solid var(--accent-primary)',
+                  marginBottom: '20px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: '12px'
+                }}>
+                  <div>
+                    <div style={{ fontSize: '0.92rem', fontWeight: 800, color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <ShieldCheck size={18} />
+                      Examinee Anti-Cheating Security Notice: Paper Allocated [{assignedExam.assigned_set_name}]
+                    </div>
+                    <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '3px', lineHeight: 1.45 }}>
+                      This question set was specifically assigned to your student identity by Course Faculty. Neighboring examinees have been given different sets with 70% distinct variant problems. Ensure you answer questions from this paper only.
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleDownloadAssignedExamPDF}
+                    className="btn btn-primary"
+                    style={{ fontSize: '0.82rem', padding: '8px 18px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <Download size={15} /> Download Official PDF
+                  </button>
+                </div>
+
+                {/* AUTHENTIC UNIVERSITY DIIT QUESTION PAPER PREVIEW */}
+                <div 
+                  className="diit-exam-paper-container"
+                  style={{ 
+                    background: '#ffffff', 
+                    color: '#000000',
+                    padding: '36px 44px', 
+                    borderRadius: '8px', 
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+                    fontFamily: '"Times New Roman", Times, Georgia, serif',
+                    marginBottom: '20px',
+                    border: '1px solid #cbd5e1',
+                    position: 'relative'
+                  }}
+                >
+                  {/* Top Right Set Badge */}
+                  <div style={{ textAlign: 'right', fontWeight: 'bold', fontSize: '1.1rem', marginBottom: '2px', color: '#000000' }}>
+                    [{assignedExam.assigned_set_name || 'SET: A'}]
+                  </div>
+
+                  {/* Institutional Header Centered */}
+                  <div style={{ textAlign: 'center', marginBottom: '12px' }}>
+                    <h1 style={{ margin: '0 0 4px 0', fontSize: '1.5rem', fontWeight: 'bold', letterSpacing: '0.5px' }}>
+                      {assignedExam.institution || 'DAFFODIL INSTITUTE OF IT'}
+                    </h1>
+                    <h2 style={{ margin: '0 0 3px 0', fontSize: '1.15rem', fontWeight: 'bold' }}>
+                      {assignedExam.degree_program || 'B.Sc (Hons) in Computer Science & Engineering'}
+                    </h2>
+                    <div style={{ fontSize: '1.05rem', fontWeight: 'bold', margin: '0 0 3px 0' }}>
+                      {assignedExam.semester_exam || 'Midterm Examination'}
+                    </div>
+                    <div style={{ fontSize: '1.05rem', fontWeight: 'bold', margin: '0 0 4px 0' }}>
+                      {assignedExam.course_code} ({assignedExam.course_title || assignedExam.course})
+                    </div>
+                    <div style={{ fontSize: '1rem' }}>
+                      Time – {assignedExam.time_allowed || '1 hour 20 minutes'}, Full marks – {assignedExam.full_marks || 40}
+                    </div>
+                  </div>
+
+                  {/* Examination Instructions [N.B.] */}
+                  <div style={{ fontStyle: 'italic', fontSize: '0.92rem', marginBottom: '14px', lineHeight: '1.45', color: '#1e293b' }}>
+                    {assignedExam.instructions || '[N.B. -- The figures in the right margin indicate full marks. Answer any two questions. All parts of the questions must be answered sequentially.]'}
+                  </div>
+
+                  {/* Right Margin Header: Marks */}
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', fontWeight: 'bold', fontSize: '1.05rem', marginBottom: '8px', paddingRight: '4px' }}>
+                    Marks
+                  </div>
+
+                  {/* Divider Line */}
+                  <div style={{ borderTop: '1px solid #000000', marginBottom: '18px' }}></div>
+
+                  {/* Question Sets List */}
+                  {(!assignedExam.question_sets || assignedExam.question_sets.length === 0) ? (
+                    <div style={{ textAlign: 'center', padding: '30px 0', color: '#64748b' }}>
+                      No questions currently loaded in this set.
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
+                      {assignedExam.question_sets.map((qSet, setIdx) => (
+                        <div key={qSet.set_number || setIdx} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                          
+                          {(qSet.sub_questions || []).map((sq, subIdx) => (
+                            <div 
+                              key={sq.id || subIdx} 
+                              style={{ 
+                                display: 'flex', 
+                                alignItems: 'flex-start',
+                                position: 'relative',
+                                padding: '4px 0'
+                              }}
+                            >
+                              {/* Left Margin Prefix: Set Number & Sub-Question Part */}
+                              <div style={{ width: '60px', minWidth: '60px', fontWeight: 'bold', fontSize: '1.05rem', display: 'flex', gap: '6px' }}>
+                                {subIdx === 0 ? (
+                                  <span style={{ minWidth: '18px' }}>{qSet.set_number || (setIdx + 1)}.</span>
+                                ) : (
+                                  <span style={{ minWidth: '18px', visibility: 'hidden' }}>1.</span>
+                                )}
+                                <span>({sq.part || String.fromCharCode(97 + subIdx)})</span>
+                              </div>
+
+                              {/* Middle Column: Question Stem & Drawn Matrix */}
+                              <div style={{ flex: 1, paddingRight: '20px' }}>
+                                <div style={{ fontSize: '1.03rem', lineHeight: '1.45', color: '#000000' }}>
+                                  {sq.question}
+                                </div>
+
+                                {/* DRAWN MATHEMATICAL MATRIX / FIGURE */}
+                                {sq.matrix && Array.isArray(sq.matrix) && sq.matrix.length > 0 && (
+                                  <div style={{ margin: '14px 0', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                    <table style={{ borderCollapse: 'collapse', border: '2px solid #000000', margin: '0 auto' }}>
+                                      <tbody>
+                                        {sq.matrix.map((row, rIdx) => (
+                                          <tr key={rIdx}>
+                                            {(Array.isArray(row) ? row : [row]).map((val, cIdx) => (
+                                              <td 
+                                                key={cIdx} 
+                                                style={{ 
+                                                  width: '32px', 
+                                                  height: '32px', 
+                                                  minWidth: '32px', 
+                                                  minHeight: '32px',
+                                                  border: '1.5px solid #000000',
+                                                  textAlign: 'center',
+                                                  verticalAlign: 'middle',
+                                                  fontWeight: 'bold',
+                                                  fontSize: '1.05rem',
+                                                  color: '#000000',
+                                                  padding: 0
+                                                }}
+                                              >
+                                                {val}
+                                              </td>
+                                            ))}
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Right Margin Marks Column */}
+                              <div style={{ width: '50px', minWidth: '50px', textAlign: 'right', fontWeight: 'bold', fontSize: '1.1rem' }}>
+                                {sq.marks}
+                              </div>
+                            </div>
+                          ))}
+
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            )}
+
+          </Card>
+        )}
+
+        {/* REGULAR ROUTINE TABS */}
+        {activeTab !== 'Assigned Paper' && activeRoutine && (
           <Card title={activeRoutine.title}>
             
             {/* Dynamic Header details inside card with uploaded information & PDF download button */}

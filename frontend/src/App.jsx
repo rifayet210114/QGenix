@@ -24,7 +24,6 @@ import React from 'react';
 import { AuthProvider } from './contexts/AuthContext';
 import { ProfileProvider } from './contexts/ProfileContext';
 // [MODIFICATION: Added AdminDataProvider for real-time reactivity and LocalStorage state persistence across the entire Admin Console]
-// [Bengali Note: অ্যাডমিন কনসোলের সকল ডাটা লাইভ আপডেট ও লোকালস্টোরেজে সেভ রাখার জন্য AdminDataProvider যুক্ত করা হলো।]
 import { AdminDataProvider } from './contexts/AdminDataContext';
 import { DeleteConfirmProvider } from './contexts/DeleteConfirmContext';
 import { AdminRoute, TeacherRoute, StudentRoute } from './components/RoleRoute';
@@ -32,7 +31,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 
 // Lucide icons used in the sidebar navigation link definitions
 // [MODIFICATION: Added Building2, ShieldAlert, Sparkles for complete Admin console navigation icons]
-// [Bengali Note: অ্যাডমিন কনসোলের নতুন মডিউলগুলোর জন্য নতুন আইকন যুক্ত করা হয়েছে।]
 import { 
   LayoutDashboard, Users, Settings, BookOpen, FileText, 
   CheckSquare, Calendar, TrendingUp, CalendarCheck, 
@@ -53,7 +51,6 @@ import GetStarted from './pages/GetStarted';  // Pricing & free-trial page
 // ==================== ADMIN PAGES ====================
 // Pages for system administrators
 // [MODIFICATION: Imported all newly created comprehensive Admin console pages]
-// [Bengali Note: অ্যাডমিন কনসোলের সম্পূর্ণ নতুন পেজগুলো ইম্পোর্ট করা হলো।]
 import AdminDashboard from './pages/Admin/Dashboard';           // Executive dashboard with KPIs & telemetry
 import Academics from './pages/Admin/Academics';                 // Academic hierarchy, departments, courses & allocation
 import ArchivePage from './pages/Admin/Archive';                 // Academic past semester archives & graduated cohorts
@@ -68,6 +65,7 @@ import AdminSettings from './pages/Admin/Settings';             // Institutional
 // ==================== TEACHER PAGES ====================
 // Pages for teachers / instructors
 import TeacherDashboard from './pages/Teacher/Dashboard';        // Teacher overview & quick stats
+import AttendanceTimesheet from './pages/Teacher/AttendanceTimesheet'; // Teacher biometric attendance & timesheet
 import ResourceManager from './pages/Teacher/ResourceManager';   // Upload & manage teaching materials
 import TeacherAttendance from './pages/Teacher/Attendance';      // Mark & review student attendance
 import AIExamGenerator from './pages/Teacher/AIExamGenerator';   // AI-powered question & exam builder
@@ -92,7 +90,6 @@ import Attendance from './pages/Student/Attendance';        // View personal att
 import MyCourses from './pages/Student/MyCourses';          // Student enrolled courses & details page
 import Results from './pages/Student/Results';              // Student comprehensive exam results hub
 // English: Imported new Assignments page component.
-// Bengali: নতুন অ্যাসাইনমেন্টস পেজ কম্পোনেন্ট ইম্পোর্ট করা হয়েছে।
 import Assignments from './pages/Student/Assignments';      // Student assignment management center
 import Routine from './pages/Student/Routine';              // Student academic routine & planner page
 import Notices from './pages/Student/Notices';              // Student notice board component
@@ -114,7 +111,6 @@ import Profile from './pages/Student/Profile';                // Student Profile
 
 // Admin sidebar links — comprehensive system-level management tools
 // [MODIFICATION: Expanded admin links with the full suite of 8 academic console modules]
-// [Bengali Note: অ্যাডমিন কনসোলের সম্পূর্ণ ৮টি মূল মডিউল এবং লগআউট সাইডবারে যুক্ত করা হয়েছে।]
 const adminLinks = [
   { path: '/admin', label: 'Executive Dashboard', icon: <LayoutDashboard size={20} /> },
   { path: '/admin/academics', label: 'Academics', icon: <Building2 size={20} /> },
@@ -132,8 +128,9 @@ const adminLinks = [
 // Teacher sidebar links — instructional & evaluation tools
 const teacherLinks = [
   { path: '/teacher', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
+  { path: '/teacher/attendance-timesheet', label: 'Attendance and Timesheet', icon: <Clock size={20} /> },
   { path: '/teacher/resources', label: 'Resource Manager', icon: <BookOpen size={20} /> },
-  { path: '/teacher/attendance', label: 'Attendance', icon: <CalendarCheck size={20} /> },
+  { path: '/teacher/attendance', label: 'Student Attendance', icon: <CalendarCheck size={20} /> },
   { path: '/teacher/generator', label: 'Questions Generator', icon: <FileText size={20} /> },
   { path: '/teacher/courses', label: 'Courses', icon: <BookOpen size={20} /> },
   { path: '/teacher/students', label: 'Students', icon: <Users size={20} /> },
@@ -149,7 +146,6 @@ const teacherLinks = [
 
 // Student sidebar links — learning, exams, notifications, resources & routine tools
 // English: Removed "Calendar" and "Messages" options from the student links sidebar array as requested.
-// Bengali: ব্যবহারকারীর অনুরোধ অনুযায়ী স্টুডেন্ট সাইডবার লিংক অ্যারে থেকে "Calendar" এবং "Messages" অপশন দুটি মুছে ফেলা হয়েছে।
 const studentLinks = [
   { path: '/student', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
   { path: '/student/attendance', label: 'Attendance', icon: <CalendarCheck size={20} /> },
@@ -207,7 +203,7 @@ function App() {
               links, role label, and navbar title "System Controller".
               Child routes render inside the layout's <Outlet />.
               [SECURITY GUARD: AdminRoute strictly forbids unauthorized access from Teachers & Students]
-              [Bengali Note: AdminRoute গার্ডের মাধ্যমে শুধুমাত্র অনুমোদিত ADMIN রোলের ব্যবহারকারীই এখানে ঢুকতে পারবে।] */}
+              [Bengali Note: AdminRoute     ADMIN     ।] */}
           <Route 
             path="/admin" 
             element={
@@ -242,7 +238,7 @@ function App() {
           {/* Parent route renders the DashboardLayout with teacher-specific
               links, role label, and navbar title "Command Center".
               [SECURITY GUARD: TeacherRoute strictly forbids access from Students or non-teachers]
-              [Bengali Note: TeacherRoute এর মাধ্যমে শিক্ষার্থীরা শিক্ষকের পোর্টালে ঢুকতে পারবে না।] */}
+              [Bengali Note: TeacherRoute        ।] */}
           <Route 
             path="/teacher" 
             element={
@@ -253,6 +249,8 @@ function App() {
           >
             {/* index route — matches /teacher exactly → Teacher dashboard */}
             <Route index element={<TeacherDashboard />} />
+            {/* /teacher/attendance-timesheet → Biometric Attendance & Work Timesheet */}
+            <Route path="attendance-timesheet" element={<AttendanceTimesheet />} />
             {/* /teacher/resources → Upload & manage teaching materials */}
             <Route path="resources" element={<ResourceManager />} />
             {/* /teacher/generator → AI-powered exam/question generator */}
@@ -280,7 +278,7 @@ function App() {
           {/* Parent route renders the DashboardLayout with student-specific
               links, role label, and navbar title "Learning & Analytics Hub".
               [SECURITY GUARD: StudentRoute strictly reserves portal for Enrolled Students]
-              [Bengali Note: StudentRoute এর মাধ্যমে শুধুমাত্র বৈধ শিক্ষার্থীরাই এখানে প্রবেশ করতে পারবে।] */}
+              [Bengali Note: StudentRoute         ।] */}
           <Route 
             path="/student" 
             element={
@@ -305,7 +303,7 @@ function App() {
             <Route path="results" element={<Results />} />
             {/* 
               [CHANGE: Routed path "assignments" to render the new Assignments component]
-              [Bengali Note]: রাউটার পাথে নতুন অ্যাসাইনমেন্টস পেজ ইন্টিগ্রেট করা হলো।
+              [Bengali Note]:        ।
             */}
             <Route path="assignments" element={<Assignments />} />
             <Route path="routine" element={<Routine />} />

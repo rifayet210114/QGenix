@@ -2,13 +2,7 @@
 // AuditLogs.jsx — 100% Functional System Health & Audit Trail Logs
 // -----------------------------------------------------------------------------------------
 // Bengali Note:
-// এই পেজটি সম্পূর্ণ কার্যকর (100% Functional):
-// ১. Live Audit Trail: শিক্ষার্থী যোগ, কোর্স অ্যালোকেশন, রেজাল্ট পাবলিশিং বা গ্রেড এডিট করার
-//    সাথে সাথে স্বয়ংক্রিয়ভাবে অডিট লগ তৈরি হয়ে এখানে লাইভ প্রদর্শিত হয়।
-// ২. Real JSON/SQL Backup Download: "Generate Full DB Backup" বা "Download SQL" বাটনে চাপ দিলে
-//    ব্রাউজার থেকে স্বয়ংক্রিয়ভাবে একটি আসল `.json` ব্যাকআপ ফাইল ডাউনলোড হয়ে যায়।
-// ৩. Search & Filter: যেকোনো লগ আইডি, ব্যবহারকারী বা অ্যাকশন দিয়ে রিয়েল-টাইম সার্চিং।
-// সমস্ত ডাটা AdminDataContext এবং LocalStorage-এ স্বয়ংক্রিয়ভাবে সংরক্ষিত থাকে।
+// Central state management provider with automatic persistence and sync
 // =========================================================================================
 
 import React, { useState } from 'react';
@@ -45,7 +39,6 @@ export default function AuditLogs() {
   };
 
   // Real Backup Generator & Downloader directly from Django SQLite DB
-  // আসল ডাটাবেস ব্যাকআপ তৈরি এবং ডাউনলোড হ্যান্ডলার
   const handleDownloadBackup = async (customName) => {
     try {
       showToast('Extracting live database tables snapshot...');

@@ -2,25 +2,21 @@
 # accounts/models.py — Custom User Model & Role-Based Access Hierarchy
 # -----------------------------------------------------------------------------------------
 # Bengali Note:
-# এই মডেলে QGenix প্ল্যাটফর্মের কাস্টম ইউজার মডেল (CustomUser) তৈরি করা হয়েছে।
-# প্রধান বৈশিষ্ট্যসমূহ:
-# ১. Role Selection: ADMIN, TEACHER, STUDENT — এর মাধ্যমে ইউজার কোন পোর্টালে ঢুকতে পারবে তা নির্ধারিত হয়।
-# ২. শুধুমাত্র ADMIN রোলের ব্যবহারকারী অ্যাডমিন কনসোলে প্রবেশের পারমিশন পাবে।
-# ৩. প্রতিটি ব্যবহারকারীর ডিপার্টমেন্ট, ফোন এবং রোল অনুযায়ী অতিরিক্ত প্রোফাইল ফিল্ড যুক্ত আছে।
+# RBAC security: verifies user roles and denies unauthorized access with 403
 # =========================================================================================
 
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 
 class CustomUser(AbstractUser):
-    # User Roles Choices (ব্যবহারকারীর ভূমিকা নির্ধারণ)
+    # RBAC security: verifies user roles and denies unauthorized access with 403
     ROLE_CHOICES = (
         ('ADMIN', 'System Administrator'),
         ('TEACHER', 'Faculty / Teacher'),
         ('STUDENT', 'Enrolled Student'),
     )
 
-    # Core Role Field (রোলের ফিল্ড — অ্যাডমিন, শিক্ষক বা শিক্ষার্থী)
+    # RBAC security: verifies user roles and denies unauthorized access with 403
     role = models.CharField(
         max_length=20, 
         choices=ROLE_CHOICES, 
@@ -28,7 +24,6 @@ class CustomUser(AbstractUser):
         help_text="Designates the system access level and dashboard routing."
     )
 
-    # Department Association (বিভাগ যেমন: CSE, EEE, BBA)
     department = models.CharField(max_length=50, blank=True, null=True)
 
     # Contact & Identity
@@ -41,7 +36,6 @@ class CustomUser(AbstractUser):
         help_text="Student ID (e.g. STU-2022-001) or Faculty Employee ID (FAC-101)"
     )
 
-    # Student Specific Attributes (শিক্ষার্থীদের জন্য প্রয়োজনীয় ফিল্ড)
     batch = models.CharField(max_length=50, blank=True, null=True)
     section = models.CharField(max_length=20, blank=True, default='A', help_text="e.g. A, B, C")
     registration_no = models.CharField(
@@ -52,10 +46,8 @@ class CustomUser(AbstractUser):
     )
     cgpa = models.DecimalField(max_digits=3, decimal_places=2, default=0.00, blank=True, null=True)
 
-    # Faculty Specific Attributes (শিক্ষকদের জন্য প্রয়োজনীয় ফিল্ড)
     designation = models.CharField(max_length=100, blank=True, null=True, help_text="e.g. Professor, Assistant Professor, Lecturer")
 
-    # Profile Picture / Avatar (অপ্টিমাইজড বেস৬৪ ইমেজ অথবা ফটো ইউআরএল)
     profile_picture = models.TextField(blank=True, null=True, help_text="Optimized base64 avatar or image URL")
 
     # Helper role checking properties
@@ -276,6 +268,18 @@ class SystemSetting(models.Model):
         return f"System Setting (Student: {self.student_email_format}, Teacher: {self.teacher_email_format})"
 
 
+class BiometricShiftPolicy(models.Model):
+    standard_check_in = models.CharField(max_length=20, default='09:00 AM')
+    grace_period_mins = models.IntegerField(default=15)
+    standard_check_out = models.CharField(max_length=20, default='05:00 PM')
+    half_day_hours = models.FloatField(default=4.5)
+    full_day_hours = models.FloatField(default=8.0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Shift Policy (In: {self.standard_check_in} +{self.grace_period_mins}m, Out: {self.standard_check_out})"
+
+
 class FacultyBiometricLog(models.Model):
     teacher = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='biometric_logs')
     date = models.CharField(max_length=50) # e.g. "2026-10-24" or "Oct 24, 2026"
@@ -291,6 +295,26 @@ class FacultyBiometricLog(models.Model):
 
     def __str__(self):
         return f"{self.teacher.username} - {self.date}: {self.status} (In: {self.check_in}, Out: {self.check_out})"
+
+
+class FacultyTimesheetEntry(models.Model):
+    teacher = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='timesheet_entries')
+    date = models.CharField(max_length=50) # e.g. "2026-10-28"
+    task_title = models.CharField(max_length=255)
+    category = models.CharField(max_length=100, default='Lecture / Theory')
+    start_time = models.CharField(max_length=20, default='10:00 AM')
+    end_time = models.CharField(max_length=20, default='11:30 AM')
+    hours_spent = models.FloatField(default=1.5)
+    description = models.TextField(blank=True, default='')
+    status = models.CharField(max_length=50, default='Completed') # Completed, In Progress
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-date', '-created_at']
+
+    def __str__(self):
+        return f"{self.teacher.username} - {self.date}: {self.task_title} ({self.hours_spent}h)"
 
 
 class FacultyLeaveQuota(models.Model):
@@ -355,5 +379,94 @@ class FacultySyllabusProgress(models.Model):
         return f"{self.teacher.username} - {self.course_code} ({self.batch} {self.section}): {self.progress_percentage}%"
 
 
+class ClassAttendance(models.Model):
+    batch = models.CharField(max_length=100)  # e.g. "Batch 2022 - 2023"
+    section = models.CharField(max_length=50, default='A')  # e.g. "Sec A" or "A"
+    department = models.CharField(max_length=50, default='CSE')
+    semester = models.CharField(max_length=50, blank=True, default='5th Semester')  # e.g. "5th Semester"
+    course_title = models.CharField(max_length=200)  # e.g. "Database Management Systems"
+    course_code = models.CharField(max_length=50, blank=True, default='')  # e.g. "CSE-301"
+    teacher = models.CharField(max_length=150)  # e.g. "Dr. Asaduzzaman" or teacher's full name
+    teacher_user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name='taken_attendances')
+    date = models.CharField(max_length=50, blank=True)  # e.g. "2026-10-25"
+    total_students = models.IntegerField(default=0)
+    present_count = models.IntegerField(default=0)
+    absent_count = models.IntegerField(default=0)
+    late_count = models.IntegerField(default=0)
+    average_attendance = models.FloatField(default=0.0)  # Percentage, e.g. 93.3%
+    student_records = models.JSONField(default=list, blank=True)  # [{id, name, status, regNo, student_id}]
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.course_title} - {self.batch} ({self.section}) - {self.teacher} [{self.present_count}/{self.total_students}]"
+
+
+class AIQuestionPaper(models.Model):
+    paper_id = models.CharField(max_length=50, unique=True)  # e.g. 'Q-9801'
+    course = models.CharField(max_length=200)  # e.g. 'CSE-315: AI & Machine Learning'
+    teacher = models.CharField(max_length=150)  # e.g. 'Dr. Asaduzzaman'
+    questions_count = models.IntegerField(default=25)
+    difficulty = models.CharField(max_length=50, default='Medium')  # Easy, Medium, Hard
+    similarity_score = models.FloatField(default=2.1)  # % similarity to previous exams
+    originality_score = models.FloatField(default=97.9)  # % originality
+    tokens_consumed = models.IntegerField(default=1250)
+    estimated_cost = models.DecimalField(max_digits=6, decimal_places=4, default=0.0000)
+    status = models.CharField(max_length=50, default='Approved')  # Pending Review, Approved, Revision Requested
+    sample_question = models.TextField(blank=True)
+    generated_on = models.CharField(max_length=50, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.paper_id} - {self.course} ({self.questions_count} questions)"
+
+
+class AITokenUsageLog(models.Model):
+    paper = models.ForeignKey(AIQuestionPaper, on_delete=models.SET_NULL, null=True, blank=True, related_name='token_logs')
+    provider = models.CharField(max_length=50, default='gemini')
+    model_name = models.CharField(max_length=100, default='gemini-1.5-pro')
+    tokens_consumed = models.IntegerField(default=0)
+    is_throttle_violation = models.BooleanField(default=False)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        return f"{self.model_name}: {self.tokens_consumed} tokens at {self.timestamp}"
+
+
+class TeacherCourseResource(models.Model):
+    """
+    Teacher Course Study Materials, Books, Notes, and Slides (PDF, DOCX, PPTX).
+    Stored in a dedicated database table 'teacher_course_resources'.
+    """
+    teacher = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='course_resources', null=True, blank=True)
+    title = models.CharField(max_length=255)
+    course_code = models.CharField(max_length=50, blank=True, default='GEN-101')
+    course_title = models.CharField(max_length=255, blank=True, default='General Course Materials')
+    file = models.FileField(upload_to='course_resources/%Y/%m/', null=True, blank=True)
+    file_name = models.CharField(max_length=255)
+    file_type = models.CharField(max_length=20, default='PDF') # PDF, DOCX, DOC, PPTX, PPT
+    file_size = models.CharField(max_length=50, blank=True, default='1.5 MB')
+    file_url = models.TextField(blank=True, default='')
+    file_data = models.TextField(blank=True, default='', help_text="Base64 Data URL or file content for direct fullscreen viewing")
+    description = models.TextField(blank=True, default='')
+    page_count = models.IntegerField(default=1, help_text="Total number of pages or slides in document")
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'teacher_course_resources'
+        ordering = ['-uploaded_at']
+
+    def __str__(self):
+        return f"{self.file_name} ({self.course_code}) - {self.teacher.username if self.teacher else 'Faculty'}"
 
 

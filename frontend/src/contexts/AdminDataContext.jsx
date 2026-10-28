@@ -2,10 +2,6 @@
 // AdminDataContext.jsx — Central Reactive State & LocalStorage Persistence for QGenix Admin
 // -----------------------------------------------------------------------------------------
 // Bengali Note:
-// এই কনটেক্সট প্রোভাইডারে অ্যাডমিন কনসোলের সকল ডাটা (শিক্ষার্থী, শিক্ষক, ডিপার্টমেন্ট, কোর্স,
-// কোর্স অ্যালোকেশন, পরীক্ষার সেশন, রুটিন, নোটিশ, অডিট লগ ইত্যাদি) কেন্দ্রীভূত এবং 
-// লোকাল স্টোরেজে স্বয়ংক্রিয়ভাবে সংরক্ষিত থাকে। ফলে কোনো কিছু যোগ, সম্পাদনা (Edit) বা মুছে ফেলা 
-// (Delete) হলে তা তৎক্ষণাৎ কার্যকর হয় এবং পেজ রিফ্রেশ করলেও ডাটা নষ্ট হয় না।
 // =========================================================================================
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
@@ -98,6 +94,7 @@ export function AdminDataProvider({ children }) {
   const [students, setStudents] = useState(() => loadState('students', []));
   const [faculty, setFaculty] = useState(() => loadState('faculty', []));
   const [routineSlots, setRoutineSlots] = useState(() => loadState('routineSlots', []));
+  const [attendances, setAttendances] = useState(() => loadState('attendances', []));
   const [examSessions, setExamSessions] = useState(() => loadState('examSessions', []));
   const [gradingScale, setGradingScale] = useState(() => loadState('gradingScale', initialGradingScale));
   const [tabulationMarks, setTabulationMarks] = useState(() => loadState('tabulationMarks', []));
@@ -153,10 +150,14 @@ export function AdminDataProvider({ children }) {
           })));
         }
 
-        if (Array.isArray(data.exam_sessions_list)) setExamSessions(data.exam_sessions_list);
-        if (Array.isArray(data.notices)) setNotices(data.notices);
-        if (Array.isArray(data.audit_logs)) setAuditLogs(data.audit_logs);
+        if (Array.isArray(data.notices)) {
+          setNotices(prev => data.notices.map(dn => {
+            const existing = prev.find(p => p.id === dn.id || p.title === dn.title);
+            return existing?.attachmentData ? { ...dn, attachmentData: existing.attachmentData, attachmentSize: existing.attachmentSize } : dn;
+          }));
+        }
         if (Array.isArray(data.routine_slots)) setRoutineSlots(data.routine_slots);
+        if (Array.isArray(data.attendances)) setAttendances(data.attendances);
         if (Array.isArray(data.allocations)) {
           setAllocations(data.allocations.map(a => ({
             id: a.id,
@@ -178,7 +179,39 @@ export function AdminDataProvider({ children }) {
   useEffect(() => {
     refreshFromDB();
     const interval = setInterval(refreshFromDB, 6000);
-    return () => clearInterval(interval);
+
+    const handleAttendanceChange = () => {
+      fetchAttendances();
+      refreshFromDB();
+    };
+
+    window.addEventListener('qgenix_attendance_updated', handleAttendanceChange);
+
+    let attendBc;
+    try {
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        attendBc = new BroadcastChannel('qgenix_attendance_sync');
+        attendBc.onmessage = () => {
+          handleAttendanceChange();
+        };
+      }
+    } catch (_) {}
+
+    const handleStorage = (e) => {
+      if (e.key === 'qgenix_last_attendance_sync') {
+        handleAttendanceChange();
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('qgenix_attendance_updated', handleAttendanceChange);
+      window.removeEventListener('storage', handleStorage);
+      if (attendBc) {
+        try { attendBc.close(); } catch (_) {}
+      }
+    };
   }, []);
 
   // Sync to localStorage
@@ -189,14 +222,17 @@ export function AdminDataProvider({ children }) {
   useEffect(() => { localStorage.setItem('qgenix_students', JSON.stringify(students)); }, [students]);
   useEffect(() => { localStorage.setItem('qgenix_faculty', JSON.stringify(faculty)); }, [faculty]);
   useEffect(() => { localStorage.setItem('qgenix_routineSlots', JSON.stringify(routineSlots)); }, [routineSlots]);
+  useEffect(() => { localStorage.setItem('qgenix_attendances', JSON.stringify(attendances)); }, [attendances]);
   useEffect(() => { localStorage.setItem('qgenix_examSessions', JSON.stringify(examSessions)); }, [examSessions]);
   useEffect(() => { localStorage.setItem('qgenix_gradingScale', JSON.stringify(gradingScale)); }, [gradingScale]);
   useEffect(() => { localStorage.setItem('qgenix_tabulationMarks', JSON.stringify(tabulationMarks)); }, [tabulationMarks]);
-  useEffect(() => { localStorage.setItem('qgenix_notices', JSON.stringify(notices)); }, [notices]);
+  useEffect(() => { 
+    localStorage.setItem('qgenix_notices', JSON.stringify(notices)); 
+    window.dispatchEvent(new Event('qgenix_notices_updated'));
+  }, [notices]);
   useEffect(() => { localStorage.setItem('qgenix_auditLogs', JSON.stringify(auditLogs)); }, [auditLogs]);
   useEffect(() => { localStorage.setItem('qgenix_emailFormats', JSON.stringify(emailFormats)); }, [emailFormats]);
 
-  // Log action automatically (অটোমেটেড অডিট ট্রেইল তৈরি)
   const addAuditLog = (action, category, target, status = 'Success') => {
     const newLog = {
       id: `LOG-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -420,12 +456,29 @@ export function AdminDataProvider({ children }) {
     }
   };
 
+  // Helper to notify real-time listeners across tabs of course allocation changes
+  const notifyAllocationChange = () => {
+    try {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('qgenix_allocations_updated'));
+        if ('BroadcastChannel' in window) {
+          const bc = new BroadcastChannel('qgenix_academic_sync');
+          bc.postMessage({ type: 'ALLOCATIONS_UPDATED', timestamp: Date.now() });
+          setTimeout(() => {
+            try { bc.close(); } catch (_) {}
+          }, 200);
+        }
+      }
+    } catch (_) {}
+  };
+
   // Allocate Course (Assign Teacher)
   const addAllocation = async (alloc) => {
     const weeklyDays = alloc.weeklyDays || alloc.weekly_days || 'Sun, Tue';
     const newAlloc = { id: Date.now(), ...alloc, weeklyDays };
     setAllocations(prev => [...prev, newAlloc]);
     addAuditLog('Course Allocated', 'Faculty', `${alloc.courseName || alloc.courseCode} -> ${alloc.teacher} (${weeklyDays})`);
+    notifyAllocationChange();
 
     try {
       await fetch(`${API_BASE}/api/auth/allocations/`, {
@@ -442,6 +495,7 @@ export function AdminDataProvider({ children }) {
         })
       });
       await refreshFromDB();
+      notifyAllocationChange();
     } catch (e) {
       console.warn('Error saving allocation to DB:', e);
     }
@@ -451,6 +505,7 @@ export function AdminDataProvider({ children }) {
   const editAllocation = async (id, updatedFields) => {
     setAllocations(prev => prev.map(a => a.id === id ? { ...a, ...updatedFields } : a));
     addAuditLog('Course Reassigned', 'Faculty', `Allocation ID: ${id}`);
+    notifyAllocationChange();
 
     try {
       const payload = {};
@@ -468,6 +523,7 @@ export function AdminDataProvider({ children }) {
         body: JSON.stringify(payload)
       });
       await refreshFromDB();
+      notifyAllocationChange();
     } catch (e) {
       console.warn('Error updating allocation in DB:', e);
     }
@@ -477,12 +533,14 @@ export function AdminDataProvider({ children }) {
   const deleteAllocation = async (id) => {
     setAllocations(prev => prev.filter(a => a.id !== id));
     addAuditLog('Course Allocation Removed', 'Faculty', `Allocation ID: ${id}`);
+    notifyAllocationChange();
 
     try {
       await fetch(`${API_BASE}/api/auth/allocations/${id}/`, {
         method: 'DELETE'
       });
       await refreshFromDB();
+      notifyAllocationChange();
     } catch (e) {
       console.warn('Error deleting allocation from DB:', e);
     }
@@ -937,15 +995,18 @@ export function AdminDataProvider({ children }) {
 
   // ==================== 5. NOTICES ====================
   const addNotice = async (notice) => {
-    const newNotice = { id: Date.now(), date: 'Just now', ...notice };
+    const formattedDate = notice.date || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const payload = { ...notice, date: formattedDate };
+    const newNotice = { id: Date.now(), ...payload };
     setNotices(prev => [newNotice, ...prev]);
     addAuditLog('Notice Broadcasted', 'Notice Board', notice.title);
 
     try {
+      const { attachmentData, attachmentSize, ...dbPayload } = payload;
       await fetch(`${API_BASE}/api/auth/notices/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(notice)
+        body: JSON.stringify(dbPayload)
       });
       await refreshFromDB();
     } catch (e) {
@@ -967,8 +1028,20 @@ export function AdminDataProvider({ children }) {
     }
   };
 
-  const togglePinNotice = (id) => {
+  const togglePinNotice = async (id) => {
     setNotices(prev => prev.map(n => n.id === id ? { ...n, pinned: !n.pinned } : n));
+    try {
+      const target = notices.find(n => n.id === id);
+      if (target) {
+        await fetch(`${API_BASE}/api/auth/notices/${id}/`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pinned: !target.pinned })
+        });
+      }
+    } catch (e) {
+      console.warn('Error updating pin status in DB:', e);
+    }
   };
 
   // ── Email Format Settings & System-Wide Validator ──
@@ -1076,6 +1149,51 @@ export function AdminDataProvider({ children }) {
     return { isValid: true, error: null };
   };
 
+  // 100% Real Database Attendance Operations
+  const fetchAttendances = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/attendances/`);
+      if (res.ok) {
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : (data.results || []);
+        setAttendances(list);
+        return list;
+      }
+    } catch (e) {
+      console.warn('Failed to fetch attendances:', e);
+    }
+    return attendances;
+  };
+
+  const addAttendanceRecord = async (recordData) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/attendances/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(recordData)
+      });
+      if (res.ok) {
+        const saved = await res.json();
+        setAttendances(prev => [saved, ...prev.filter(a => a.id !== saved.id)]);
+        refreshFromDB();
+        return saved;
+      }
+    } catch (e) {
+      console.error('Failed to add attendance record to DB:', e);
+    }
+    return null;
+  };
+
+  const deleteAttendanceRecord = async (id) => {
+    try {
+      await fetch(`${API_BASE}/api/auth/attendances/${id}/`, { method: 'DELETE' });
+      setAttendances(prev => prev.filter(a => a.id !== id));
+      refreshFromDB();
+    } catch (e) {
+      console.error('Failed to delete attendance record from DB:', e);
+    }
+  };
+
   return (
     <AdminDataContext.Provider value={{
       // Data state
@@ -1086,6 +1204,8 @@ export function AdminDataProvider({ children }) {
       students,
       faculty,
       routineSlots,
+      attendances,
+      setAttendances,
       examSessions,
       gradingScale,
       tabulationMarks,
@@ -1127,6 +1247,11 @@ export function AdminDataProvider({ children }) {
       addRoutineSlot,
       editRoutineSlot,
       deleteRoutineSlot,
+
+      // Dedicated Real Database Attendance Operations
+      fetchAttendances,
+      addAttendanceRecord,
+      deleteAttendanceRecord,
 
       addNotice,
       deleteNotice,

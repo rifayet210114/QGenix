@@ -2,11 +2,6 @@
 # accounts/serializers.py — User & Authentication Serializers
 # -----------------------------------------------------------------------------------------
 # Bengali Note:
-# এই সিরিয়ালাইজারে JWT টোকেন কাস্টমাইজেশন এবং ব্যবহারকারীর ডাটা সিরিয়ালাইজ করা হয়েছে:
-# ১. CustomTokenObtainPairSerializer: লগইন করার পর টোকেনের সাথে ইউজারের রোল (ADMIN, TEACHER, STUDENT),
-#    নাম, ইমেইল এবং ডিপার্টমেন্ট রেসপন্সে পাঠায়।
-# ২. UserSerializer: ইউজার প্রোফাইলের ডাটা পড়ার জন্য।
-# ৩. UserCreateUpdateSerializer: নতুন ইউজার তৈরি ও সম্পাদনার জন্য।
 # =========================================================================================
 
 from django.db import models
@@ -30,7 +25,6 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         return token
 
     def validate(self, attrs):
-        # Bengali Note: ইউজার প্রাতিষ্ঠানিক ইমেইল, স্টুডেন্ট আইডি অথবা ইউজারনেম যেকোনো ফরম্যাটে দিলে তা খুঁজে বের করে লগইন নিশ্চিত করে
         username_or_email = attrs.get('username', '').strip()
         matched_user = None
 
@@ -88,6 +82,40 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             attrs['username'] = matched_user.username
 
         data = super().validate(attrs)
+
+        # Enforce Role-Specific Portal Login Restrictions
+        expected_role = (
+            self.initial_data.get('expected_role') or 
+            self.initial_data.get('role') or 
+            ''
+        ).strip().upper()
+
+        if expected_role:
+            user_role = (self.user.role or '').upper()
+            role_allowed = False
+            if expected_role == 'ADMIN' and (user_role == 'ADMIN' or self.user.is_superuser or self.user.is_staff):
+                role_allowed = True
+            elif user_role == expected_role:
+                role_allowed = True
+
+            if not role_allowed:
+                portal_names = {
+                    'STUDENT': 'Student Portal',
+                    'TEACHER': 'Faculty / Teacher Portal',
+                    'ADMIN': 'Admin Portal'
+                }
+                user_role_names = {
+                    'STUDENT': 'Student',
+                    'TEACHER': 'Faculty / Teacher',
+                    'ADMIN': 'Administrator'
+                }
+                target_p = portal_names.get(expected_role, f"{expected_role} Portal")
+                actual_r = user_role_names.get(user_role, user_role)
+                raise serializers.ValidationError(
+                    f"Access Denied: This tab is exclusively for the {target_p}. "
+                    f"Your account is registered as a {actual_r}. Please switch to the '{actual_r}' tab to sign in."
+                )
+
         # Add user profile metadata directly in login response JSON
         data['user'] = {
             'id': self.user.id,
@@ -220,7 +248,11 @@ class StudentRegistrationSerializer(serializers.Serializer):
         return user
 
 
-from .models import Department, Course, Batch, ExamSession, Notice, AuditLog, ClassRoutine, CourseAllocation, AIConfiguration, SemesterArchive, StudentSemesterRecord, SystemSetting
+from .models import (
+    Department, Course, Batch, ExamSession, Notice, AuditLog, ClassRoutine, 
+    CourseAllocation, AIConfiguration, SemesterArchive, StudentSemesterRecord, 
+    SystemSetting, ClassAttendance, AIQuestionPaper
+)
 
 class SystemSettingSerializer(serializers.ModelSerializer):
     class Meta:
@@ -294,6 +326,20 @@ class SemesterArchiveSerializer(serializers.ModelSerializer):
             'total_students', 'average_gpa', 'average_attendance', 'archived_at',
             'is_graduate_batch', 'status', 'records', 'records_count'
         ]
+
+
+class ClassAttendanceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ClassAttendance
+        fields = '__all__'
+
+
+class AIQuestionPaperSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AIQuestionPaper
+        fields = '__all__'
+
+
 
 
 

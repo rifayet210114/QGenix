@@ -10,9 +10,6 @@
 //   6. Simulated attachment download progress animations and confirmation alerts
 //
 // [Bengali Note]:
-// এই ফাইলটি বিশ্ববিদ্যালয়ের নোটিশ বোর্ড মডিউল। শিক্ষক ও অ্যাডমিনের সকল নোটিশ
-// এখানে ক্যাটাগরি ও সার্চ ফিল্টার সহ দেখা যাবে। বামে নোটিশ লিস্ট এবং ডানে
-// নোটিশ ডিটেইলস থাকবে। মোবাইলের জন্য সিঙ্গেল ভিউ সুইচিং ইন্টিগ্রেট করা হয়েছে।
 // ============================================================================
 
 import React, { useState, useEffect, useMemo } from 'react'; // React API library core hooks
@@ -97,13 +94,47 @@ export default function Notices() {
   }, []);
 
   // Sync state with dynamic localStorage
+  // Sync state with dynamic localStorage
   const [notices, setNotices] = useState(() => {
     const saved = localStorage.getItem('qgenix_notices');
     return saved ? JSON.parse(saved) : noticesData;
   });
 
+  // Re-sync whenever notices are updated
   useEffect(() => {
-    localStorage.setItem('qgenix_notices', JSON.stringify(notices));
+    const handleSync = () => {
+      const saved = localStorage.getItem('qgenix_notices');
+      if (saved) {
+        try {
+          const list = JSON.parse(saved);
+          if (Array.isArray(list) && list.length > 0) {
+            setNotices(list);
+          }
+        } catch (e) {}
+      }
+    };
+
+    window.addEventListener('storage', handleSync);
+    window.addEventListener('qgenix_notices_updated', handleSync);
+    handleSync();
+
+    return () => {
+      window.removeEventListener('storage', handleSync);
+      window.removeEventListener('qgenix_notices_updated', handleSync);
+    };
+  }, []);
+
+  // Mark all student notices as read upon opening this page
+  useEffect(() => {
+    try {
+      const studentNotices = notices.filter(n => {
+        const aud = (n.audience || '').toLowerCase();
+        return !n.audience || aud === 'all students & teachers' || aud === 'students only' || aud === 'all students' || (aud.includes('student') && !aud.includes('teacher'));
+      });
+      const ids = studentNotices.map(n => String(n.id));
+      localStorage.setItem('qgenix_read_notices_student', JSON.stringify(ids));
+      window.dispatchEvent(new Event('qgenix_read_status_updated'));
+    } catch (e) {}
   }, [notices]);
 
   // Filter and Search States
@@ -141,15 +172,24 @@ export default function Notices() {
   // Filter notice records computed list
   const filteredNotices = useMemo(() => {
     return notices.filter(notice => {
-      // Show notices that either target the student's cohort or are targeted to All
+      // 1. Audience filtering: Only notices meant for students!
+      const aud = (notice.audience || '').trim().toLowerCase();
+      const isForStudent = !notice.audience || aud === 'all students & teachers' || aud === 'students only' || aud === 'all students' || (aud.includes('student') && !aud.includes('teacher'));
+      if (!isForStudent) return false;
+
+      // 2. Cohort filtering (if targetBatch / targetSemester is specified)
       const matchesBatch = !notice.targetBatch || notice.targetBatch === 'All' || notice.targetBatch === 'Batch 21';
       const matchesSemester = !notice.targetSemester || notice.targetSemester === 'All' || notice.targetSemester === '5th Semester';
-      
       if (!matchesBatch || !matchesSemester) return false;
 
-      const matchesSearch = notice.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                            notice.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                            notice.sender.toLowerCase().includes(searchQuery.toLowerCase());
+      // 3. Search query filtering (null-safe)
+      const titleStr = (notice.title || '').toLowerCase();
+      const contentStr = (notice.content || '').toLowerCase();
+      const senderStr = (notice.sender || notice.author || '').toLowerCase();
+      const q = searchQuery.toLowerCase();
+      const matchesSearch = titleStr.includes(q) || contentStr.includes(q) || senderStr.includes(q);
+
+      // 4. Category filtering
       const matchesCategory = activeCategory === 'All' || notice.category === activeCategory;
       return matchesSearch && matchesCategory;
     });
@@ -157,8 +197,8 @@ export default function Notices() {
 
   // Selected Notice record metadata
   const selectedNotice = useMemo(() => {
-    return notices.find(n => n.id === selectedNoticeId) || notices[0];
-  }, [notices, selectedNoticeId]);
+    return filteredNotices.find(n => n.id === selectedNoticeId) || filteredNotices[0] || notices[0];
+  }, [filteredNotices, notices, selectedNoticeId]);
 
   // Click row triggers
   const handleSelectNotice = (id) => {
@@ -166,8 +206,20 @@ export default function Notices() {
     setMobileDetailActive(true); // Open details pane for mobile viewport
   };
 
-  // Launch simulated attachments download
+  // Launch real or simulated attachments download
   const triggerAttachmentDownload = (fileName) => {
+    if (selectedNotice?.attachmentData) {
+      const link = document.createElement('a');
+      link.href = selectedNotice.attachmentData;
+      link.download = fileName || selectedNotice.attachment || 'Notice_Attachment.pdf';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setToastMessage(`Downloaded file: "${fileName || selectedNotice.attachment}" successfully.`);
+      setTimeout(() => setToastMessage(null), 3000);
+      return;
+    }
+
     if (isDownloading) return;
     setIsDownloading(true);
     setDownloadProgress(15);
@@ -580,25 +632,31 @@ export default function Notices() {
                       <User size={18} />
                     </div>
                     <div style={{ flex: 1, minWidth: '180px' }}>
-                      <h4 style={{ margin: 0, fontSize: '0.88rem', fontWeight: '700', color: 'var(--text-primary)' }}>{selectedNotice.sender}</h4>
-                      <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'block', marginTop: '2px' }}>{selectedNotice.senderRole}</span>
+                      <h4 style={{ margin: 0, fontSize: '0.88rem', fontWeight: '700', color: 'var(--text-primary)' }}>
+                        {selectedNotice?.sender || selectedNotice?.author || 'Office of the Administrator'}
+                      </h4>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'block', marginTop: '2px' }}>
+                        {selectedNotice?.senderRole || 'Institutional Authority'}
+                      </span>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', fontSize: '0.75rem', color: 'var(--text-secondary)', textAlign: 'right' }} className="sm:text-right">
                       <span style={{ fontWeight: '700' }} className="flex items-center gap-1 sm:justify-end">
                         <Calendar size={12} />
-                        {selectedNotice.date}
+                        {selectedNotice?.date || 'Recent'}
                       </span>
-                      <span className="flex items-center gap-1 sm:justify-end">
-                        <Clock size={12} />
-                        {selectedNotice.time}
-                      </span>
+                      {selectedNotice?.time && (
+                        <span className="flex items-center gap-1 sm:justify-end">
+                          <Clock size={12} />
+                          {selectedNotice.time}
+                        </span>
+                      )}
                     </div>
                   </div>
 
                   {/* Main Notice Body Content */}
                   <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '20px' }}>
                     <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
-                      {selectedNotice.content}
+                      {selectedNotice?.content}
                     </p>
                   </div>
 
@@ -608,40 +666,49 @@ export default function Notices() {
                       Official Attachments
                     </h4>
 
-                    {selectedNotice.attachments.length === 0 ? (
-                      <div style={{ padding: '14px', background: 'rgba(255,255,255,0.01)', border: '1px dashed var(--border-color)', borderRadius: '12px', color: 'var(--text-muted)', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Info size={16} />
-                        <span>No downloadable attachment files with this announcement.</span>
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                        {selectedNotice.attachments.map((file, idx) => (
-                          <div 
-                            key={idx}
-                            style={{
-                              padding: '12px 16px',
-                              borderRadius: '12px',
-                              background: 'rgba(255,255,255,0.015)',
-                              border: '1px solid var(--border-color)',
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'center',
-                              flexWrap: 'wrap',
-                              gap: '12px'
-                            }}
-                          >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                              <FileText size={18} style={{ color: '#8B5CF6' }} />
-                              <div>
-                                <span style={{ fontSize: '0.82rem', fontWeight: '700', color: 'var(--text-primary)' }}>{file.name}</span>
-                                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block' }}>Size: {file.size}</span>
-                              </div>
-                            </div>
+                    {(() => {
+                      const attachmentsList = Array.isArray(selectedNotice?.attachments)
+                        ? selectedNotice.attachments
+                        : (selectedNotice?.attachment ? [{ name: selectedNotice.attachment, size: selectedNotice.attachmentSize || 'Attached File' }] : []);
+                      
+                      if (attachmentsList.length === 0) {
+                        return (
+                          <div style={{ padding: '14px', background: 'rgba(255,255,255,0.01)', border: '1px dashed var(--border-color)', borderRadius: '12px', color: 'var(--text-muted)', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <Info size={16} />
+                            <span>No downloadable attachment files with this announcement.</span>
+                          </div>
+                        );
+                      }
 
-                            <button 
-                              onClick={() => triggerAttachmentDownload(file.name)}
-                              disabled={isDownloading}
-                              className="btn-resource-action"
+                      return (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                          {attachmentsList.map((file, idx) => (
+                            <div 
+                              key={idx}
+                              style={{
+                                padding: '12px 16px',
+                                borderRadius: '12px',
+                                background: 'rgba(255,255,255,0.015)',
+                                border: '1px solid var(--border-color)',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                flexWrap: 'wrap',
+                                gap: '12px'
+                              }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <FileText size={18} style={{ color: '#8B5CF6' }} />
+                                <div>
+                                  <span style={{ fontSize: '0.82rem', fontWeight: '700', color: 'var(--text-primary)' }}>{file.name}</span>
+                                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block' }}>Size: {file.size}</span>
+                                </div>
+                              </div>
+
+                              <button 
+                                onClick={() => triggerAttachmentDownload(file.name)}
+                                disabled={isDownloading}
+                                className="btn-resource-action"
                               style={{
                                 background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(59, 130, 246, 0.05) 100%)',
                                 border: '1px solid rgba(139, 92, 246, 0.25)',
@@ -662,8 +729,9 @@ export default function Notices() {
                           </div>
                         ))}
                       </div>
-                    )}
-                  </div>
+                    );
+                  })()}
+                </div>
 
                   {/* Simulated loader bar for download */}
                   <AnimatePresence>

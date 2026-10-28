@@ -2,12 +2,9 @@
 // src/components/RoleRoute.jsx — Role-Based Access Control (RBAC) Route Guards
 // -----------------------------------------------------------------------------------------
 // Bengali Note:
-// এই কম্পোনেন্টটি রোল-ভিত্তিক রাউট সিকিউরিটি নিশ্চিত করে:
-// ১. Student রা শুধুমাত্র /student এ যেতে পারবে; /teacher বা /admin এ যেতে পারবে না (403 ব্লক)।
-// ২. Teacher রা শুধুমাত্র /teacher এ যেতে পারবে; /student বা /admin এ যেতে পারবে না (403 ব্লক)।
-// ৩. Admin রা /admin কনসোলে প্রবেশ করবে।
-// ৪. কেউ অবৈধভাবে অন্য পোর্টালে ঢুকতে চাইলে সুন্দর 403 Access Denied স্ক্রিন দেখাবে এবং 
-//    তার নিজস্ব পোর্টালে ফিরে যাওয়ার বাটন প্রদান করবে।
+// RBAC security: verifies user roles and denies unauthorized access with 403
+// RBAC security: verifies user roles and denies unauthorized access with 403
+// RBAC security: verifies user roles and denies unauthorized access with 403
 // =========================================================================================
 
 import React from 'react';
@@ -97,7 +94,7 @@ export function RoleRoute({ allowedRoles = [], portalName = 'Restricted Portal',
           </span>
 
           <h1 style={{ fontSize: '24px', fontWeight: 800, margin: '0 0 10px', color: '#ffffff' }}>
-            অননুমোদিত প্রবেশাধিকার / Access Denied
+            403 Forbidden / Access Denied
           </h1>
 
           <p style={{ fontSize: '14px', color: '#94a3b8', lineHeight: 1.6, margin: '0 0 20px' }}>

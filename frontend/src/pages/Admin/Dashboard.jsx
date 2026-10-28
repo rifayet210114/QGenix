@@ -2,13 +2,8 @@
 // Dashboard.jsx — 100% Functional Executive Dashboard
 // -----------------------------------------------------------------------------------------
 // Bengali Note:
-// এই পেজটি সম্পূর্ণ কার্যকর (100% Functional):
-// ১. Live KPI Metrics: মোট শিক্ষার্থী, শিক্ষক, কোর্স ও পরীক্ষার সংখ্যা সরাসরি AdminDataContext
-//    থেকে লাইভ ডায়নামিক সংখ্যা হিসেবে প্রদর্শিত হয় (যেমন: নতুন স্টুডেন্ট যোগ করলে কাউন্টার তাৎক্ষণিক বাড়ে)।
-// ২. Quick Add User Modal: এখান থেকে ইউজার অ্যাড করলে তা সরাসরি আসল ডাটাবেসে সেভ হয়।
-// ৩. Broadcast Notice Modal: এখান থেকে সার্কুলার পাঠালে তা কেন্দ্রীয় নোটিশ বোর্ডে সাথে সাথে চলে যায়।
-// ৪. Backup Data: ক্লিক করলে আসল ডাটাবেসের JSON ব্যাকআপ ফাইল কম্পিউটারে ডাউনলোড হয়।
-// সমস্ত ডাটা AdminDataContext এবং LocalStorage-এ স্বয়ংক্রিয়ভাবে সংরক্ষিত থাকে।
+// Central state management provider with automatic persistence and sync
+// Central state management provider with automatic persistence and sync
 // =========================================================================================
 
 import React, { useState } from 'react';
@@ -609,7 +604,7 @@ export default function AdminDashboard() {
                 <select className="input-field" value={noticeAudience} onChange={e => setNoticeAudience(e.target.value)} style={{ width: '100%' }}>
                   <option value="All Students & Teachers">All Students & Teachers</option>
                   <option value="Teachers Only">Teachers Only</option>
-                  <option value="All Students">All Students</option>
+                  <option value="Students Only">Students Only</option>
                 </select>
               </div>
               <div>

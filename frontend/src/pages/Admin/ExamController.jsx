@@ -2,18 +2,13 @@
 // ExamController.jsx — 100% Functional Central Exam & Result Publishing Controller
 // -----------------------------------------------------------------------------------------
 // Bengali Note:
-// এই পেজটি সম্পূর্ণ কার্যকর (100% Functional):
-// ১. Exam Sessions: নতুন পরীক্ষার সেশন তৈরি (Add Session Modal) এবং লক/আনলক টগল।
-// ২. AI Question Moderation: শিক্ষকদের AI প্রশ্নপত্রের অডিট, রিভিউ মন্তব্য সহ রিভিশন রিকোয়েস্ট বা অ্যাপ্রুভ।
-// ৩. Grading Policy Editor: যেকোনো গ্রেডের মার্কস রেঞ্জ ও জিপিএ পয়েন্ট সরাসরি এডিট ও সেভ করা।
-// ৪. Tabulation Sheet & Result Publishing: ট্যাবুলেশন শিটে সরাসরি শিক্ষার্থীর কুইজ/মিড/ফাইনাল মার্কস
-//    এডিট করা (স্বয়ংক্রিয় জিপিএ ক্যালকুলেশন সহ) এবং "Publish Results" বাটনে চাপ দিয়ে ফলাফল প্রকাশ করা।
-// সমস্ত ডাটা AdminDataContext এবং LocalStorage-এ স্বয়ংক্রিয়ভাবে সংরক্ষিত থাকে।
+// Central state management provider with automatic persistence and sync
 // =========================================================================================
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Card from '../../components/Card';
 import { useAdminData } from '../../contexts/AdminDataContext';
+import { API_BASE } from '../../config';
 import { 
   FileText, 
   Sparkles, 
@@ -61,12 +56,36 @@ export default function ExamController() {
     totalExpected: 45
   });
 
-  // Local AI Questions state
-  const [questions, setQuestions] = useState([
-    { id: 'Q-9801', course: 'CSE-315: AI & Machine Learning', teacher: 'Dr. Asaduzzaman', questionsCount: 25, difficulty: 'Hard', similarityScore: '2.1%', status: 'Pending Review', generatedOn: '2026-09-22', sampleQuestion: 'In a distributed relational database, which concurrency control protocol guarantees strict serializability without requiring synchronized physical clocks?' },
-    { id: 'Q-9802', course: 'CSE-301: Database Management Systems', teacher: 'Prof. Dr. Mahbubur Rahman', questionsCount: 40, difficulty: 'Medium', similarityScore: '0.8%', status: 'Approved', generatedOn: '2026-09-23', sampleQuestion: 'Explain the 3NF and BCNF normalization anomalies with an example relational table.' },
-    { id: 'Q-9803', course: 'EEE-211: Signals & Systems', teacher: 'Dr. Farhana Ahmed', questionsCount: 30, difficulty: 'Medium', similarityScore: '4.5%', status: 'Pending Review', generatedOn: '2026-09-24', sampleQuestion: 'Derive the Continuous-Time Fourier Transform (CTFT) of an exponentially decaying sinusoidal pulse.' },
-  ]);
+  // 100% Real Database AI Questions state
+  const [questions, setQuestions] = useState([]);
+
+  const fetchAIQuestions = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/ai-questions/`);
+      if (res.ok) {
+        const data = await res.json();
+        const mapped = data.map(q => ({
+          id: q.paper_id,
+          dbId: q.id,
+          course: q.course,
+          teacher: q.teacher,
+          questionsCount: q.questions_count,
+          difficulty: q.difficulty,
+          similarityScore: `${q.similarity_score}%`,
+          status: q.status,
+          generatedOn: q.generated_on || '2026-09-22',
+          sampleQuestion: q.sample_question
+        }));
+        setQuestions(mapped);
+      }
+    } catch (err) {
+      console.warn('Error fetching AI questions from backend:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchAIQuestions();
+  }, []);
 
   // Results Publishing Batches
   const [resultBatches, setResultBatches] = useState([
@@ -91,19 +110,41 @@ export default function ExamController() {
   };
 
   // 2. Approve Question
-  const handleApproveQuestion = (id) => {
+  const handleApproveQuestion = async (id) => {
     setQuestions(prev => prev.map(q => q.id === id ? { ...q, status: 'Approved' } : q));
     addAuditLog('AI Question Paper Approved', 'Exam Controller', id);
     showToast(`Question Paper ${id} formally Approved for printing & exams!`);
+    try {
+      const target = questions.find(q => q.id === id);
+      const targetId = target?.dbId || id;
+      await fetch(`${API_BASE}/api/auth/ai-questions/${targetId}/status/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'Approved' })
+      });
+    } catch (err) {
+      console.warn('Failed to update question status in database:', err);
+    }
   };
 
   // 3. Request Revision for Question
-  const handleRequestRevision = (id) => {
+  const handleRequestRevision = async (id) => {
     setQuestions(prev => prev.map(q => q.id === id ? { ...q, status: 'Revision Requested' } : q));
     addAuditLog('Question Revision Requested', 'Exam Controller', `${id}: ${revisionNotes || 'Changes required'}`);
     setQuestionDetailModal(null);
     setRevisionNotes('');
     showToast(`Revision request and instructions dispatched to instructor for ${id}!`);
+    try {
+      const target = questions.find(q => q.id === id);
+      const targetId = target?.dbId || id;
+      await fetch(`${API_BASE}/api/auth/ai-questions/${targetId}/status/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'Revision Requested' })
+      });
+    } catch (err) {
+      console.warn('Failed to update question status in database:', err);
+    }
   };
 
   // 4. Save Grade Scale Edit

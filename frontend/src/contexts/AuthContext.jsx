@@ -2,13 +2,7 @@
 // src/contexts/AuthContext.jsx — Central Authentication & Role-Based Access Control Context
 // -----------------------------------------------------------------------------------------
 // Bengali Note:
-// এই কন্টেক্সটটি সম্পূর্ণ অ্যাপ্লিকেশনে ব্যবহারকারীর লগইন স্ট্যাটাস, JWT টোকেন এবং রোল (Role)
-// ম্যানেজ করে। 
-// প্রধান দায়িত্বসমূহ:
-// ১. ব্যবহারকারী লগইন করলে ব্যাকএন্ড (Django DRF /api/auth/login/) থেকে JWT টোকেন ও রোল নিয়ে সংরক্ষণ করে।
-// ২. শুধুমাত্র ADMIN রোলের ইউজার যেন অ্যাডমিন প্যানেলে যেতে পারে তা নিশ্চিত করতে `isAdmin` স্টেট প্রদান করে।
-// ৩. ব্রাউজার রিফ্রেশ করলেও যাতে লগইন সেশন না হারায় সেজন্য LocalStorage সিঙ্ক রাখে।
-// ৪. রোল অমিল হলে (যেমন টিচার বা স্টুডেন্ট অ্যাডমিন প্যানেলে ঢুকতে চাইলে) অ্যাক্সেস ব্লক করার মেকানিজম প্রদান করে।
+// RBAC security: verifies user roles and denies unauthorized access with 403
 // =========================================================================================
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
@@ -51,14 +45,14 @@ export const AuthProvider = ({ children }) => {
 
   /**
    * Login handler — authenticates via Django backend or verified credentials
-   * Bengali Note: জ্যাঙ্গো ব্যাকএন্ডের /api/auth/login/ এপিআই কল করে অথেনটিকেশন সম্পন্ন করে।
    */
-  const login = async (username, password) => {
+  const login = async (username, password, selectedRole = null) => {
     setLoading(true);
     setAuthError(null);
 
     const cleanUsername = (username || '').trim();
     const cleanPassword = (password || '').trim();
+    const cleanRole = selectedRole ? selectedRole.trim().toLowerCase() : null;
 
     // 0. Check deletion ledger: permanently block login for deleted teachers & students
     try {
@@ -79,24 +73,47 @@ export const AuthProvider = ({ children }) => {
     } catch (e) {}
 
     try {
-      // Authenticate via Django REST Framework backend
+      // Authenticate via Django REST Framework backend with selectedRole enforcement
       const response = await fetch(`${API_BASE}/api/auth/login/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ username: cleanUsername, password: cleanPassword }),
+        body: JSON.stringify({ 
+          username: cleanUsername, 
+          password: cleanPassword,
+          role: cleanRole,
+          expected_role: cleanRole
+        }),
       });
 
       if (response.ok) {
         const data = await response.json();
+        const userRole = (data.user.role || '').toUpperCase();
+
+        // Extra client-side role validation guard
+        if (cleanRole) {
+          const expectedUpper = cleanRole.toUpperCase();
+          const isAllowed = (expectedUpper === 'ADMIN' && (userRole === 'ADMIN' || data.user.is_superuser)) || (userRole === expectedUpper);
+          if (!isAllowed) {
+            const portalNames = { STUDENT: 'Student Portal', TEACHER: 'Faculty / Teacher Portal', ADMIN: 'Admin Portal' };
+            const userNames = { STUDENT: 'Student', TEACHER: 'Faculty / Teacher', ADMIN: 'Administrator' };
+            const pName = portalNames[expectedUpper] || `${expectedUpper} Portal`;
+            const uName = userNames[userRole] || userRole;
+            const errMsg = `Access Denied: This tab is exclusively for the ${pName}. Your account is registered as a ${uName}. Please switch to the '${uName}' tab to sign in.`;
+            setAuthError(errMsg);
+            setLoading(false);
+            return { success: false, error: errMsg };
+          }
+        }
+
         const authData = {
           token: data.access,
           refresh: data.refresh,
           id: data.user.id,
           username: data.user.username,
           email: data.user.email,
-          role: data.user.role.toUpperCase(), // 'ADMIN', 'TEACHER', 'STUDENT'
+          role: userRole, // 'ADMIN', 'TEACHER', 'STUDENT'
           name: `${data.user.first_name || ''} ${data.user.last_name || ''}`.trim() || data.user.username,
           department: data.user.department || 'Academic',
           institutionalId: data.user.institutional_id || '',
@@ -108,8 +125,100 @@ export const AuthProvider = ({ children }) => {
         setLoading(false);
         return { success: true, user: authData };
       } else {
-        // Fallback: check registered students/teachers in localStorage
+        const errData = await response.json().catch(() => ({}));
+        let errorMsg = 'Invalid username or password.';
+        if (errData.detail) {
+          errorMsg = errData.detail;
+        } else if (errData.non_field_errors && errData.non_field_errors.length > 0) {
+          errorMsg = errData.non_field_errors[0];
+        } else if (errData.error) {
+          errorMsg = errData.error;
+        } else if (Array.isArray(errData) && errData.length > 0) {
+          errorMsg = errData[0];
+        } else if (typeof errData === 'object' && Object.keys(errData).length > 0) {
+          const firstVal = Object.values(errData)[0];
+          if (Array.isArray(firstVal) && firstVal.length > 0) errorMsg = firstVal[0];
+          else if (typeof firstVal === 'string') errorMsg = firstVal;
+        }
+
+        // If backend returned a specific role access error, don't fallback to local mocks
+        if (errorMsg.includes('Access Denied')) {
+          setAuthError(errorMsg);
+          setLoading(false);
+          return { success: false, error: errorMsg };
+        }
+
+        // Role-filtered fallback: check registered students/teachers in localStorage
         try {
+          if (!cleanRole || cleanRole === 'student') {
+            const registeredStudents = JSON.parse(localStorage.getItem('qgenix_registered_students') || '[]');
+            const matched = registeredStudents.find(s => 
+              (s.email?.toLowerCase() === cleanUsername.toLowerCase() ||
+               s.institutionalId?.toLowerCase() === cleanUsername.toLowerCase() ||
+               s.username?.toLowerCase() === cleanUsername.toLowerCase() ||
+               s.email?.replace(/[_.-]/g, '').toLowerCase() === cleanUsername.replace(/[_.-]/g, '').toLowerCase()) &&
+              s.password === cleanPassword
+            );
+            if (matched) {
+              const authData = {
+                token: `mock-jwt-student-${Date.now()}`,
+                refresh: `mock-refresh-${Date.now()}`,
+                id: matched.id || 999,
+                username: matched.username || matched.email.split('@')[0],
+                email: matched.email,
+                role: 'STUDENT',
+                name: matched.name || matched.username,
+                department: matched.department || 'Computer Science & Engineering',
+                institutionalId: matched.institutionalId || '',
+                batch: matched.batch || 'Batch 2024',
+                designation: '',
+                profile_picture: matched.profile_picture || ''
+              };
+              setUser(authData);
+              setLoading(false);
+              return { success: true, user: authData };
+            }
+          }
+
+          if (!cleanRole || cleanRole === 'teacher') {
+            const registeredTeachers = JSON.parse(localStorage.getItem('qgenix_registered_teachers') || '[]');
+            const matchedTeacher = registeredTeachers.find(t => 
+              (t.email?.toLowerCase() === cleanUsername.toLowerCase() ||
+               t.institutionalId?.toLowerCase() === cleanUsername.toLowerCase() ||
+               t.id?.toLowerCase() === cleanUsername.toLowerCase() ||
+               t.username?.toLowerCase() === cleanUsername.toLowerCase() ||
+               t.email?.replace(/[_.-]/g, '').toLowerCase() === cleanUsername.replace(/[_.-]/g, '').toLowerCase()) &&
+              t.password === cleanPassword
+            );
+            if (matchedTeacher) {
+              const authData = {
+                token: `mock-jwt-teacher-${Date.now()}`,
+                refresh: `mock-refresh-${Date.now()}`,
+                id: matchedTeacher.id || 888,
+                username: matchedTeacher.username || matchedTeacher.email.split('@')[0],
+                email: matchedTeacher.email,
+                role: 'TEACHER',
+                name: matchedTeacher.name || matchedTeacher.username,
+                department: matchedTeacher.department || 'Computer Science & Engineering',
+                institutionalId: matchedTeacher.id || '',
+                designation: matchedTeacher.designation || 'Lecturer',
+                profile_picture: matchedTeacher.profile_picture || ''
+              };
+              setUser(authData);
+              setLoading(false);
+              return { success: true, user: authData };
+            }
+          }
+        } catch (e) {}
+
+        setAuthError(errorMsg);
+        setLoading(false);
+        return { success: false, error: errorMsg };
+      }
+    } catch (err) {
+      // Network/connection fallback with role filtering
+      try {
+        if (!cleanRole || cleanRole === 'student') {
           const registeredStudents = JSON.parse(localStorage.getItem('qgenix_registered_students') || '[]');
           const matched = registeredStudents.find(s => 
             (s.email?.toLowerCase() === cleanUsername.toLowerCase() ||
@@ -137,8 +246,9 @@ export const AuthProvider = ({ children }) => {
             setLoading(false);
             return { success: true, user: authData };
           }
+        }
 
-          // Check registered teachers fallback
+        if (!cleanRole || cleanRole === 'teacher') {
           const registeredTeachers = JSON.parse(localStorage.getItem('qgenix_registered_teachers') || '[]');
           const matchedTeacher = registeredTeachers.find(t => 
             (t.email?.toLowerCase() === cleanUsername.toLowerCase() ||
@@ -166,72 +276,6 @@ export const AuthProvider = ({ children }) => {
             setLoading(false);
             return { success: true, user: authData };
           }
-        } catch (e) {}
-
-        const errData = await response.json().catch(() => ({}));
-        const errorMsg = errData.detail || 'Invalid username or password.';
-        setAuthError(errorMsg);
-        setLoading(false);
-        return { success: false, error: errorMsg };
-      }
-    } catch (err) {
-      // Network/connection fallback
-      try {
-        const registeredStudents = JSON.parse(localStorage.getItem('qgenix_registered_students') || '[]');
-        const matched = registeredStudents.find(s => 
-          (s.email?.toLowerCase() === cleanUsername.toLowerCase() ||
-           s.institutionalId?.toLowerCase() === cleanUsername.toLowerCase() ||
-           s.username?.toLowerCase() === cleanUsername.toLowerCase() ||
-           s.email?.replace(/[_.-]/g, '').toLowerCase() === cleanUsername.replace(/[_.-]/g, '').toLowerCase()) &&
-          s.password === cleanPassword
-        );
-        if (matched) {
-          const authData = {
-            token: `mock-jwt-student-${Date.now()}`,
-            refresh: `mock-refresh-${Date.now()}`,
-            id: matched.id || 999,
-            username: matched.username || matched.email.split('@')[0],
-            email: matched.email,
-            role: 'STUDENT',
-            name: matched.name || matched.username,
-            department: matched.department || 'Computer Science & Engineering',
-            institutionalId: matched.institutionalId || '',
-            batch: matched.batch || 'Batch 2024',
-            designation: '',
-            profile_picture: matched.profile_picture || ''
-          };
-          setUser(authData);
-          setLoading(false);
-          return { success: true, user: authData };
-        }
-
-        // Check registered teachers network fallback
-        const registeredTeachers = JSON.parse(localStorage.getItem('qgenix_registered_teachers') || '[]');
-        const matchedTeacher = registeredTeachers.find(t => 
-          (t.email?.toLowerCase() === cleanUsername.toLowerCase() ||
-           t.institutionalId?.toLowerCase() === cleanUsername.toLowerCase() ||
-           t.id?.toLowerCase() === cleanUsername.toLowerCase() ||
-           t.username?.toLowerCase() === cleanUsername.toLowerCase() ||
-           t.email?.replace(/[_.-]/g, '').toLowerCase() === cleanUsername.replace(/[_.-]/g, '').toLowerCase()) &&
-          t.password === cleanPassword
-        );
-        if (matchedTeacher) {
-          const authData = {
-            token: `mock-jwt-teacher-${Date.now()}`,
-            refresh: `mock-refresh-${Date.now()}`,
-            id: matchedTeacher.id || 888,
-            username: matchedTeacher.username || matchedTeacher.email.split('@')[0],
-            email: matchedTeacher.email,
-            role: 'TEACHER',
-            name: matchedTeacher.name || matchedTeacher.username,
-            department: matchedTeacher.department || 'Computer Science & Engineering',
-            institutionalId: matchedTeacher.id || '',
-            designation: matchedTeacher.designation || 'Lecturer',
-            profile_picture: matchedTeacher.profile_picture || ''
-          };
-          setUser(authData);
-          setLoading(false);
-          return { success: true, user: authData };
         }
       } catch (e) {}
 
@@ -244,7 +288,7 @@ export const AuthProvider = ({ children }) => {
 
   /**
    * Student Self-Registration Handler
-   * Bengali Note: স্টুডেন্টদের জন্য পাবলিক রেজিস্ট্রেশন হ্যান্ডলার (DIIT ইমেইল নিশ্চিত করে ডেটাবেজে সেভ করে)
+   // Standard institutional email format test credentials
    */
   const registerStudent = async (studentData) => {
     setLoading(true);

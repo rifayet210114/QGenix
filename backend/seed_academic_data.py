@@ -6,7 +6,7 @@ django.setup()
 
 from accounts.models import (
     CustomUser, Department, Course, Batch, ExamSession, Notice, AuditLog,
-    ClassRoutine, CourseAllocation, AIConfiguration
+    ClassRoutine, CourseAllocation, AIConfiguration, ClassAttendance
 )
 
 def seed_academic():
@@ -158,7 +158,121 @@ def seed_academic():
             'temperature': 0.4
         }
     )
-    print("AI Configuration initialized.")
+    # 11. Seed Initial Class Attendance Records
+    attendance_records = [
+        {'batch': 'Batch 2022 - 2023', 'section': 'Sec A', 'department': 'CSE', 'course_title': 'Database Management Systems', 'course_code': 'CSE-301', 'teacher': 'Dr. Asaduzzaman', 'date': '2026-10-24', 'total_students': 30, 'present_count': 28, 'absent_count': 2, 'late_count': 0, 'average_attendance': 93.3},
+        {'batch': 'Batch 2022 - 2023', 'section': 'Sec A', 'department': 'CSE', 'course_title': 'Artificial Intelligence & Machine Learning', 'course_code': 'CSE-315', 'teacher': 'Prof. Dr. Mahbubur Rahman', 'date': '2026-10-24', 'total_students': 30, 'present_count': 26, 'absent_count': 3, 'late_count': 1, 'average_attendance': 90.0},
+        {'batch': 'Batch 2023 - 2024', 'section': 'Sec B', 'department': 'CSE', 'course_title': 'Operating Systems & System Programming', 'course_code': 'CSE-302', 'teacher': 'Engr. Tanvir Hasan', 'date': '2026-10-25', 'total_students': 28, 'present_count': 25, 'absent_count': 3, 'late_count': 0, 'average_attendance': 89.3},
+        {'batch': 'Batch 2021 - 2022', 'section': 'Sec A', 'department': 'EEE', 'course_title': 'Signals and Linear Systems', 'course_code': 'EEE-211', 'teacher': 'Dr. Farhana Ahmed', 'date': '2026-10-25', 'total_students': 25, 'present_count': 24, 'absent_count': 1, 'late_count': 0, 'average_attendance': 96.0},
+        {'batch': 'Batch 2024 - 2025', 'section': 'Sec A', 'department': 'BBA', 'course_title': 'Financial Accounting & Reporting', 'course_code': 'BBA-205', 'teacher': 'Prof. Tariqul Islam', 'date': '2026-10-25', 'total_students': 32, 'present_count': 27, 'absent_count': 4, 'late_count': 1, 'average_attendance': 87.5}
+    ]
+    for item in attendance_records:
+        ClassAttendance.objects.get_or_create(
+            batch=item['batch'],
+            section=item['section'],
+            course_title=item['course_title'],
+            date=item['date'],
+            defaults=item
+        )
+    print("Class Attendance records seeded.")
+
+    # 12. Seed AI Question Papers & Live Token Usage Telemetry
+    from accounts.models import AIQuestionPaper, AITokenUsageLog
+    from django.utils import timezone
+    ai_papers_data = [
+        {
+            'paper_id': 'Q-9801',
+            'course': 'CSE-315: AI & Machine Learning',
+            'teacher': 'Dr. Asaduzzaman',
+            'questions_count': 25,
+            'difficulty': 'Hard',
+            'similarity_score': 2.1,
+            'originality_score': 97.9,
+            'tokens_consumed': 38200,
+            'estimated_cost': 0.0000,
+            'status': 'Pending Review',
+            'sample_question': 'In a distributed relational database, which concurrency control protocol guarantees strict serializability without requiring synchronized physical clocks?',
+            'generated_on': '2026-09-22'
+        },
+        {
+            'paper_id': 'Q-9802',
+            'course': 'CSE-301: Database Management Systems',
+            'teacher': 'Prof. Dr. Mahbubur Rahman',
+            'questions_count': 40,
+            'difficulty': 'Medium',
+            'similarity_score': 0.8,
+            'originality_score': 99.2,
+            'tokens_consumed': 54100,
+            'estimated_cost': 0.0000,
+            'status': 'Approved',
+            'sample_question': 'Explain the 3NF and BCNF normalization anomalies with an example relational table.',
+            'generated_on': '2026-09-23'
+        },
+        {
+            'paper_id': 'Q-9803',
+            'course': 'EEE-211: Signals & Systems',
+            'teacher': 'Dr. Farhana Ahmed',
+            'questions_count': 30,
+            'difficulty': 'Medium',
+            'similarity_score': 4.5,
+            'originality_score': 95.5,
+            'tokens_consumed': 41800,
+            'estimated_cost': 0.0000,
+            'status': 'Pending Review',
+            'sample_question': 'Derive the Continuous-Time Fourier Transform (CTFT) of an exponentially decaying sinusoidal pulse.',
+            'generated_on': '2026-09-24'
+        },
+        {
+            'paper_id': 'Q-9804',
+            'course': 'CSE-302: Operating Systems & System Programming',
+            'teacher': 'Engr. Tanvir Hasan',
+            'questions_count': 35,
+            'difficulty': 'Hard',
+            'similarity_score': 1.4,
+            'originality_score': 98.6,
+            'tokens_consumed': 49500,
+            'estimated_cost': 0.0000,
+            'status': 'Approved',
+            'sample_question': 'Compare Peterson algorithm with hardware atomic test-and-set instructions in preventing priority inversion.',
+            'generated_on': '2026-09-25'
+        },
+        {
+            'paper_id': 'Q-9805',
+            'course': 'BBA-205: Financial Accounting & Reporting',
+            'teacher': 'Prof. Tariqul Islam',
+            'questions_count': 20,
+            'difficulty': 'Easy',
+            'similarity_score': 0.6,
+            'originality_score': 99.4,
+            'tokens_consumed': 26400,
+            'estimated_cost': 0.0000,
+            'status': 'Approved',
+            'sample_question': 'Contrast IFRS 16 lease liability capitalization mechanics with US GAAP operating lease accounting.',
+            'generated_on': '2026-09-26'
+        },
+        {
+            'paper_id': 'Q-9806',
+            'course': 'CSE-315: Artificial Intelligence & Machine Learning',
+            'teacher': 'Prof. Dr. Mahbubur Rahman',
+            'questions_count': 50,
+            'difficulty': 'Hard',
+            'similarity_score': 1.8,
+            'originality_score': 98.2,
+            'tokens_consumed': 68000,
+            'estimated_cost': 0.0000,
+            'status': 'Approved',
+            'sample_question': 'Formulate the mathematical loss gradient update for a multi-head self-attention Transformer layer.',
+            'generated_on': '2026-10-01'
+        }
+    ]
+    for p in ai_papers_data:
+        paper_obj, _ = AIQuestionPaper.objects.get_or_create(paper_id=p['paper_id'], defaults=p)
+        AITokenUsageLog.objects.get_or_create(
+            paper=paper_obj,
+            tokens_consumed=p['tokens_consumed'],
+            defaults={'provider': 'gemini', 'model_name': 'gemini-1.5-pro', 'is_throttle_violation': False}
+        )
+    print("AI Question Papers & Token Usage Logs seeded.")
 
     print(f"Total Students in DB: {CustomUser.objects.filter(role='STUDENT').count()}")
     print(f"Total Faculty in DB: {CustomUser.objects.filter(role='TEACHER').count()}")
@@ -168,8 +282,11 @@ def seed_academic():
     print(f"Total Audit Logs in DB: {AuditLog.objects.count()}")
     print(f"Total Routine Slots in DB: {ClassRoutine.objects.count()}")
     print(f"Total Allocations in DB: {CourseAllocation.objects.count()}")
+    print(f"Total Class Attendance in DB: {ClassAttendance.objects.count()}")
+    print(f"Total AI Question Papers in DB: {AIQuestionPaper.objects.count()}")
 
 if __name__ == '__main__':
     seed_academic()
+
 
 

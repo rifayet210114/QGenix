@@ -2,13 +2,7 @@
 // Academics.jsx — 100% Functional Academic Hierarchy Configuration
 // -----------------------------------------------------------------------------------------
 // Bengali Note:
-// এই পেজটি সম্পূর্ণ কার্যকর (100% Functional):
-// ১. Departments: নতুন ডিপার্টমেন্ট যোগ, HoD ও নাম এডিট (Edit Modal), এবং ডিপার্টমেন্ট ডিলিট করা।
-// ২. Programs & Batches: নতুন ব্যাচ তৈরি, সেমিস্টার ও সেকশন কনফিগার করা।
-// ৩. Course Catalog: নতুন কোর্স রেজিস্টার, ক্রেডিট ও সিলেবাস এডিট, এবং কোর্স মুছে ফেলা।
-// ৪. Course Allocation (শিক্ষক-কোর্স ম্যাপিং): শিক্ষকের কাছে কোর্স বরাদ্দ দেওয়া, Reassign বাটনে 
-//    ক্লিক করে শিক্ষক বা সেকশন পরিবর্তন (Edit Allocation), এবং অ্যালোকেশন বাতিল করা।
-// সমস্ত ডাটা AdminDataContext এবং LocalStorage-এ স্বয়ংক্রিয়ভাবে সংরক্ষিত থাকে।
+// Central state management provider with automatic persistence and sync
 // =========================================================================================
 
 import React, { useState, useEffect } from 'react';

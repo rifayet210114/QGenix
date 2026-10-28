@@ -28,6 +28,7 @@ import {
 } from 'recharts';
 import { useAuth } from '../../contexts/AuthContext';
 import { useProfile } from '../../contexts/ProfileContext';
+import { API_BASE } from '../../config';
 
 export default function StudentDashboard() {
   const { user } = useAuth();
@@ -36,6 +37,45 @@ export default function StudentDashboard() {
   const studentName = user?.name || (profile.firstName ? `${profile.firstName} ${profile.lastName}`.trim() : 'Student');
   const studentFirstName = studentName.split(' ')[0] || 'Student';
   const avatarPhoto = user?.profile_picture || profile.avatarUrl;
+
+  const [liveAttendance, setLiveAttendance] = useState(null);
+
+  useEffect(() => {
+    const fetchAttendance = async () => {
+      if (!user) return;
+      try {
+        const studentId = user.id || user.institutional_id || user.username;
+        const res = await fetch(`${API_BASE}/api/auth/attendances/student/?student_id=${encodeURIComponent(studentId)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setLiveAttendance(data);
+        }
+      } catch (err) {}
+    };
+
+    fetchAttendance();
+
+    window.addEventListener('qgenix_attendance_updated', fetchAttendance);
+
+    let attendBc;
+    try {
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        attendBc = new BroadcastChannel('qgenix_attendance_sync');
+        attendBc.onmessage = () => fetchAttendance();
+      }
+    } catch (_) {}
+
+    const handleStorage = (e) => {
+      if (e.key === 'qgenix_last_attendance_sync') fetchAttendance();
+    };
+    window.addEventListener('storage', handleStorage);
+
+    return () => {
+      window.removeEventListener('qgenix_attendance_updated', fetchAttendance);
+      window.removeEventListener('storage', handleStorage);
+      if (attendBc) { try { attendBc.close(); } catch (_) {} }
+    };
+  }, [user]);
 
   // Theme state detection to adapt chart styles dynamically
   const [isLightMode, setIsLightMode] = useState(document.body.classList.contains('light-mode'));
@@ -46,6 +86,36 @@ export default function StudentDashboard() {
     });
     observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
     return () => observer.disconnect();
+  }, []);
+
+  // Dynamic Student Notices from localStorage & broadcast events
+  const [recentNotices, setRecentNotices] = useState([]);
+
+  useEffect(() => {
+    const loadNotices = () => {
+      try {
+        const raw = localStorage.getItem('qgenix_notices');
+        if (raw) {
+          const list = JSON.parse(raw);
+          if (Array.isArray(list)) {
+            const filtered = list.filter(n => {
+              const aud = (n.audience || '').toLowerCase();
+              return !n.audience || aud === 'all students & teachers' || aud === 'students only' || aud === 'all students' || (aud.includes('student') && !aud.includes('teacher'));
+            });
+            setRecentNotices(filtered.slice(0, 3));
+            return;
+          }
+        }
+      } catch (e) {}
+    };
+
+    loadNotices();
+    window.addEventListener('storage', loadNotices);
+    window.addEventListener('qgenix_notices_updated', loadNotices);
+    return () => {
+      window.removeEventListener('storage', loadNotices);
+      window.removeEventListener('qgenix_notices_updated', loadNotices);
+    };
   }, []);
 
   // --------------------------------------------------------------------------
@@ -510,12 +580,12 @@ export default function StudentDashboard() {
                   strokeWidth="10"
                   strokeLinecap="round"
                   strokeDasharray="172.78"
-                  strokeDashoffset={172.78 - (172.78 * 85) / 100}
+                  strokeDashoffset={172.78 - (172.78 * (liveAttendance?.total_held > 0 ? liveAttendance.percentage : 85)) / 100}
                   style={{ transition: 'stroke-dashoffset 0.8s ease-in-out' }}
                 />
                 {/* Large Center Text */}
                 <text x="70" y="52" textAnchor="middle" style={{ fill: 'var(--text-primary)', fontSize: '20px', fontWeight: '800', fontFamily: 'var(--font-heading)' }}>
-                  85%
+                  {liveAttendance?.total_held > 0 ? `${Math.round(liveAttendance.percentage)}%` : '85%'}
                 </text>
                 <text x="70" y="68" textAnchor="middle" style={{ fill: 'var(--text-muted)', fontSize: '7px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   Overall Attendance
@@ -527,7 +597,9 @@ export default function StudentDashboard() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', width: '100%', textAlign: 'center', marginTop: '4px' }}>
               <div>
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: '500', marginBottom: '4px' }}>Present</div>
-                <div style={{ fontSize: '1.25rem', fontWeight: '800', color: 'var(--text-primary)' }}>102</div>
+                <div style={{ fontSize: '1.25rem', fontWeight: '800', color: 'var(--text-primary)' }}>
+                  {liveAttendance?.total_attended !== undefined ? liveAttendance.total_attended : 102}
+                </div>
               </div>
               <div style={{ position: 'relative' }}>
                 {/* Small red dot above absent count */}
@@ -543,11 +615,15 @@ export default function StudentDashboard() {
                   boxShadow: '0 0 8px rgba(239, 68, 68, 0.6)'
                 }} />
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: '500', marginBottom: '4px' }}>Absent</div>
-                <div style={{ fontSize: '1.25rem', fontWeight: '800', color: 'var(--text-primary)' }}>18</div>
+                <div style={{ fontSize: '1.25rem', fontWeight: '800', color: 'var(--text-primary)' }}>
+                  {liveAttendance?.total_absent !== undefined ? liveAttendance.total_absent : 18}
+                </div>
               </div>
               <div>
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: '500', marginBottom: '4px' }}>Total</div>
-                <div style={{ fontSize: '1.25rem', fontWeight: '800', color: 'var(--text-primary)' }}>120</div>
+                <div style={{ fontSize: '1.25rem', fontWeight: '800', color: 'var(--text-primary)' }}>
+                  {liveAttendance?.total_held !== undefined ? liveAttendance.total_held : 120}
+                </div>
               </div>
             </div>
           </div>
@@ -747,99 +823,118 @@ export default function StudentDashboard() {
         <Card title="Recent Announcements" className="premium-card">
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '4px' }}>
             
-            {/* Notice 1 */}
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-              <div style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '50%',
-                background: 'rgba(16, 185, 129, 0.1)',
-                color: '#10B981',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0
-              }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <polyline points="14 2 14 8 20 8" />
-                </svg>
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '8px' }}>
-                  <h4 style={{ fontSize: '0.88rem', fontWeight: '700', color: 'var(--text-primary)', margin: 0, lineHeight: '1.3' }}>
-                    Midterm Exam Routine Published
-                  </h4>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>2h ago</span>
-                </div>
-                <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '4px', margin: 0, lineHeight: '1.4' }}>
-                  Check your exam schedule for this semester.
-                </p>
-              </div>
-            </div>
+            {recentNotices.length > 0 ? (
+              recentNotices.map((notice, idx) => {
+                const isUrgent = notice.category === 'Urgent';
+                const isAcademic = notice.category === 'Academic';
+                const iconBg = isUrgent ? 'rgba(239, 68, 68, 0.12)' : isAcademic ? 'rgba(16, 185, 129, 0.12)' : 'rgba(139, 92, 246, 0.12)';
+                const iconColor = isUrgent ? '#EF4444' : isAcademic ? '#10B981' : '#8B5CF6';
 
-            {/* Notice 2 */}
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-              <div style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '50%',
-                background: 'rgba(148, 163, 184, 0.1)',
-                color: '#94A3B8',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0
-              }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                </svg>
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '8px' }}>
-                  <h4 style={{ fontSize: '0.88rem', fontWeight: '700', color: 'var(--text-primary)', margin: 0, lineHeight: '1.3' }}>
-                    Holiday Notice
-                  </h4>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>5h ago</span>
+                return (
+                  <div key={notice.id || idx} style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                    <div style={{
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '50%',
+                      background: iconBg,
+                      color: iconColor,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0
+                    }}>
+                      <Bell size={18} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '8px' }}>
+                        <a 
+                          href="#/student/notices" 
+                          style={{ 
+                            fontSize: '0.88rem', 
+                            fontWeight: '700', 
+                            color: 'var(--text-primary)', 
+                            margin: 0, 
+                            lineHeight: '1.3',
+                            textDecoration: 'none',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            display: 'block'
+                          }}
+                          className="hover:text-purple-400 transition-colors"
+                        >
+                          {notice.title}
+                        </a>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                          {notice.date}
+                        </span>
+                      </div>
+                      <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '4px', margin: 0, lineHeight: '1.4', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                        {notice.content}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <>
+                {/* Notice 1 */}
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                  <div style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '50%',
+                    background: 'rgba(16, 185, 129, 0.1)',
+                    color: '#10B981',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}>
+                    <Bell size={18} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '8px' }}>
+                      <h4 style={{ fontSize: '0.88rem', fontWeight: '700', color: 'var(--text-primary)', margin: 0, lineHeight: '1.3' }}>
+                        Midterm Exam Routine Published
+                      </h4>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>2h ago</span>
+                    </div>
+                    <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '4px', margin: 0, lineHeight: '1.4' }}>
+                      Check your exam schedule for this semester.
+                    </p>
+                  </div>
                 </div>
-                <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '4px', margin: 0, lineHeight: '1.4' }}>
-                  College will remain closed on 26 May 2025.
-                </p>
-              </div>
-            </div>
 
-            {/* Notice 3 */}
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-              <div style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '50%',
-                background: 'rgba(239, 68, 68, 0.1)',
-                color: '#EF4444',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0
-              }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2" />
-                  <line x1="12" y1="8" x2="12" y2="12" />
-                  <line x1="12" y1="16" x2="12.01" y2="16" />
-                </svg>
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '8px' }}>
-                  <h4 style={{ fontSize: '0.88rem', fontWeight: '700', color: 'var(--text-primary)', margin: 0, lineHeight: '1.3' }}>
-                    New Assignment Posted
-                  </h4>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>1d ago</span>
+                {/* Notice 2 */}
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                  <div style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '50%',
+                    background: 'rgba(148, 163, 184, 0.1)',
+                    color: '#94A3B8',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}>
+                    <Bell size={18} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '8px' }}>
+                      <h4 style={{ fontSize: '0.88rem', fontWeight: '700', color: 'var(--text-primary)', margin: 0, lineHeight: '1.3' }}>
+                        Holiday Notice
+                      </h4>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>5h ago</span>
+                    </div>
+                    <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '4px', margin: 0, lineHeight: '1.4' }}>
+                      College will remain closed on 26 May 2025.
+                    </p>
+                  </div>
                 </div>
-                <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '4px', margin: 0, lineHeight: '1.4' }}>
-                  Check the DBMS assignment in your dashboard.
-                </p>
-              </div>
-            </div>
+              </>
+            )}
 
             {/* View All Notices Link */}
             <div style={{ display: 'flex', justifyContent: 'center', marginTop: '8px' }}>

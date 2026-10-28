@@ -1,14 +1,6 @@
 // =========================================================================================
-// Settings.jsx — QGenix Institutional & Platform Settings (সিস্টেম ও প্রতিষ্ঠান সেটিংস)
 // -----------------------------------------------------------------------------------------
 // Bengali Note:
-// এই পেজটি পুরো বিশ্ববিদ্যালয়ের প্রাতিষ্ঠানিক তথ্য, পোর্টাল ব্র্যান্ডিং এবং সিস্টেম কনফিগারেশন নিয়ন্ত্রণ করে।
-// প্রধান বৈশিষ্ট্যসমূহ:
-// ১. University Profile & Branding: বিশ্ববিদ্যালয়ের নাম, শর্ট কোড, পোর্টাল লোগো, হেল্পলাইন ইমেইল।
-// ২. Academic Session & Term: রানিং একাডেমিক বর্ষ, সেমিস্টার শুরু ও শেষের তারিখ।
-// ৩. Email SMTP & Notification Relay: পাসওয়ার্ড রিসেট ও নোটিফিকেশন পাঠানোর ইমেইল সার্ভার কনফিগারেশন।
-// ৪. Maintenance Mode: পরীক্ষার সময় বা সার্ভার আপগ্রেডের সময় সাধারণ স্টুডেন্টদের জন্য মেইনটেন্যান্স মোড টগল।
-// সমস্ত কোডে বিস্তারিত বাংলা ও ইংরেজি কমেন্ট রয়েছে এবং সম্পূর্ণ রেসপনসিভ ডিজাইন।
 // =========================================================================================
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -24,8 +16,11 @@ import {
   AlertTriangle, 
   Server,
   Globe,
-  Bell
+  Bell,
+  Clock,
+  RotateCcw
 } from 'lucide-react';
+import { API_BASE } from '../../config';
 
 export default function Settings() {
   const { emailFormats, updateEmailFormats } = useAdminData();
@@ -44,6 +39,68 @@ export default function Settings() {
   const [studentEmailFormat, setStudentEmailFormat] = useState(emailFormats?.student || '@diit.edu.bd');
   const [teacherEmailFormat, setTeacherEmailFormat] = useState(emailFormats?.teacher || '@diit.edu.bd');
   const initializedRef = useRef(false);
+
+  // Faculty Biometric Shift Policy State (100% Real-Time DB Synchronized)
+  const [standardCheckIn, setStandardCheckIn] = useState('09:00 AM');
+  const [gracePeriodMins, setGracePeriodMins] = useState(15);
+  const [standardCheckOut, setStandardCheckOut] = useState('05:00 PM');
+  const [halfDayHours, setHalfDayHours] = useState(4.5);
+  const [fullDayHours, setFullDayHours] = useState(8.0);
+  const [isSavingShiftPolicy, setIsSavingShiftPolicy] = useState(false);
+  const [isLoadingShiftPolicy, setIsLoadingShiftPolicy] = useState(false);
+
+  // Load shift policy from Django DB
+  const loadShiftPolicy = async () => {
+    setIsLoadingShiftPolicy(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/biometric-shift-policy/`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.standard_check_in) setStandardCheckIn(data.standard_check_in);
+        if (data.grace_period_mins !== undefined) setGracePeriodMins(data.grace_period_mins);
+        if (data.standard_check_out) setStandardCheckOut(data.standard_check_out);
+        if (data.half_day_hours !== undefined) setHalfDayHours(data.half_day_hours);
+        if (data.full_day_hours !== undefined) setFullDayHours(data.full_day_hours);
+      }
+    } catch (e) {
+      console.warn('Could not load biometric shift policy:', e);
+    } finally {
+      setIsLoadingShiftPolicy(false);
+    }
+  };
+
+  useEffect(() => {
+    loadShiftPolicy();
+  }, []);
+
+  // Save Biometric Shift Policy to DB
+  const handleSaveShiftPolicy = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    setIsSavingShiftPolicy(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/biometric-shift-policy/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          standard_check_in: standardCheckIn,
+          grace_period_mins: parseInt(gracePeriodMins, 10) || 15,
+          standard_check_out: standardCheckOut,
+          half_day_hours: parseFloat(halfDayHours) || 4.5,
+          full_day_hours: parseFloat(fullDayHours) || 8.0
+        })
+      });
+      if (res.ok) {
+        showToast('✓ Biometric Shift Policy saved and synchronized in real-time with database!');
+      } else {
+        showToast('❌ Failed to update Biometric Shift Policy');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('❌ Network error updating Biometric Shift Policy');
+    } finally {
+      setIsSavingShiftPolicy(false);
+    }
+  };
 
   // Initialize once on mount or when emailFormats loads initially
   useEffect(() => {
@@ -307,7 +364,213 @@ export default function Settings() {
             </div>
           </form>
         </Card>
+      </div>
 
+      {/* ==================== SECTION 2: FACULTY BIOMETRIC SHIFT & PUNCTUALITY POLICY (FULL-WIDTH STANDARD CARD) ==================== */}
+      <div style={{ marginTop: '20px' }}>
+        <Card 
+          title="Faculty Biometric Shift & Punctuality Policy"
+          action={
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span 
+                className="badge badge-success"
+                style={{ 
+                  display: 'inline-flex', 
+                  alignItems: 'center', 
+                  gap: '6px', 
+                  padding: '4px 10px', 
+                  fontSize: '0.74rem',
+                  fontWeight: 700 
+                }}
+              >
+                <span 
+                  style={{ 
+                    width: '7px', 
+                    height: '7px', 
+                    borderRadius: '50%', 
+                    background: '#10B981', 
+                    boxShadow: '0 0 6px #10B981' 
+                  }} 
+                />
+                Live DB Sync
+              </span>
+            </div>
+          }
+        >
+          <form onSubmit={handleSaveShiftPolicy} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '4px' }}>
+            <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+              Configure official campus duty hours, morning arrival grace limits, half-day duration threshold, and departure overtime. Attendance punctuality statuses update in real-time.
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+              {/* Standard Check-In Time */}
+              <div style={{ background: 'var(--bg-secondary)', padding: '12px 14px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10B981' }} />
+                  <label style={{ fontSize: '0.82rem', color: 'var(--text-primary)', fontWeight: 700 }}>
+                    Standard Check-In Time
+                  </label>
+                </div>
+                <input 
+                  type="text" 
+                  className="input-field" 
+                  placeholder="09:00 AM"
+                  value={standardCheckIn}
+                  onChange={(e) => setStandardCheckIn(e.target.value)}
+                  style={{ width: '100%', fontWeight: 700, fontFamily: 'monospace', fontSize: '0.95rem' }} 
+                  required
+                />
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '6px', display: 'block' }}>
+                  Official campus duty start (e.g. 09:00 AM)
+                </span>
+              </div>
+
+              {/* Grace Period */}
+              <div style={{ background: 'var(--bg-secondary)', padding: '12px 14px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#F59E0B' }} />
+                  <label style={{ fontSize: '0.82rem', color: 'var(--text-primary)', fontWeight: 700 }}>
+                    Grace Period (Minutes)
+                  </label>
+                </div>
+                <input 
+                  type="number" 
+                  min="0"
+                  max="120"
+                  className="input-field" 
+                  placeholder="15"
+                  value={gracePeriodMins}
+                  onChange={(e) => setGracePeriodMins(e.target.value)}
+                  style={{ width: '100%', fontWeight: 700, fontSize: '0.95rem' }} 
+                  required
+                />
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '6px', display: 'block' }}>
+                  Up to +{gracePeriodMins || 0}m is "On Time"; past is "Late Entry"
+                </span>
+              </div>
+
+              {/* Standard Check-Out Time */}
+              <div style={{ background: 'var(--bg-secondary)', padding: '12px 14px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#3B82F6' }} />
+                  <label style={{ fontSize: '0.82rem', color: 'var(--text-primary)', fontWeight: 700 }}>
+                    Standard Check-Out Time
+                  </label>
+                </div>
+                <input 
+                  type="text" 
+                  className="input-field" 
+                  placeholder="05:00 PM"
+                  value={standardCheckOut}
+                  onChange={(e) => setStandardCheckOut(e.target.value)}
+                  style={{ width: '100%', fontWeight: 700, fontFamily: 'monospace', fontSize: '0.95rem' }} 
+                  required
+                />
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '6px', display: 'block' }}>
+                  Official shift departure time (e.g. 05:00 PM)
+                </span>
+              </div>
+
+              {/* Half-Day Threshold */}
+              <div style={{ background: 'var(--bg-secondary)', padding: '12px 14px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#8B5CF6' }} />
+                  <label style={{ fontSize: '0.82rem', color: 'var(--text-primary)', fontWeight: 700 }}>
+                    Half-Day Limit (Hours)
+                  </label>
+                </div>
+                <input 
+                  type="number" 
+                  step="0.5"
+                  min="1"
+                  max="12"
+                  className="input-field" 
+                  placeholder="4.5"
+                  value={halfDayHours}
+                  onChange={(e) => setHalfDayHours(e.target.value)}
+                  style={{ width: '100%', fontWeight: 700, fontSize: '0.95rem' }} 
+                  required
+                />
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '6px', display: 'block' }}>
+                  Under {halfDayHours}h worked is marked "Half Day"
+                </span>
+              </div>
+            </div>
+
+            {/* Real-Time Rule Preview Summary Bar */}
+            <div 
+              style={{ 
+                padding: '12px 16px', 
+                background: 'rgba(255, 255, 255, 0.02)', 
+                border: '1px solid var(--border-color)', 
+                borderRadius: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '12px'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                <Clock size={14} style={{ color: 'var(--accent-primary)' }} />
+                <span>Live Punctuality Evaluation Rules:</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap', fontSize: '0.75rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span className="badge badge-success" style={{ fontSize: '0.68rem', padding: '2px 8px' }}>On Time</span>
+                  <span style={{ color: 'var(--text-secondary)' }}>&le; {standardCheckIn} (+{gracePeriodMins}m grace)</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span className="badge badge-warning" style={{ fontSize: '0.68rem', padding: '2px 8px' }}>Late Entry</span>
+                  <span style={{ color: 'var(--text-secondary)' }}>&gt; {gracePeriodMins}m grace limit</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span className="badge badge-primary" style={{ fontSize: '0.68rem', padding: '2px 8px' }}>Half Day</span>
+                  <span style={{ color: 'var(--text-secondary)' }}>&lt; {halfDayHours}h office work</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span className="badge badge-info" style={{ fontSize: '0.68rem', padding: '2px 8px' }}>Overtime</span>
+                  <span style={{ color: 'var(--text-secondary)' }}>&gt; {standardCheckOut} (+duration)</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '4px' }}>
+              <button 
+                type="button" 
+                className="btn btn-secondary"
+                onClick={loadShiftPolicy}
+                disabled={isLoadingShiftPolicy}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', padding: '8px 16px', borderRadius: '8px' }}
+                title="Reload current policy from database"
+              >
+                <RotateCcw size={14} />
+                <span>Reload</span>
+              </button>
+              <button 
+                type="submit" 
+                className="btn btn-primary"
+                disabled={isSavingShiftPolicy}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', padding: '8px 20px', borderRadius: '8px' }}
+              >
+                <Save size={15} />
+                <span>{isSavingShiftPolicy ? 'Saving...' : 'Save Shift Policy'}</span>
+              </button>
+            </div>
+          </form>
+        </Card>
+      </div>
+
+      {/* ==================== SECTION 3: SYSTEM UTILITY & SECURITY PREFERENCES ==================== */}
+      <div 
+        style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', 
+          gap: '20px',
+          marginTop: '20px'
+        }}
+      >
         {/* Panel 4: Email Formate Settings */}
         <Card title="Email Formate">
           <form onSubmit={handleSaveEmailFormatOnly} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '12px' }}>
@@ -356,7 +619,7 @@ export default function Settings() {
           </form>
         </Card>
 
-        {/* Panel 5: Emergency Maintenance Mode */}
+        {/* Panel 6: Emergency Maintenance Mode */}
         <Card title="System Availability & Maintenance Mode">
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '12px' }}>
             <div 

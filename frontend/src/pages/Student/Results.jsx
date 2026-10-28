@@ -14,8 +14,6 @@
 //   10. AI performance insights predicting future academic milestones
 //
 // [Bengali Note]:
-// এই ফাইলটি শিক্ষার্থীদের পরীক্ষার ফলাফল প্রদর্শন এবং বিশ্লেষণ করার জন্য তৈরি।
-// এটি সম্পূর্ণ রেসপন্সিভ এবং ইন্টারঅ্যাক্টিভ চার্ট ও মক ডেটা সমৃদ্ধ।
 // ============================================================================
 
 import React, { useState, useEffect, useMemo } from 'react'; // React API library core hooks
@@ -520,7 +518,6 @@ export default function Results() {
 
         /* Hover highlight indicator for selected or interactive rows */
         /* [CHANGE: Added transparent border-left by default to prevent vertical layout calculation jumps during active selection] */
-        /* [Bengali Note]: সিলেক্ট করার সময় টেবিল রো যাতে এদিক-ওদিক সরে না যায় বা স্ক্রিন জাম্প না করে, সেজন্য ডিফল্টভাবে ট্রান্সপারেন্ট বর্ডার রাখা হয়েছে। */
         .results-table-row {
           cursor: pointer;
           transition: all 0.2s;
@@ -536,7 +533,6 @@ export default function Results() {
         }
 
         /* [CHANGE: Only update the border-left-color on selection to keep layout stable] */
-        /* [Bengali Note]: সিলেকশনে শুধু বর্ডার কালার পরিবর্তন করা হবে। */
         .results-table-row-selected {
           background: rgba(139, 92, 246, 0.08) !important;
           border-left-color: var(--accent-primary) !important;
@@ -584,7 +580,7 @@ export default function Results() {
         /* 
           [CHANGE: Centralized Button Styles]
           The .btn-glass-cta styles have been moved to src/index.css for global consistency and cleaner rendering.
-          [Bengali Note]: বাটন স্টাইলগুলোকে বৈশ্বিক ধারাবাহিকতা এবং ক্লিনার রেন্ডারিং এর জন্য src/index.css ফাইলে নিয়ে যাওয়া হয়েছে।
+          [Bengali Note]:          src/index.css    ।
         */
 
         /* Premium scrollbar configurations */
@@ -845,7 +841,6 @@ export default function Results() {
                                   handleSelectExam(exam); // Focus exam
                                 }}
                                 /* [CHANGE: Added gap: '6px' in style to ensure space between eye icon and Details text is rendered even without Tailwind configurations] */
-                                /* [Bengali Note]: আইকন এবং লেখার মাঝখানে ডাবল স্পেসিং এর জন্য gap: '6px' যুক্ত করা হয়েছে। */
                                 className="btn-glass-cta flex items-center gap-1.5"
                                 style={{ padding: '6px 12px', fontSize: '0.76rem', display: 'inline-flex', borderRadius: '10px', gap: '6px' }}
                               >
@@ -987,7 +982,6 @@ export default function Results() {
               
               {/* Leaderboard metadata metrics */}
               {/* [CHANGE: Swapped grid to flex with justify-content space-between to align metrics to opposite edges of the card] */}
-              {/* [Bengali Note]: ক্লাস র‍্যাংক এবং ডিপার্টমেন্ট র‍্যাংক মেট্রিকে দুই পাশে ছড়িয়ে দিতে গ্রিড পরিবর্তন করে জাস্টিফাই স্পেস-বিটুইন করা হয়েছে। */}
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', background: 'rgba(255,255,255,0.01)', padding: '14px', borderRadius: '14px', border: '1px solid var(--border-color)' }}>
                 <div>
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>Class Rank</span>
@@ -1053,17 +1047,17 @@ export default function Results() {
           
           {/* 
             [CHANGE: Removed Detailed Performance Details Card per user request]
-            [Bengali Note]: ব্যবহারকারীর অনুরোধে 'Detailed Performance Details' কার্ডটি এই অংশ থেকে সরিয়ে ফেলা হয়েছে।
+            [Bengali Note]:   'Detailed Performance Details'       ।
           */}
 
           {/* 
             [CHANGE: Removed AI Remote Proctoring Audit Card per user request]
-            [Bengali Note]: ব্যবহারকারীর অনুরোধে 'AI Remote Proctoring Audit' কার্ডটি এই অংশ থেকে সরিয়ে ফেলা হয়েছে।
+            [Bengali Note]:   'AI Remote Proctoring Audit'       ।
           */}
 
           {/* 
             [CHANGE: Removed QGenix AI Performance Insights Card per user request]
-            [Bengali Note]: ব্যবহারকারীর অনুরোধে 'QGenix AI Performance Insights' কার্ডটি এই অংশ থেকে সরিয়ে ফেলা হয়েছে।
+            [Bengali Note]:   'QGenix AI Performance Insights'       ।
           */}
 
           {/* ===================================================================
@@ -1135,7 +1129,7 @@ export default function Results() {
 
       {/* 
         [CHANGE: Removed Answer Script Review Card per user request]
-        [Bengali Note]: ব্যবহারকারীর অনুরোধে 'Answer Script Review' কার্ডটি এই অংশ থেকে সরিয়ে ফেলা হয়েছে।
+        [Bengali Note]:   'Answer Script Review'       ।
       */}
 
       {/* =======================================================================

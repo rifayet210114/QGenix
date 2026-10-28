@@ -2,12 +2,10 @@
 # accounts/permissions.py — Role-Based Access Control (RBAC) Permission Classes
 # -----------------------------------------------------------------------------------------
 # Bengali Note:
-# এই ফাইলে কাস্টম পারমিশন ক্লাসগুলো ডিফাইন করা হয়েছে:
-# ১. IsAdminUserRole: শুধুমাত্র ADMIN রোলের ব্যবহারকারী অ্যাডমিন এপিআই কল করতে পারবে।
-#    কোনো টিচার বা স্টুডেন্ট অ্যাডমিন এপিআইতে রিকোয়েস্ট পাঠালে ব্যাকএন্ড সাথে সাথে 
-#    HTTP 403 Forbidden রিটার্ন করবে।
-# ২. IsTeacherUserRole: শুধুমাত্র শিক্ষকদের অ্যাক্সেস পারমিশন।
-# ৩. IsStudentUserRole: শুধুমাত্র শিক্ষার্থীদের অ্যাক্সেস পারমিশন।
+# RBAC security: verifies user roles and denies unauthorized access with 403
+# RBAC security: verifies user roles and denies unauthorized access with 403
+# RBAC security: verifies user roles and denies unauthorized access with 403
+# RBAC security: verifies user roles and denies unauthorized access with 403
 # =========================================================================================
 
 from rest_framework import permissions

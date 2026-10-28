@@ -51,7 +51,7 @@ export default function Login() {
     : `firstname_classid${studentSuffix}`;
 
   // Switch default credentials based on selected role tab with DIIT Institutional Format
-  // Bengali Note: DIIT ইন্সটিটিউশনাল ইমেইল ফরম্যাট অনুযায়ী টেস্ট ক্রেডেনশিয়াল সেট করা হয়েছে
+  // Standard institutional email format test credentials
   const handleRoleChange = (selectedRole) => {
     setRole(selectedRole);
     setErrorMessage('');
@@ -88,14 +88,13 @@ export default function Login() {
   }, []);
   
   // Handle Student Self-Registration
-  // Bengali Note: স্টুডেন্টদের নতুন অ্যাকাউন্ট তৈরি ও সরাসরি ডেটাবেজে সংরক্ষণ
   const handleRegister = async (e) => {
     e.preventDefault();
     setErrorMessage('');
     setSuccessMessage('');
 
     if (regPassword !== regConfirmPassword) {
-      setErrorMessage('Passwords do not match! / পাসওয়ার্ড দুটি মেলেনি।');
+      setErrorMessage('Passwords do not match. Please verify both password fields.');
       return;
     }
     if (regPassword.length < 6) {
@@ -130,14 +129,14 @@ export default function Login() {
   };
 
   // Handle Login Authentication
-  // Bengali Note: ব্যাকএন্ডের সাথে অথেনটিকেশন করে এবং রোলের ভিত্তিতে নির্দিষ্ট ড্যাশবোর্ডে পাঠায়
   const handleLogin = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     setErrorMessage('');
     setSuccessMessage('');
 
-    const res = await login(usernameOrEmail, password);
+    // Pass currently selected role ('student', 'teacher', or 'admin') to ensure strict role-based login
+    const res = await login(usernameOrEmail, password, role);
     setIsSubmitting(false);
 
     if (res.success) {

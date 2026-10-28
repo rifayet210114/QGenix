@@ -2,10 +2,7 @@
 # backend/test_auth.py — Verification of Role-Based Security & Permissions
 # -----------------------------------------------------------------------------------------
 # Bengali Note:
-# এই টেস্ট স্ক্রিপ্টটি যাচাই করে:
-# ১. অ্যাডমিন (ADMIN) সফলভাবে টোকেন পায় এবং অ্যাডমিন রিসোর্স (/api/auth/users/) অ্যাক্সেস করতে পারে (200 OK)।
-# ২. শিক্ষক (TEACHER) অথবা শিক্ষার্থী (STUDENT) অ্যাডমিন রিসোর্সে ঢুকতে চাইলে ব্যাকএন্ড স্বয়ংক্রিয়ভাবে 
-#    403 Forbidden দিয়ে তাদের ব্লক করে।
+# RBAC security: verifies user roles and denies unauthorized access with 403
 # =========================================================================================
 
 import os

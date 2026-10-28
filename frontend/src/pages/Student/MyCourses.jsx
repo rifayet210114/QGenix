@@ -7,9 +7,6 @@
 // Fully responsive on all device configurations (Mobile, Tablet, Desktop).
 //
 // [Bengali Note]:
-// এই ফাইলটি স্টুডেন্টদের চলমান, সমাপ্ত এবং আসন্ন কোর্সের তালিকা দেখায়।
-// এটি সম্পূর্ণ রেসপন্সিভ এবং লিকুইড গ্লাসমরফিজম ডিজাইন গাইডলাইন মেনে তৈরি।
-// ব্যবহারকারী চাইলে সার্চ এবং ফিল্টারিং এর মাধ্যমে তার কোর্সগুলো সহজে খুঁজে পেতে পারেন।
 // ============================================================================
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -260,7 +257,6 @@ export default function MyCourses() {
   const [sortOption, setSortOption] = useState('Latest Joined');
 
   // Role simulation state (Default to URL path matched role)
-  // [Bengali Note]: ইউজার রোল সিমুলেশন স্টেট (ডিফল্টভাবে URL পাথের ওপর ভিত্তি করে সেট হয়)
   const [currentRole, setCurrentRole] = useState(() => {
     const path = window.location.pathname;
     if (path.includes('/teacher')) return 'Teacher';
@@ -269,7 +265,6 @@ export default function MyCourses() {
   });
 
   // Course database state initialized from initialCourses or localStorage
-  // [Bengali Note]: কোর্স লিস্ট স্টেট যা লোকাল স্টোরেজ থেকে লোড বা সেভ হয়
   const [courses, setCourses] = useState(() => {
     const saved = localStorage.getItem('qgenix_student_courses');
     return saved ? JSON.parse(saved) : initialCourses;
@@ -281,7 +276,6 @@ export default function MyCourses() {
   }, [courses]);
 
   // Handler to update course status (Teacher / Admin only)
-  // [Bengali Note]: কোর্স স্ট্যাটাস (Ongoing / Completed) পরিবর্তন করার হ্যান্ডলার
   const handleStatusChange = (courseId, newStatus) => {
     setCourses(prevCourses => 
       prevCourses.map(course => {
@@ -308,11 +302,9 @@ export default function MyCourses() {
   const [selectedCourse, setSelectedCourse] = useState(null);
 
   // State to track if we should highlight resources in the course details modal
-  // [Bengali Note]: এই স্টেটটি ট্র্যাক করে যে কোর্স ডিটেইলস মোডালে রিলেটেড ক্লাস রিসোর্স হাইলাইট করা হবে কি না।
   const [shouldHighlightResources, setShouldHighlightResources] = useState(false);
 
   // Smoothly scroll to the resources section if launched via the "Resources" button
-  // [Bengali Note]: "Resources" বাটনে ক্লিক করে মোডাল ওপেন করলে স্ক্রল করে সরাসরি রিসোর্স সেকশনে নিয়ে যায়।
   useEffect(() => {
     if (selectedCourse && shouldHighlightResources) {
       const timer = setTimeout(() => {
@@ -326,7 +318,6 @@ export default function MyCourses() {
   }, [selectedCourse, shouldHighlightResources]);
 
   // Reset resources highlight state when selectedCourse becomes null
-  // [Bengali Note]: মোডাল বন্ধ হয়ে গেলে রিসোর্স হাইলাইট স্টেট অটো রিসেট হয়ে যায়।
   useEffect(() => {
     if (!selectedCourse) {
       setShouldHighlightResources(false);
@@ -618,7 +609,7 @@ export default function MyCourses() {
           [CHANGE: Added Premium Close Button Style]
           This styles the top right modal close button (X) to properly contrast with the dark background
           and features a smooth rotation transition, transparent red hover background, and subtle glow.
-          [Bengali Note]: মোডালের ক্লোজ বাটনের জন্য ব্যাকগ্রাউন্ডের সাথে সামঞ্জস্যপূর্ণ প্রিমিয়াম গ্লাস স্টাইল ও রোটেশন অ্যানিমেশন।
+          [Bengali Note]:             ।
         */
         .btn-close-modal {
           background: rgba(255, 255, 255, 0.08) !important;
@@ -650,7 +641,7 @@ export default function MyCourses() {
         /* 
           [CHANGE: Close Button Light Mode Overrides]
           Adjusts the colors of the modal close button for light mode.
-          [Bengali Note]: লাইট মোডে ক্লোজ বাটনের মানানসই রঙের ওভাররাইড।
+          [Bengali Note]:       ।
         */
         body.light-mode .btn-close-modal {
           background: rgba(0, 0, 0, 0.05) !important;
@@ -678,11 +669,10 @@ export default function MyCourses() {
         /* 
           [CHANGE: Centralized Button Styles]
           The .btn-glass-cta styles have been moved to src/index.css for global consistency and cleaner rendering.
-          [Bengali Note]: বাটন স্টাইলগুলোকে বৈশ্বিক ধারাবাহিকতা এবং ক্লিনার রেন্ডারিং এর জন্য src/index.css ফাইলে নিয়ে যাওয়া হয়েছে।
+          [Bengali Note]:          src/index.css    ।
         */
 
         /* Resources CTA Button hover animations */
-        /* [Bengali Note]: "Resources" বাটনের আকর্ষণীয় হোভার ইফেক্ট ও শ্যাডো গ্লো */
         .btn-resources-cta {
           border-radius: 9999px !important;
           transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1) !important;
@@ -697,7 +687,6 @@ export default function MyCourses() {
         }
 
         /* Resources section highlight animation inside details modal */
-        /* [Bengali Note]: মোডাল ওপেন হলে রিসোর্স সেকশন হাইলাইট করার জন্য প্রিমিয়াম সলিড গ্লোয়িং অ্যানিমেশন */
         .resources-highlighted {
           border: 1px solid rgba(139, 92, 246, 0.35) !important;
           background: linear-gradient(
@@ -744,7 +733,6 @@ export default function MyCourses() {
         }
 
         /* Hover micro-interactions for modal resource list items */
-        /* [Bengali Note]: মোডাল ক্লাস রিসোর্স রো-গুলোর আকর্ষণীয় হোভার ইফেক্ট */
         .hover-resource-row {
           background: rgba(255, 255, 255, 0.015) !important;
           border: 1px solid rgba(255, 255, 255, 0.04) !important;
@@ -812,7 +800,6 @@ export default function MyCourses() {
         </div>
 
         {/* Simulator mode selection box */}
-        {/* [Bengali Note]: ড্যাশবোর্ড রোল সিমুলেটর (Student, Teacher, Admin মোড পরিবর্তনের জন্য) */}
         <div style={{ 
           background: 'rgba(255, 255, 255, 0.02)', 
           border: '1px solid rgba(255, 255, 255, 0.08)', 
@@ -1058,7 +1045,6 @@ export default function MyCourses() {
                   </div>
 
                   {/* Absolute Status Badge/Editor at top-right */}
-                  {/* [Bengali Note]: কার্ডের ডানপাশের উপরে সুনির্দিষ্ট স্থানে স্ট্যাটাস ড্রপডাউন বা স্ট্যাটিক ব্যাজ */}
                   <div style={{ position: 'absolute', top: '24px', right: '24px', zIndex: 10 }}>
                     {currentRole === 'Teacher' || currentRole === 'Admin' ? (
                       <select
@@ -1301,7 +1287,7 @@ export default function MyCourses() {
               {/* 
                 [CHANGE: Adjusted alignment and gap]
                 Added inline style gap to container to ensure a proper visual distance between the icon and text.
-                [Bengali Note]: আইকন এবং টেক্সটের মাঝে সঠিক দূরত্ব বজায় রাখার জন্য gap এবং alignment ঠিক করা হয়েছে।
+                [Bengali Note]:          gap  alignment   ।
               */}
               <div className="flex justify-between" style={{ alignItems: 'flex-start', gap: '16px' }}>
                 <div className="flex" style={{ gap: '14px', alignItems: 'center' }}>
@@ -1332,7 +1318,7 @@ export default function MyCourses() {
                   [CHANGE: Close Button Style Update]
                   Changed className from "btn-glass-cta..." to "btn-close-modal" to apply the high-contrast
                   glassmorphic visual styling with hover animations.
-                  [Bengali Note]: ক্লোজ বাটন স্টাইলিং আপডেট করা হয়েছে যাতে ব্যাকগ্রাউন্ডের সাথে বাটনটি সহজে বোঝা যায়।
+                  [Bengali Note]:             ।
                 */}
                 <button 
                   onClick={() => setSelectedCourse(null)}
@@ -1372,7 +1358,6 @@ export default function MyCourses() {
 
 
                 {/* Study materials checklist */}
-                {/* [Bengali Note]: এই সেকশনটিতে কোর্সের ডাউনলোডের জন্য প্রয়োজনীয় সব রিসোর্স ও ফাইল থাকে */}
                 <div 
                   id="modal-resources-section"
                   className={shouldHighlightResources ? 'resources-highlighted' : ''}

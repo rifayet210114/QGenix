@@ -2,9 +2,6 @@
 # accounts/management/commands/ensure_superuser.py
 # -----------------------------------------------------------------------------------------
 # Bengali Note:
-# এই কমান্ডটি Railway deployment-এ প্রতিবার auto-run হবে।
-# যদি database-এ কোনো ADMIN role user না থাকে, তাহলে environment variable থেকে
-# credentials পড়ে automatically superuser তৈরি করবে।
 # =========================================================================================
 
 import os

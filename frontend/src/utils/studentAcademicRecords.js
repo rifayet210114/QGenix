@@ -187,15 +187,45 @@ function scoreToGrade(score) {
   return { grade: 'F', gpa: 0.00, remarks: 'Fail' };
 }
 
-export function getStudentDetailedRecord(student) {
+export function getStudentDetailedRecord(student, liveAttendances = []) {
   if (!student) return null;
 
-  const idStr = String(student.id || '210108');
+  const idStr = String(student.id || student.institutional_id || '210108');
+  const instIdStr = String(student.institutional_id || student.id || '').toLowerCase().trim();
+  const studentEmail = String(student.email || '').toLowerCase().trim();
+  const studentName = String(student.name || '').toLowerCase().trim();
+
   const hashSeed = getHash(idStr + (student.name || 'Student'));
   const baseCgpa = parseFloat(student.cgpa) || 3.75;
-  const deptKey = (student.dept || 'CSE').toUpperCase();
+  const deptKey = (student.dept || student.department || 'CSE').toUpperCase();
   const departmentCatalog = DEPARTMENT_COURSES[deptKey] || DEPARTMENT_COURSES['CSE'];
   const batchStr = student.batch || 'Batch 2021';
+
+  // Extract live attendance sessions where this student was enrolled/marked
+  const relevantLiveSessions = [];
+  if (Array.isArray(liveAttendances) && liveAttendances.length > 0) {
+    liveAttendances.forEach(att => {
+      let matchedRecord = null;
+      if (Array.isArray(att.student_records)) {
+        matchedRecord = att.student_records.find(r => {
+          const rId = String(r.id || '');
+          const rInst = String(r.student_id || r.roll || '').toLowerCase().trim();
+          const rEmail = String(r.email || '').toLowerCase().trim();
+          const rName = String(r.name || '').toLowerCase().trim();
+          return (rId === idStr || (instIdStr && rInst === instIdStr) || (studentEmail && rEmail === studentEmail) || (studentName && rName === studentName));
+        });
+      }
+      if (matchedRecord) {
+        relevantLiveSessions.push({
+          course_code: (att.course_code || '').trim().toUpperCase(),
+          course_title: (att.course_title || '').trim().toLowerCase(),
+          status: matchedRecord.status || 'present',
+          date: att.date,
+          teacher: att.teacher
+        });
+      }
+    });
+  }
 
   // Determine current active semester
   let activeSemesterIndex = 5; // 6th Semester default
@@ -244,8 +274,6 @@ export function getStudentDetailedRecord(student) {
       const courseHash = getHash(idStr + semName + c.code);
       const scoreVariance = (courseHash % 15) - 7; // -7 to +7
       
-      // Calculate realistic score out of 100 based on CGPA target
-      // CGPA 4.0 ~ 85-95, 3.75 ~ 80-88, 3.5 ~ 74-82, 3.0 ~ 62-72
       let targetScore = Math.round(55 + (baseCgpa / 4.0) * 35 + scoreVariance);
       if (targetScore > 98) targetScore = 98;
       if (targetScore < 50) targetScore = 52;
@@ -257,12 +285,29 @@ export function getStudentDetailedRecord(student) {
       const computedTotal = mid + quiz + finalExam;
       const gradeInfo = scoreToGrade(computedTotal);
 
-      // Attendance for this course: between 80% and 97%
-      const classesHeld = 28 + (courseHash % 6); // 28 - 33
-      const attRate = 0.82 + ((courseHash % 16) / 100); // 82% to 97%
-      const classesAttended = Math.min(classesHeld, Math.max(Math.round(classesHeld * attRate), 22));
-      const classesAbsent = classesHeld - classesAttended;
-      const attendancePct = parseFloat(((classesAttended / classesHeld) * 100).toFixed(1));
+      // Check for live sessions matching this course
+      const cleanCode = (c.code || '').trim().toUpperCase();
+      const cleanTitle = (c.title || '').trim().toLowerCase();
+      const liveForThisCourse = relevantLiveSessions.filter(s => 
+        (s.course_code && s.course_code === cleanCode) ||
+        (s.course_title && (cleanTitle.includes(s.course_title) || s.course_title.includes(cleanTitle)))
+      );
+
+      let classesHeld, classesAttended, classesAbsent, attendancePct;
+      if (isCurrent && liveForThisCourse.length > 0) {
+        classesHeld = liveForThisCourse.length;
+        const presentCnt = liveForThisCourse.filter(s => s.status === 'present').length;
+        const lateCnt = liveForThisCourse.filter(s => s.status === 'late').length;
+        classesAttended = presentCnt + lateCnt;
+        classesAbsent = liveForThisCourse.filter(s => s.status === 'absent').length;
+        attendancePct = parseFloat(((classesAttended / classesHeld) * 100).toFixed(1));
+      } else {
+        classesHeld = 28 + (courseHash % 6); // 28 - 33
+        const attRate = 0.82 + ((courseHash % 16) / 100); // 82% to 97%
+        classesAttended = Math.min(classesHeld, Math.max(Math.round(classesHeld * attRate), 22));
+        classesAbsent = classesHeld - classesAttended;
+        attendancePct = parseFloat(((classesAttended / classesHeld) * 100).toFixed(1));
+      }
 
       semTotalHeld += classesHeld;
       semTotalAttended += classesAttended;
