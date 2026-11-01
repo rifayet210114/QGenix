@@ -12,7 +12,8 @@
 // ============================================================
 
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 // BrainCircuit icon used for the QGenix logo mark
 import { BrainCircuit } from 'lucide-react';
 
@@ -28,6 +29,8 @@ import { BrainCircuit } from 'lucide-react';
 export default function Sidebar({ links, role, isOpen, setIsOpen }) {
   // useLocation gives us the current URL path so we can highlight the active link
   const location = useLocation();
+  const navigate = useNavigate();
+  const { logout } = useAuth();
 
   return (
     // Outer sidebar container — applies glassmorphism styling via "glass-sidebar"
@@ -81,7 +84,14 @@ export default function Sidebar({ links, role, isOpen, setIsOpen }) {
               key={link.path} 
               to={link.path} 
               // On mobile, clicking a link also closes the sidebar for better UX
-              onClick={() => setIsOpen && setIsOpen(false)} 
+              onClick={(e) => {
+                if (link.label?.toLowerCase() === 'logout' || link.path === '/login') {
+                  e.preventDefault();
+                  logout();
+                  navigate('/login');
+                }
+                if (setIsOpen) setIsOpen(false);
+              }} 
               // Apply the active class for highlighted background/border styling
               className={`sidebar-link ${isActive ? 'sidebar-link-active' : ''}`}
               style={{

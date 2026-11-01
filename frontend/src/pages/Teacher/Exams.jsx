@@ -20,6 +20,7 @@ import {
   Search, SlidersHorizontal, ChevronRight, Send, ArrowLeft, Award, CheckCircle2
 } from 'lucide-react';
 import Card from '../../components/Card';
+import { useAdminData } from '../../contexts/AdminDataContext';
 
 // ----------------------------------------------------------------------------
 // 1. MOCK DATA: TEACHER'S SCHEDULED EXAMS DATABASE
@@ -138,9 +139,51 @@ export default function TeacherExams() {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
+  const { examSessions = [] } = useAdminData() || {};
+
+  // Real database published exam sessions
+  const dbExamsList = useMemo(() => {
+    return (examSessions || [])
+      .filter(s => s.is_published || s.isPublished)
+      .map(s => {
+        const cat = (s.exam_type || s.type || '').includes('Internal') ? 'Internal Final' : 'Mid Term';
+        const routineItems = s.routine || [];
+        return {
+          id: `EX-${s.id}`,
+          dbId: s.id,
+          title: s.name || s.title,
+          category: cat,
+          semester: s.semester || 'Current Semester',
+          batch: s.batch || 'All Batches',
+          dateRange: `${s.startDate || s.start_date} - ${s.endDate || s.end_date}`,
+          subjectsCount: routineItems.length,
+          status: s.status || 'Active',
+          totalStudents: s.expectedStudents || s.expected_students || s.totalExpected || 0,
+          schedule: routineItems.map(r => ({
+            code: r.course_code || r.code,
+            subject: r.subject_name || r.subject,
+            date: r.date,
+            time: r.time_duration || r.time,
+            duration: r.duration || '2.0 Hours',
+            room: r.room || 'Room 302',
+            invigilator: r.invigilator || 'Faculty Member',
+            status: 'Scheduled'
+          }))
+        };
+      });
+  }, [examSessions]);
+
+  // Merge real DB published exams with fallback
+  const allExamsList = useMemo(() => {
+    if (dbExamsList.length > 0) {
+      return [...dbExamsList, ...initialExamsList.filter(ie => !dbExamsList.some(de => de.title === ie.title))];
+    }
+    return initialExamsList;
+  }, [dbExamsList]);
+
   // Filter logic
   const filteredExams = useMemo(() => {
-    return initialExamsList.filter((exam) => {
+    return allExamsList.filter((exam) => {
       const matchesCategory = activeCategory === 'All' || exam.category === activeCategory;
       const matchesSemester = semesterFilter === 'All' || exam.semester === semesterFilter;
       const matchesBatch = batchFilter === 'All' || exam.batch === batchFilter;

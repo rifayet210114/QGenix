@@ -121,7 +121,9 @@ export default function Login() {
       setSuccessMessage(`Registration successful! Your Institutional Email: ${res.user.email}`);
       // Redirect to student portal after brief celebration
       setTimeout(() => {
-        navigate('/student');
+        const params = new URLSearchParams(window.location.search);
+        const redirect = params.get('redirect');
+        navigate((redirect && redirect.startsWith('/student')) ? redirect : '/student');
       }, 1400);
     } else {
       setErrorMessage(res.error || 'Registration failed. Please check inputs.');
@@ -144,11 +146,15 @@ export default function Login() {
       if (userRole === 'ADMIN') {
         const params = new URLSearchParams(window.location.search);
         const redirect = params.get('redirect');
-        navigate(redirect || '/admin');
+        navigate((redirect && redirect.startsWith('/admin')) ? redirect : '/admin');
       } else if (userRole === 'TEACHER') {
-        navigate('/teacher');
+        const params = new URLSearchParams(window.location.search);
+        const redirect = params.get('redirect');
+        navigate((redirect && redirect.startsWith('/teacher')) ? redirect : '/teacher');
       } else {
-        navigate('/student');
+        const params = new URLSearchParams(window.location.search);
+        const redirect = params.get('redirect');
+        navigate((redirect && redirect.startsWith('/student')) ? redirect : '/student');
       }
     } else {
       setErrorMessage(res.error || 'Invalid credentials. Please try again.');
@@ -480,23 +486,6 @@ export default function Login() {
                 </label>
               </div>
               
-              {role === 'student' && (
-                <div style={{
-                  fontSize: '11px',
-                  color: '#a78bfa',
-                  background: 'rgba(167, 139, 250, 0.08)',
-                  padding: '6px 12px',
-                  borderRadius: '8px',
-                  border: '1px solid rgba(167, 139, 250, 0.2)',
-                  marginBottom: '14px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}>
-                  <span>Hint:</span>
-                  <strong style={{ color: '#c4b5fd' }}>Use your Assigned Email (e.g. Jeba210108@diit.edu.bd) or Student ID & initial password</strong>
-                </div>
-              )}
               
               <div className="input-group">
                 <input 

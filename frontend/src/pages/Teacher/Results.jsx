@@ -22,6 +22,7 @@ import {
   Sparkles, PlusCircle, CheckCircle2, RefreshCw, Send, Edit3
 } from 'lucide-react';
 import Card from '../../components/Card';
+import { useAdminData, calculateGradeFromPolicy } from '../../contexts/AdminDataContext';
 
 // ----------------------------------------------------------------------------
 // 1. MOCK DATA: STUDENT LIST FOR ROSTER INPUT
@@ -146,6 +147,13 @@ export default function TeacherResults() {
   const [studentMarksInputs, setStudentMarksInputs] = useState({});
 
   // Simulated indicators
+  const { 
+    batches = [], 
+    courses = [], 
+    students = [], 
+    gradingScale = [], 
+    submitTeacherExamResults 
+  } = useAdminData();
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishProgress, setPublishProgress] = useState(0);
   const [toastMessage, setToastMessage] = useState(null);
@@ -155,20 +163,49 @@ export default function TeacherResults() {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  // Helper: map percentage score to letter grade
+  // Helper: map percentage score to letter grade using Admin standard grading policy
   const calculateGrade = (pct) => {
-    if (pct >= 90) return 'A+';
-    if (pct >= 80) return 'A';
-    if (pct >= 70) return 'B';
-    if (pct >= 60) return 'C';
-    if (pct >= 50) return 'D';
+    if (gradingScale && gradingScale.length > 0) {
+      const res = calculateGradeFromPolicy(pct, gradingScale);
+      return res.grade;
+    }
+    if (pct >= 80) return 'A+';
+    if (pct >= 75) return 'A';
+    if (pct >= 70) return 'A-';
+    if (pct >= 65) return 'B+';
+    if (pct >= 60) return 'B';
+    if (pct >= 55) return 'B-';
+    if (pct >= 50) return 'C+';
+    if (pct >= 40) return 'D';
     return 'F';
   };
 
-  // Load target student roster matching published filters
+  const availableCourses = useMemo(() => {
+    if (courses && courses.length > 0) return courses;
+    return Object.keys(courseDetailsMap).map(code => ({ code, title: courseDetailsMap[code] }));
+  }, [courses]);
+
+  // Load target student roster matching real database students
   const publishingRoster = useMemo(() => {
-    return mockStudentsList.filter(s => s.semester === pubSemester && s.batch === pubBatch);
-  }, [pubSemester, pubBatch]);
+    const matched = students.filter(s => {
+      const sBatch = (s.batch_name || s.batch || '').trim().toLowerCase();
+      const bTarget = (pubBatch || '').trim().toLowerCase();
+      const sSem = (s.current_semester || s.semester || '').trim().toLowerCase();
+      const semTarget = (pubSemester || '').trim().toLowerCase();
+      const batchMatch = sBatch === bTarget || sBatch.includes(bTarget) || bTarget.includes(sBatch);
+      const semMatch = !semTarget || sSem === semTarget || sSem.includes(semTarget) || semTarget.includes(sSem);
+      return batchMatch && semMatch;
+    });
+    if (matched.length > 0) {
+      return matched.map(s => ({
+        id: s.id || s.institutional_id || s.username,
+        name: s.name || `${s.first_name || ''} ${s.last_name || ''}`.trim() || s.username,
+        semester: s.current_semester || s.semester || pubSemester,
+        batch: s.batch_name || s.batch || pubBatch
+      }));
+    }
+    return mockStudentsList;
+  }, [students, pubBatch, pubSemester]);
 
   // Publish dynamic results roster submit
   const handlePublishResults = (e) => {
@@ -272,6 +309,29 @@ export default function TeacherResults() {
 
         // Push newly published results list to the front of student array
         localStorage.setItem('qgenix_student_results', JSON.stringify([...studentExamList, ...existingStudentResults]));
+
+        // Sync to Exam Controller in Database via submitTeacherExamResults
+        if (submitTeacherExamResults) {
+          const courseTitle = availableCourses.find(c => c.code === pubCourse)?.title || courseDetailsMap[pubCourse] || 'Course Assessment';
+          submitTeacherExamResults({
+            batch: pubBatch,
+            semester: pubSemester,
+            course_code: pubCourse,
+            course_title: courseTitle,
+            exam_name: pubExamName,
+            max_marks: pubMaxMarks,
+            submitted_by: 'Course Faculty',
+            results: newResultsToPublish.map(r => ({
+              student_uid: r.studentId,
+              student_name: r.studentName,
+              obtained_marks: Number(studentMarksInputs[r.studentId]) || 0,
+              max_marks: pubMaxMarks,
+              percentage: r.percentage,
+              grade: r.grade,
+              gpa: getGpaFromPercentage(r.percentage)
+            }))
+          });
+        }
 
         // Reset inputs
         setPubExamName('');
@@ -841,8 +901,8 @@ export default function TeacherResults() {
                       className="input-field"
                       style={{ height: '38px', fontSize: '0.85rem', background: 'var(--bg-primary)', padding: '0 10px' }}
                     >
-                      {Object.keys(courseDetailsMap).map(code => (
-                        <option key={code} value={code}>{code} - {courseDetailsMap[code].substring(0, 18)}...</option>
+                      {availableCourses.map(c => (
+                        <option key={c.code} value={c.code}>{c.code} - {(c.title || '').substring(0, 30)}</option>
                       ))}
                     </select>
                   </div>
@@ -883,9 +943,14 @@ export default function TeacherResults() {
                       className="input-field"
                       style={{ height: '38px', fontSize: '0.85rem', background: 'var(--bg-primary)', padding: '0 10px' }}
                     >
+                      <option value="1st Semester">1st Semester</option>
+                      <option value="2nd Semester">2nd Semester</option>
+                      <option value="3rd Semester">3rd Semester</option>
                       <option value="4th Semester">4th Semester</option>
                       <option value="5th Semester">5th Semester</option>
                       <option value="6th Semester">6th Semester</option>
+                      <option value="7th Semester">7th Semester</option>
+                      <option value="8th Semester">8th Semester</option>
                     </select>
                   </div>
 
@@ -898,9 +963,18 @@ export default function TeacherResults() {
                       className="input-field"
                       style={{ height: '38px', fontSize: '0.85rem', background: 'var(--bg-primary)', padding: '0 10px' }}
                     >
-                      <option value="Batch 20">Batch 20</option>
-                      <option value="Batch 21">Batch 21</option>
-                      <option value="Batch 22">Batch 22</option>
+                      {batches.length > 0 ? (
+                        batches.map(b => (
+                          <option key={b.id} value={b.name}>{b.name}</option>
+                        ))
+                      ) : (
+                        <>
+                          <option value="Batch 2027 - 2028">Batch 2027 - 2028</option>
+                          <option value="Batch 2024 - 2025">Batch 2024 - 2025</option>
+                          <option value="Batch 2023 - 2024">Batch 2023 - 2024</option>
+                          <option value="Batch 2022 - 2023">Batch 2022 - 2023</option>
+                        </>
+                      )}
                     </select>
                   </div>
 

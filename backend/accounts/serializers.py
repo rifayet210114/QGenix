@@ -249,6 +249,7 @@ class StudentRegistrationSerializer(serializers.Serializer):
 
 
 from .models import (
+    GradingScaleRule, StudentExamResult,
     Department, Course, Batch, ExamSession, Notice, AuditLog, ClassRoutine, 
     CourseAllocation, AIConfiguration, SemesterArchive, StudentSemesterRecord, 
     SystemSetting, ClassAttendance, AIQuestionPaper
@@ -259,50 +260,88 @@ class SystemSettingSerializer(serializers.ModelSerializer):
         model = SystemSetting
         fields = '__all__'
 
+    def get_status(self, obj):
+        return obj.computed_status
+
 class DepartmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Department
         fields = '__all__'
+
+    def get_status(self, obj):
+        return obj.computed_status
 
 class CourseSerializer(serializers.ModelSerializer):
     class Meta:
         model = Course
         fields = '__all__'
 
+    def get_status(self, obj):
+        return obj.computed_status
+
 class BatchSerializer(serializers.ModelSerializer):
     class Meta:
         model = Batch
         fields = '__all__'
 
+    def get_status(self, obj):
+        return obj.computed_status
+
+class GradingScaleRuleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GradingScaleRule
+        fields = '__all__'
+
 class ExamSessionSerializer(serializers.ModelSerializer):
+    status = serializers.SerializerMethodField(required=False)
+
+    status = serializers.SerializerMethodField(required=False)
     class Meta:
         model = ExamSession
         fields = '__all__'
+
+    def get_status(self, obj):
+        return obj.computed_status
 
 class NoticeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Notice
         fields = '__all__'
 
+    def get_status(self, obj):
+        return obj.computed_status
+
 class AuditLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = AuditLog
         fields = '__all__'
+
+    def get_status(self, obj):
+        return obj.computed_status
 
 class ClassRoutineSerializer(serializers.ModelSerializer):
     class Meta:
         model = ClassRoutine
         fields = '__all__'
 
+    def get_status(self, obj):
+        return obj.computed_status
+
 class CourseAllocationSerializer(serializers.ModelSerializer):
     class Meta:
         model = CourseAllocation
         fields = '__all__'
 
+    def get_status(self, obj):
+        return obj.computed_status
+
 class AIConfigurationSerializer(serializers.ModelSerializer):
     class Meta:
         model = AIConfiguration
         fields = '__all__'
+
+    def get_status(self, obj):
+        return obj.computed_status
 
 class StudentSemesterRecordSerializer(serializers.ModelSerializer):
     student_id = serializers.CharField(source='student_uid')
@@ -333,13 +372,25 @@ class ClassAttendanceSerializer(serializers.ModelSerializer):
         model = ClassAttendance
         fields = '__all__'
 
+    def get_status(self, obj):
+        return obj.computed_status
+
 
 class AIQuestionPaperSerializer(serializers.ModelSerializer):
     class Meta:
         model = AIQuestionPaper
         fields = '__all__'
 
+    def get_status(self, obj):
+        return obj.computed_status
 
 
 
 
+
+
+
+class StudentExamResultSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StudentExamResult
+        fields = '__all__'

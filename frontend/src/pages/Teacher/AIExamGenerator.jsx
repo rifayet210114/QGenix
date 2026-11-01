@@ -44,10 +44,10 @@ export default function AIExamGenerator() {
 
   // Common Exam Parameters
   const [examTitle, setExamTitle] = useState('ENTRANCE MODEL QUESTION (A)');
-  const [institution, setInstitution] = useState('FACEBOOK:DHANRAUT');
-  const [subject, setSubject] = useState('ENGLISH');
-  const [courseCode, setCourseCode] = useState('ENG-101');
-  const [courseTitle, setCourseTitle] = useState('English Grammar & Language Proficiency');
+  const [institution, setInstitution] = useState('DAFFODIL INSTITUTE OF IT');
+  const [subject, setSubject] = useState('Physics I: Mechanics & Thermodynamics');
+  const [courseCode, setCourseCode] = useState('PHY-101');
+  const [courseTitle, setCourseTitle] = useState('Physics I: Mechanics & Thermodynamics');
   const [selectedResourceId, setSelectedResourceId] = useState('');
   const [sourceFileName, setSourceFileName] = useState('');
   const [startPage, setStartPage] = useState(1);
@@ -237,8 +237,13 @@ export default function AIExamGenerator() {
   // Switch between review tabs for generated sets
   const handleSwitchSet = (idx) => {
     setActiveSetIdx(idx);
-    if (generatedExamSets && generatedExamSets[idx] && generatedExamSets[idx].question_sets) {
-      setQuestionSets(generatedExamSets[idx].question_sets);
+    if (generatedExamSets && generatedExamSets[idx]) {
+      if (generatedExamSets[idx].question_sets) {
+        setQuestionSets(generatedExamSets[idx].question_sets);
+      }
+      if (generatedExamSets[idx].questions) {
+        setQuestions(generatedExamSets[idx].questions);
+      }
     }
   };
 
@@ -368,7 +373,7 @@ export default function AIExamGenerator() {
         setGeneratedExamSets(data.exam_sets);
         setActiveSetIdx(0);
         setQuestionSets(data.exam_sets[0].question_sets || []);
-        setQuestions(data.questions || []);
+        setQuestions(data.exam_sets[0].questions || data.questions || []);
         setGenerationProvider(data.provider || 'gemini');
         setHasPdfContext(Boolean(data.has_pdf_context));
         setStep(3); // Jump to Multi-Set Review Workbench
@@ -382,6 +387,9 @@ export default function AIExamGenerator() {
         setHasPdfContext(Boolean(data.has_pdf_context));
         setStep(3);
       } else if (data.questions && data.questions.length > 0) {
+        const wrapped = [{ set_name: examSetNames[0] || setName || 'SET: A', questions: data.questions }];
+        setGeneratedExamSets(wrapped);
+        setActiveSetIdx(0);
         setQuestions(data.questions);
         setGenerationProvider(data.provider || 'gemini');
         setHasPdfContext(Boolean(data.has_pdf_context));
@@ -402,6 +410,15 @@ export default function AIExamGenerator() {
     const filtered = questions.filter(q => q.id !== id);
     const reindexed = filtered.map((q, idx) => ({ ...q, id: idx + 1 }));
     setQuestions(reindexed);
+    if (generatedExamSets && generatedExamSets.length > 0) {
+      setGeneratedExamSets(prev => {
+        const next = [...prev];
+        if (next[activeSetIdx]) {
+          next[activeSetIdx] = { ...next[activeSetIdx], questions: reindexed };
+        }
+        return next;
+      });
+    }
   };
 
   // Open Edit Modal for MCQ
@@ -415,7 +432,17 @@ export default function AIExamGenerator() {
   // Save Edited MCQ
   const handleSaveEdit = () => {
     if (!editingQuestion) return;
-    setQuestions(prev => prev.map(q => q.id === editingQuestion.id ? editingQuestion : q));
+    const updated = questions.map(q => q.id === editingQuestion.id ? editingQuestion : q);
+    setQuestions(updated);
+    if (generatedExamSets && generatedExamSets.length > 0) {
+      setGeneratedExamSets(prev => {
+        const next = [...prev];
+        if (next[activeSetIdx]) {
+          next[activeSetIdx] = { ...next[activeSetIdx], questions: updated };
+        }
+        return next;
+      });
+    }
     setEditingQuestion(null);
   };
 
@@ -438,7 +465,17 @@ export default function AIExamGenerator() {
       explanation: newQuestionForm.explanation.trim() || 'Custom teacher-verified question.'
     };
 
-    setQuestions(prev => [...prev, newQ]);
+    const nextQList = [...questions, newQ];
+    setQuestions(nextQList);
+    if (generatedExamSets && generatedExamSets.length > 0) {
+      setGeneratedExamSets(prev => {
+        const next = [...prev];
+        if (next[activeSetIdx]) {
+          next[activeSetIdx] = { ...next[activeSetIdx], questions: nextQList };
+        }
+        return next;
+      });
+    }
     setShowAddModal(false);
     setNewQuestionForm({
       question: '',
@@ -696,12 +733,20 @@ export default function AIExamGenerator() {
         includeModelAnswers: viewMode === 'review'
       });
     } else {
+      const activeSet = (generatedExamSets && generatedExamSets[targetSetIdx]) ? generatedExamSets[targetSetIdx] : null;
+      const setLabel = activeSet?.set_name || examSetNames[targetSetIdx] || setName || 'SET: A';
+      const qListToPrint = (activeSet?.questions && activeSet.questions.length > 0) ? activeSet.questions : questions;
+
       downloadEntranceModelQuestionPDF({
         examTitle: examTitle,
         subject: subject,
         institution: institution,
+        degreeProgram: degreeProgram,
+        semesterExam: semesterExam,
         courseCode: courseCode,
-        questions: questions,
+        courseTitle: courseTitle,
+        setName: setLabel,
+        questions: qListToPrint,
         totalMarks: totalMarks,
         timeAllowed: timeAllowed,
         includeAnswerKey: true
@@ -743,7 +788,11 @@ export default function AIExamGenerator() {
         teacher: localStorage.getItem('user_name') || 'Course Faculty',
         difficulty: difficulty,
         generation_type: generationType,
-        exam_sets: generatedExamSets.length > 0 ? generatedExamSets : [{ set_name: setName, question_sets: questionSets }],
+        exam_sets: generatedExamSets.length > 0 ? generatedExamSets : (
+          generationType === 'descriptive'
+            ? [{ set_name: setName, question_sets: questionSets }]
+            : [{ set_name: setName, questions: questions }]
+        ),
         student_allocations: studentAllocations,
         questions: generationType === 'descriptive' ? questionSets : questions
       };
@@ -821,11 +870,13 @@ export default function AIExamGenerator() {
               <div 
                 onClick={() => {
                   setGenerationType('mcq');
-                  setInstitution('FACEBOOK:DHANRAUT');
+                  setInstitution('DAFFODIL INSTITUTE OF IT');
+                  setDegreeProgram('B.Sc (Hons) in Computer Science & Engineering');
+                  setSemesterExam('Midterm Examination, CSE 4th Year 8th Semester, 21st Batch, 2026');
                   setExamTitle('ENTRANCE MODEL QUESTION (A)');
-                  setSubject('ENGLISH');
-                  setCourseCode('ENG-101');
-                  setCourseTitle('English Grammar & Language Proficiency');
+                  setCourseCode('PHY-101');
+                  setCourseTitle('Physics I: Mechanics & Thermodynamics');
+                  setSubject('Physics I: Mechanics & Thermodynamics');
                   setTimeAllowed('60 Minutes');
                   setTotalMarks(50);
                 }}
@@ -957,167 +1008,176 @@ export default function AIExamGenerator() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5" style={{ marginBottom: '24px' }}>
               
-              {/* Conditional Parameters based on Generation Format */}
-              {generationType === 'descriptive' ? (
-                <>
-                  {/* Institution Name */}
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600' }}>
-                      Institution Name
-                    </label>
-                    <input 
-                      type="text" 
-                      className="input-field" 
-                      value={institution} 
-                      onChange={(e) => setInstitution(e.target.value)}
-                      placeholder="e.g. DAFFODIL INSTITUTE OF IT"
-                    />
-                  </div>
+              {/* Institution Name */}
+              <div className="md:col-span-2">
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600' }}>
+                  Institution Name
+                </label>
+                <input 
+                  type="text" 
+                  className="input-field" 
+                  value={institution} 
+                  onChange={(e) => setInstitution(e.target.value)}
+                  placeholder="DAFFODIL INSTITUTE OF IT"
+                />
+              </div>
 
-                  {/* Degree Program */}
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600' }}>
-                      Degree Program
-                    </label>
-                    <input 
-                      type="text" 
-                      className="input-field" 
-                      value={degreeProgram} 
-                      onChange={(e) => setDegreeProgram(e.target.value)}
-                      placeholder="e.g. B.Sc (Hons) in Computer Science & Engineering"
-                    />
-                  </div>
+              {/* Degree Program */}
+              <div className="md:col-span-2">
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600' }}>
+                  Degree Program
+                </label>
+                <input 
+                  type="text" 
+                  className="input-field" 
+                  value={degreeProgram} 
+                  onChange={(e) => setDegreeProgram(e.target.value)}
+                  placeholder="B.Sc (Hons) in Computer Science & Engineering"
+                />
+              </div>
 
-                  {/* Examination & Semester Line */}
-                  <div className="md:col-span-2">
-                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600' }}>
-                      Examination & Semester Details
-                    </label>
-                    <input 
-                      type="text" 
-                      className="input-field" 
-                      value={semesterExam} 
-                      onChange={(e) => setSemesterExam(e.target.value)}
-                      placeholder="e.g. Midterm Examination, CSE 4th Year 8th Semester, 21st Batch, 2026"
-                    />
-                  </div>
+              {/* Examination & Semester Line */}
+              <div className="md:col-span-2">
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600' }}>
+                  Examination & Semester Details
+                </label>
+                <input 
+                  type="text" 
+                  className="input-field" 
+                  value={semesterExam} 
+                  onChange={(e) => setSemesterExam(e.target.value)}
+                  placeholder="Midterm Examination, CSE 4th Year 8th Semester, 21st Batch, 2026"
+                />
+              </div>
 
-                  {/* Course Code & Title */}
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600' }}>
-                      Course Code & Subject Title
+              {/* Course Code & Title */}
+              <div className="md:col-span-2">
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600' }}>
+                  Course Code & Subject Title
+                </label>
+                <div className="flex gap-2">
+                  <input 
+                    type="text" 
+                    className="input-field" 
+                    style={{ width: '130px' }}
+                    value={courseCode} 
+                    onChange={(e) => setCourseCode(e.target.value)}
+                    placeholder="PHY-101"
+                  />
+                  <input 
+                    type="text" 
+                    className="input-field" 
+                    style={{ flex: 1 }}
+                    value={courseTitle} 
+                    onChange={(e) => {
+                      setCourseTitle(e.target.value);
+                      setSubject(e.target.value);
+                    }}
+                    placeholder="Physics I: Mechanics & Thermodynamics"
+                  />
+                </div>
+              </div>
+
+              {/* MULTI-SET ANTI-CHEATING CONFIGURATION (COMMON FOR DESCRIPTIVE & MCQ) */}
+              <div className="md:col-span-2" style={{ padding: '18px', background: 'var(--bg-secondary)', borderRadius: '12px', border: '1.5px solid var(--accent-primary)', position: 'relative' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <ShieldCheck size={20} style={{ color: 'var(--accent-primary)' }} />
+                    <label style={{ fontSize: '0.95rem', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>
+                      Anti-Cheating Multi-Set Generation & Set Code Definition
                     </label>
-                    <div className="flex gap-2">
-                      <input 
-                        type="text" 
-                        className="input-field" 
-                        style={{ width: '130px' }}
-                        value={courseCode} 
-                        onChange={(e) => setCourseCode(e.target.value)}
-                        placeholder="540229"
-                      />
-                      <input 
-                        type="text" 
-                        className="input-field" 
-                        style={{ flex: 1 }}
-                        value={courseTitle} 
-                        onChange={(e) => {
-                          setCourseTitle(e.target.value);
-                          setSubject(e.target.value);
+                  </div>
+                  <span className="badge badge-primary" style={{ fontSize: '0.75rem', padding: '3px 10px' }}>
+                    30% Common / 70% Distinct Rule
+                  </span>
+                </div>
+
+                <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', margin: '0 0 14px 0', lineHeight: '1.5' }}>
+                  Generate multiple different sets of question papers for the same examination to prevent cheating in the exam hall. Each student can be allocated a different set.
+                </p>
+
+                {/* Number of Parallel Sets to Generate */}
+                <div style={{ marginBottom: '14px' }}>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.82rem', fontWeight: '600', color: 'var(--text-primary)' }}>
+                    Select Number of Parallel Exam Sets to Generate:
+                  </label>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    {[
+                      { count: 2, label: '2 Sets', desc: 'Set A & Set B' },
+                      { count: 3, label: '3 Sets', desc: 'Set A, Set B & Set C' },
+                      { count: 4, label: '4 Sets', desc: 'Set A, B, C & D (Standard)' },
+                      { count: 5, label: '5 Sets', desc: 'Set A, B, C, D & E (Maximum)' }
+                    ].map(item => (
+                      <div
+                        key={item.count}
+                        onClick={() => handleExamSetsCountChange(item.count)}
+                        style={{
+                          padding: '10px 12px',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          border: `2px solid ${examSetsCount === item.count ? 'var(--accent-primary)' : 'var(--border-color)'}`,
+                          background: examSetsCount === item.count ? 'rgba(99, 102, 241, 0.12)' : 'var(--bg-primary)',
+                          transition: 'all 0.15s',
+                          textAlign: 'center'
                         }}
-                        placeholder="Digital Image Processing"
-                      />
-                    </div>
+                      >
+                        <div style={{ fontWeight: '700', fontSize: '0.95rem', color: examSetsCount === item.count ? 'var(--accent-primary)' : 'var(--text-primary)' }}>
+                          {item.label}
+                        </div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                          {item.desc}
+                        </div>
+                      </div>
+                    ))}
                   </div>
+                </div>
 
-                  {/* MULTI-SET ANTI-CHEATING CONFIGURATION */}
-                  <div className="md:col-span-2" style={{ padding: '18px', background: 'var(--bg-secondary)', borderRadius: '12px', border: '1.5px solid var(--accent-primary)', position: 'relative' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <ShieldCheck size={20} style={{ color: 'var(--accent-primary)' }} />
-                        <label style={{ fontSize: '0.95rem', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>
-                          Anti-Cheating Multi-Set Generation & Set Code Definition
-                        </label>
+                {/* Define Set Names (Question Paper Set Codes) */}
+                <div style={{ marginBottom: '14px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.82rem', fontWeight: '600', color: 'var(--text-primary)' }}>
+                    Define Custom Name / Code for Each Question Set:
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                    {examSetNames.slice(0, examSetsCount).map((sName, idx) => (
+                      <div key={idx} style={{ background: 'var(--bg-primary)', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                        <div style={{ fontSize: '0.72rem', fontWeight: '700', color: 'var(--accent-primary)', marginBottom: '4px' }}>
+                          Set #{idx + 1} Code
+                        </div>
+                        <input
+                          type="text"
+                          className="input-field"
+                          value={sName}
+                          onChange={(e) => handleExamSetNameChange(idx, e.target.value)}
+                          placeholder={`e.g. SET: ${String.fromCharCode(65 + idx)}`}
+                          style={{ fontWeight: '700', textAlign: 'center', padding: '6px 8px' }}
+                        />
                       </div>
-                      <span className="badge badge-primary" style={{ fontSize: '0.75rem', padding: '3px 10px' }}>
-                        30% Common / 70% Distinct Rule
-                      </span>
-                    </div>
+                    ))}
+                  </div>
+                </div>
 
-                    <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', margin: '0 0 14px 0', lineHeight: '1.5' }}>
-                      Generate multiple different sets of question papers for the same examination to prevent cheating in the exam hall. Each student can be allocated a different set.
-                    </p>
-
-                    {/* Number of Parallel Sets to Generate */}
-                    <div style={{ marginBottom: '14px' }}>
-                      <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.82rem', fontWeight: '600', color: 'var(--text-primary)' }}>
-                        Select Number of Parallel Exam Sets to Generate:
-                      </label>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                        {[
-                          { count: 2, label: '2 Sets', desc: 'Set A & Set B' },
-                          { count: 3, label: '3 Sets', desc: 'Set A, Set B & Set C' },
-                          { count: 4, label: '4 Sets', desc: 'Set A, B, C & D (Standard)' },
-                          { count: 5, label: '5 Sets', desc: 'Set A, B, C, D & E (Maximum)' }
-                        ].map(item => (
-                          <div
-                            key={item.count}
-                            onClick={() => handleExamSetsCountChange(item.count)}
-                            style={{
-                              padding: '10px 12px',
-                              borderRadius: '8px',
-                              cursor: 'pointer',
-                              border: `2px solid ${examSetsCount === item.count ? 'var(--accent-primary)' : 'var(--border-color)'}`,
-                              background: examSetsCount === item.count ? 'rgba(99, 102, 241, 0.12)' : 'var(--bg-primary)',
-                              transition: 'all 0.15s',
-                              textAlign: 'center'
-                            }}
-                          >
-                            <div style={{ fontWeight: '700', fontSize: '0.95rem', color: examSetsCount === item.count ? 'var(--accent-primary)' : 'var(--text-primary)' }}>
-                              {item.label}
-                            </div>
-                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                              {item.desc}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Define Set Names (Question Paper Set Codes) */}
-                    <div style={{ marginBottom: '14px' }}>
-                      <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.82rem', fontWeight: '600', color: 'var(--text-primary)' }}>
-                        Define Custom Name / Code for Each Question Set:
-                      </label>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-                        {examSetNames.slice(0, examSetsCount).map((sName, idx) => (
-                          <div key={idx} style={{ background: 'var(--bg-primary)', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                            <div style={{ fontSize: '0.72rem', fontWeight: '700', color: 'var(--accent-primary)', marginBottom: '4px' }}>
-                              Set #{idx + 1} Code
-                            </div>
-                            <input
-                              type="text"
-                              className="input-field"
-                              value={sName}
-                              onChange={(e) => handleExamSetNameChange(idx, e.target.value)}
-                              placeholder={`e.g. SET: ${String.fromCharCode(65 + idx)}`}
-                              style={{ fontWeight: '700', textAlign: 'center', padding: '6px 8px' }}
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* 30% Common / 70% Distinct Anti-Copying Explanatory Notice */}
-                    <div style={{ padding: '10px 14px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.25)', fontSize: '0.8rem', lineHeight: '1.45', color: 'var(--text-secondary)' }}>
-                      <strong style={{ color: '#10b981' }}>🛡️ Anti-Cheating 30% Similarity / 70% Non-Similarity Protocol:</strong>
-                      <div style={{ marginTop: '4px' }}>
+                {/* 30% Common / 70% Distinct Anti-Copying Explanatory Notice */}
+                <div style={{ padding: '10px 14px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.25)', fontSize: '0.8rem', lineHeight: '1.45', color: 'var(--text-secondary)' }}>
+                  <strong style={{ color: '#10b981' }}>🛡️ Anti-Cheating 30% Similarity / 70% Non-Similarity Protocol:</strong>
+                  <div style={{ marginTop: '4px' }}>
+                    {generationType === 'mcq' ? (
+                      <>
+                        • <strong>30% Common Anchor MCQs:</strong> Baseline questions shared across all {examSetsCount} sets for consistent evaluation.<br />
+                        • <strong>70% Distinct Variant MCQs & Shuffled Ordering:</strong> Varied questions, alternative distractors, and randomized problem choices so students seated side-by-side cannot copy answers.
+                      </>
+                    ) : (
+                      <>
                         • <strong>30% Common Anchor:</strong> Sub-question <strong>(a)</strong> is identical across all {examSetsCount} sets so all students share a common foundational benchmark for grading.<br />
                         • <strong>70% Distinct Variants:</strong> Sub-questions <strong>(b, c, d, e)</strong> and all <strong>math matrices</strong> will use uniquely varied numbers, problems, and parameters across each set so students seated side-by-side cannot copy answers.
-                      </div>
-                    </div>
+                      </>
+                    )}
                   </div>
+                </div>
+              </div>
 
+              {/* Descriptive Only: Question Paper Notice & Sub-Questions */}
+              {generationType === 'descriptive' && (
+                <>
                   {/* Question Paper Notice / Instructions */}
                   <div className="md:col-span-2">
                     <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600' }}>
@@ -1175,64 +1235,6 @@ export default function AIExamGenerator() {
                         </div>
                       ))}
                     </div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  {/* Entrance MCQ Title */}
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600' }}>
-                      Exam Paper Title (Standard Format)
-                    </label>
-                    <input 
-                      type="text" 
-                      className="input-field" 
-                      value={examTitle} 
-                      onChange={(e) => setExamTitle(e.target.value)}
-                      placeholder="e.g. ENTRANCE MODEL QUESTION (A)"
-                    />
-                  </div>
-
-                  {/* Sub-header / Institution Name */}
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600' }}>
-                      Institution / Sub-Header
-                    </label>
-                    <input 
-                      type="text" 
-                      className="input-field" 
-                      value={institution} 
-                      onChange={(e) => setInstitution(e.target.value)}
-                      placeholder="e.g. FACEBOOK:DHANRAUT or QGENIX UNIVERSITY"
-                    />
-                  </div>
-
-                  {/* Subject Tag */}
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600' }}>
-                      Subject (Header Block)
-                    </label>
-                    <input 
-                      type="text" 
-                      className="input-field" 
-                      value={subject} 
-                      onChange={(e) => setSubject(e.target.value)}
-                      placeholder="e.g. ENGLISH, PHYSICS, MATHEMATICS"
-                    />
-                  </div>
-
-                  {/* Course Code */}
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600' }}>
-                      Course Code & Title
-                    </label>
-                    <input 
-                      type="text" 
-                      className="input-field" 
-                      value={courseCode} 
-                      onChange={(e) => setCourseCode(e.target.value)}
-                      placeholder="e.g. ENG-101 (English Grammar)"
-                    />
                   </div>
                 </>
               )}
@@ -1664,10 +1666,7 @@ export default function AIExamGenerator() {
             {/* =========================================================================
                 PAPER PREVIEW: DESCRIPTIVE (DIIT STYLE) VS ENTRANCE MODEL MCQ
                 ========================================================================= */}
-            {generationType === 'descriptive' ? (
-              <>
-                {/* MULTI-SET REVIEW TABS & EXPORT TOOLBAR */}
-                {generatedExamSets && generatedExamSets.length > 0 && (
+            {generatedExamSets && generatedExamSets.length > 0 && (
                   <div style={{ 
                     marginBottom: '20px', 
                     padding: '16px 20px', 
@@ -1741,7 +1740,7 @@ export default function AIExamGenerator() {
                               <CheckCircle2 size={16} />
                             ) : (
                               <span style={{ fontSize: '0.72rem', opacity: 0.75, padding: '1px 6px', borderRadius: '4px', background: 'var(--bg-secondary)' }}>
-                                {(s.question_sets || []).length} Qs
+                                {(generationType === 'descriptive' ? (s.question_sets || []).length : (s.questions || []).length)} {generationType === 'descriptive' ? 'Groups' : 'MCQs'}
                               </span>
                             )}
                           </button>
@@ -1763,11 +1762,19 @@ export default function AIExamGenerator() {
                     }}>
                       <ShieldCheck size={16} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />
                       <span>
-                        Currently displaying <strong>{generatedExamSets[activeSetIdx]?.set_name}</strong>. Sub-question <strong>(a)</strong> is the 30% common anchor across all sets for fair grading. Sub-questions <strong>(b, c, d, e)</strong> and math matrices are 70% unique variations to prevent adjacent cheating.
+                        {generationType === 'descriptive' ? (
+                          <>Currently displaying <strong>{generatedExamSets[activeSetIdx]?.set_name}</strong>. Sub-question <strong>(a)</strong> is the 30% common anchor across all sets for fair grading. Sub-questions <strong>(b, c, d, e)</strong> and math matrices are 70% unique variations to prevent adjacent cheating.</>
+                        ) : (
+                          <>Currently displaying <strong>{generatedExamSets[activeSetIdx]?.set_name}</strong>. 30% common anchor MCQs are shared across all sets for fair baseline grading, while 70% are distinct variations and shuffled options to prevent adjacent examinees from copying.</>
+                        )}
                       </span>
                     </div>
                   </div>
                 )}
+
+
+            {generationType === 'descriptive' ? (
+              <>
 
                 {/* ======= AUTHENTIC DIIT MIDTERM EXAMINATION PAPER PREVIEW ======= */}
                 <div 
@@ -2007,14 +2014,26 @@ export default function AIExamGenerator() {
                   border: '1px solid #e2e8f0'
                 }}
               >
+                {/* Top Right Set Badge */}
+                <div style={{ textAlign: 'right', fontWeight: 'bold', fontSize: '1.05rem', marginBottom: '2px', color: '#000000' }}>
+                  [{generatedExamSets[activeSetIdx]?.set_name || setName || 'SET: A'}]
+                </div>
+
                 {/* Paper Top Title */}
                 <div style={{ textAlign: 'center', marginBottom: '8px' }}>
-                  <h1 style={{ margin: 0, fontSize: '1.6rem', fontWeight: 'bold', letterSpacing: '1px', textTransform: 'uppercase' }}>
-                    {examTitle}
+                  <h1 style={{ margin: '0 0 4px 0', fontSize: '1.5rem', fontWeight: 'bold', letterSpacing: '0.5px' }}>
+                    {institution || 'DAFFODIL INSTITUTE OF IT'}
                   </h1>
-                  <div style={{ fontSize: '1.15rem', fontWeight: 'bold', marginTop: '4px', letterSpacing: '0.5px' }}>
-                    {institution}
-                  </div>
+                  {degreeProgram && (
+                    <h2 style={{ margin: '0 0 3px 0', fontSize: '1.15rem', fontWeight: 'bold' }}>
+                      {degreeProgram}
+                    </h2>
+                  )}
+                  {semesterExam && (
+                    <div style={{ fontSize: '1.05rem', fontWeight: 'bold', margin: '0 0 3px 0' }}>
+                      {semesterExam}
+                    </div>
+                  )}
                 </div>
 
                 {/* Solid Black Subject Badge */}
@@ -2028,13 +2047,13 @@ export default function AIExamGenerator() {
                     fontWeight: 'bold', 
                     letterSpacing: '1px' 
                   }}>
-                    {subject}
+                    {courseCode ? `${courseCode}: ${courseTitle || subject}` : (courseTitle || subject)}
                   </span>
                 </div>
 
                 {/* Metadata Line */}
                 <div style={{ textAlign: 'center', fontSize: '0.85rem', color: '#475569', marginBottom: '10px' }}>
-                  Course: {courseCode} • Time: {timeAllowed} • Full Marks: {totalMarks}
+                  Time: {timeAllowed} • Full Marks: {totalMarks}
                 </div>
 
                 {/* Double Horizontal Rule */}

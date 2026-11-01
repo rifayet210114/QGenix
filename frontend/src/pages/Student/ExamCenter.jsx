@@ -19,8 +19,12 @@ import {
   FileText, Calendar, Clock, Download, AlertTriangle, ShieldCheck, 
   CheckCircle, RefreshCw, Info, UserCheck, BookOpen, Users, Bell, Award, Layers
 } from 'lucide-react'; // Lucide icons library
-import Card from '../../components/Card'; // Custom glass card wrapper
-import { downloadUniversitySubjectiveExamPDF } from '../../utils/entranceModelQuestionPdf';
+import Card from '../../components/Card';
+import { useAdminData } from '../../contexts/AdminDataContext'; // Custom glass card wrapper
+import { 
+  downloadUniversitySubjectiveExamPDF, 
+  downloadEntranceModelQuestionPDF 
+} from '../../utils/entranceModelQuestionPdf';
 
 // ----------------------------------------------------------------------------
 // 1. MOCK DATA: DETAILED EXAM ROUTINES DATABASE
@@ -121,6 +125,22 @@ export default function ExamCenter() {
   // Download assigned official exam paper as PDF
   const handleDownloadAssignedExamPDF = () => {
     if (!assignedExam) return;
+    if (assignedExam.generation_type === 'mcq') {
+      downloadEntranceModelQuestionPDF({
+        examTitle: assignedExam.exam_title || 'Entrance Model Examination',
+        institution: assignedExam.institution || 'DAFFODIL INSTITUTE OF IT',
+        degreeProgram: assignedExam.degree_program || 'B.Sc (Hons) in Computer Science & Engineering',
+        semesterExam: assignedExam.semester_exam || 'Midterm Examination',
+        courseCode: assignedExam.course_code || '',
+        courseTitle: assignedExam.course_title || assignedExam.course || '',
+        setName: assignedExam.assigned_set_name || 'SET: A',
+        questions: assignedExam.questions || [],
+        totalMarks: assignedExam.full_marks || 50,
+        timeAllowed: assignedExam.time_allowed || '60 Minutes',
+        includeAnswerKey: false
+      });
+      return;
+    }
     downloadUniversitySubjectiveExamPDF({
       institution: assignedExam.institution || 'DAFFODIL INSTITUTE OF IT',
       degreeProgram: assignedExam.degree_program || 'B.Sc (Hons) in Computer Science & Engineering',
@@ -144,10 +164,39 @@ export default function ExamCenter() {
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [toastMessage, setToastMessage] = useState(null);
 
-  // Active routine details matching selections
+  const { examSessions = [] } = useAdminData() || {};
+
+  // Active routine details matching selections (prioritizes real DB published sessions)
   const activeRoutine = useMemo(() => {
+    const matchedSession = (examSessions || []).find(s => {
+      const isPub = s.is_published || s.isPublished;
+      if (!isPub) return false;
+      const type = (s.exam_type || s.type || '').toLowerCase();
+      if (activeTab === 'Mid Term' && (type.includes('mid') || type === 'mid term exam')) return true;
+      if (activeTab === 'Internal Final' && type.includes('internal')) return true;
+      return false;
+    });
+
+    if (matchedSession && Array.isArray(matchedSession.routine) && matchedSession.routine.length > 0) {
+      return {
+        title: matchedSession.name || `${matchedSession.semester || ''} ${matchedSession.exam_type || activeTab} Routine`,
+        uploadedBy: 'Office of the Controller of Examinations',
+        uploadDate: matchedSession.startDate || matchedSession.start_date || 'Live',
+        pdfName: `${(matchedSession.name || activeTab).replace(/\s+/g, '_')}_Routine.pdf`,
+        schedule: matchedSession.routine.map(r => ({
+          code: r.course_code || r.code,
+          subject: r.subject_name || r.subject,
+          date: r.date,
+          time: r.time_duration || r.time,
+          duration: r.duration || '2.0 Hours',
+          room: r.room || 'Room 302',
+          status: 'Upcoming'
+        }))
+      };
+    }
+
     return examRoutines[activeTab] || null;
-  }, [activeTab]);
+  }, [activeTab, examSessions]);
 
   // Download controller
   const triggerPdfDownload = (pdfName) => {
@@ -559,7 +608,116 @@ export default function ExamCenter() {
                   </button>
                 </div>
 
-                {/* AUTHENTIC UNIVERSITY DIIT QUESTION PAPER PREVIEW */}
+                {/* AUTHENTIC UNIVERSITY QUESTION PAPER PREVIEW (DESCRIPTIVE OR ENTRANCE MCQ) */}
+                {assignedExam.generation_type === 'mcq' ? (
+                  /* ======= ENTRANCE MODEL MCQ PREVIEW FOR STUDENT'S ASSIGNED SET ======= */
+                  <div 
+                    style={{ 
+                      background: '#ffffff', 
+                      color: '#0f172a',
+                      padding: '36px 40px', 
+                      borderRadius: '8px', 
+                      boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+                      fontFamily: '"Times New Roman", Times, Georgia, serif',
+                      marginBottom: '20px',
+                      border: '1px solid #cbd5e1',
+                      position: 'relative'
+                    }}
+                  >
+                    {/* Top Right Set Badge */}
+                    <div style={{ textAlign: 'right', fontWeight: 'bold', fontSize: '1.1rem', marginBottom: '2px', color: '#000000' }}>
+                      [{assignedExam.assigned_set_name || 'SET: A'}]
+                    </div>
+
+                    {/* Paper Top Title */}
+                    <div style={{ textAlign: 'center', marginBottom: '8px' }}>
+                      <h1 style={{ margin: '0 0 4px 0', fontSize: '1.5rem', fontWeight: 'bold', letterSpacing: '0.5px' }}>
+                        {assignedExam.institution || 'DAFFODIL INSTITUTE OF IT'}
+                      </h1>
+                      {assignedExam.degree_program && (
+                        <h2 style={{ margin: '0 0 3px 0', fontSize: '1.15rem', fontWeight: 'bold' }}>
+                          {assignedExam.degree_program}
+                        </h2>
+                      )}
+                      {assignedExam.semester_exam && (
+                        <div style={{ fontSize: '1.05rem', fontWeight: 'bold', margin: '0 0 3px 0' }}>
+                          {assignedExam.semester_exam}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Solid Black Subject Badge */}
+                    <div style={{ textAlign: 'center', margin: '14px 0' }}>
+                      <span style={{ 
+                        display: 'inline-block', 
+                        background: '#000000', 
+                        color: '#ffffff', 
+                        padding: '4px 24px', 
+                        fontSize: '1.15rem', 
+                        fontWeight: 'bold', 
+                        letterSpacing: '1px' 
+                      }}>
+                        {assignedExam.course_code ? `${assignedExam.course_code}: ${assignedExam.course_title || assignedExam.course}` : (assignedExam.course_title || assignedExam.course)}
+                      </span>
+                    </div>
+
+                    {/* Metadata Line */}
+                    <div style={{ textAlign: 'center', fontSize: '0.85rem', color: '#475569', marginBottom: '10px' }}>
+                      Time: {assignedExam.time_allowed || '60 Minutes'} • Full Marks: {assignedExam.full_marks || 50}
+                    </div>
+
+                    {/* Double Horizontal Rule */}
+                    <div style={{ borderTop: '2px solid #000000', borderBottom: '1px solid #000000', height: '3px', margin: '10px 0 20px 0' }}></div>
+
+                    {/* Instructions */}
+                    <div style={{ fontStyle: 'italic', fontSize: '0.85rem', color: '#64748b', marginBottom: '18px' }}>
+                      Instructions: Read each question carefully. Select the most appropriate option from choices (a, b, c, d). Answer all questions from this designated question set.
+                    </div>
+
+                    {/* Questions List */}
+                    {(!assignedExam.questions || assignedExam.questions.length === 0) ? (
+                      <div style={{ textAlign: 'center', padding: '30px 0', color: '#64748b' }}>
+                        No questions currently loaded in this set.
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                        {assignedExam.questions.map((q, idx) => (
+                          <div 
+                            key={q.id || idx} 
+                            style={{ 
+                              position: 'relative',
+                              padding: '8px 0',
+                              borderBottom: '1px solid #f1f5f9'
+                            }}
+                          >
+                            <div style={{ display: 'flex', gap: '8px', fontSize: '1rem', fontWeight: 'bold', marginBottom: '8px' }}>
+                              <span>{idx + 1}.</span>
+                              <div style={{ flex: 1, fontWeight: '600' }}>{q.question}</div>
+                            </div>
+
+                            {/* Options in 2 Columns matching entrance model format */}
+                            <div 
+                              style={{ 
+                                display: 'grid', 
+                                gridTemplateColumns: '1fr 1fr', 
+                                gap: '6px 24px', 
+                                paddingLeft: '22px',
+                                fontSize: '0.92rem'
+                              }}
+                            >
+                              {['a', 'b', 'c', 'd'].map(optKey => (
+                                <div key={optKey} style={{ display: 'flex', gap: '6px' }}>
+                                  <span style={{ fontWeight: 'bold' }}>({optKey})</span>
+                                  <span>{q.options ? q.options[optKey] : ''}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
                 <div 
                   className="diit-exam-paper-container"
                   style={{ 
@@ -694,6 +852,7 @@ export default function ExamCenter() {
                     </div>
                   )}
                 </div>
+                )}
 
               </div>
             )}

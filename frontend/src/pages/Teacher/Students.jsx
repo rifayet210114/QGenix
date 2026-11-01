@@ -1,312 +1,167 @@
 // ============================================================================
-// Students.jsx — QGenix Teacher Student Roster & Activity Panel
+// Students.jsx — QGenix Teacher Student Directory & Academic Dossier Portal
 // ============================================================================
-// Designed to represent a premium student roster and activity manager for teachers.
-// Features:
-//   1. Profile stats overview cards (Total Enrolled, Active Now, At-Risk Alerts).
-//   2. Real-time active status indicators (pulsing Online, Away, Offline badges).
-//   3. Advanced filter controls (Search, Batch selector, Semester selector).
-//   4. Layout toggles (visual Grid Cards vs detailed Roster Table).
-//   5. Color-coded progress meters showing attendance rates and alerts.
-//   6. Integrated quick-communication feedback loops (floating toast panels).
-//
-// [Bengali Note]:
+// Matches Admin User Directory (admin/users):
+// - 100% Real-Time DB Student Records
+// - Multi-criteria academic filtering (Dept, Batch, Section, Status, Search)
+// - Clean directory table format with student avatars, IDs, emails, CGPA & status
+// - Full Student Academic Dossier & Official Record Modal (Passport photo, 8 Semesters,
+//   Course-wise Attendance table, Exam Results SGPA & scorecard, Guardian & Institutional info)
 // ============================================================================
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Users, Search, SlidersHorizontal, LayoutGrid, List, 
-  Mail, Phone, BookOpen, Clock, AlertTriangle, CheckCircle, 
-  ShieldAlert, Send, Eye, RefreshCw, CheckCircle2, ChevronRight,
-  TrendingUp, Award, Calendar, HelpCircle, X
-} from 'lucide-react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Card from '../../components/Card';
-
-// ----------------------------------------------------------------------------
-// 1. MOCK DATA: STUDENT ROSTER DATABASE
-// ----------------------------------------------------------------------------
-const initialStudentsData = [
-  {
-    id: 'UG02-112',
-    name: 'Rafayel Ahmed',
-    email: 'rafayel@qgenix.edu',
-    semester: '5th Semester',
-    batch: 'Batch 21',
-    attendance: 68.5,
-    grade: 'B',
-    status: 'active', // active, away, offline
-    courses: ['CSE-301', 'CSE-304'],
-    risk: 'Critical',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face',
-    attendanceDetails: { present: 19, absent: 7, late: 2, total: 28 },
-    results: [
-      { term: 'Midterm Exam', score: '72/100', weight: '30%', grade: 'B-' },
-      { term: 'Quiz 1: Data Structures', score: '13/20', weight: '10%', grade: 'C+' },
-      { term: 'Quiz 2: Graph Algorithms', score: '15/20', weight: '10%', grade: 'B' },
-      { term: 'Assignment 1: Algorithms Practice', score: '38/50', weight: '15%', grade: 'B' },
-      { term: 'Assignment 2: CI/CD Pipeline Lab', score: '42/50', weight: '15%', grade: 'B+' },
-      { term: 'Class Performance Evaluation', score: '82%', weight: '10%', grade: 'B' }
-    ]
-  },
-  {
-    id: 'UG02-145',
-    name: 'Noshin Tasnim',
-    email: 'noshin.t@qgenix.edu',
-    semester: '5th Semester',
-    batch: 'Batch 21',
-    attendance: 72.0,
-    grade: 'A',
-    status: 'active',
-    courses: ['CSE-301', 'CSE-304'],
-    risk: 'Medium',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop&crop=face',
-    attendanceDetails: { present: 20, absent: 6, late: 2, total: 28 },
-    results: [
-      { term: 'Midterm Exam', score: '88/100', weight: '30%', grade: 'A' },
-      { term: 'Quiz 1: Data Structures', score: '18/20', weight: '10%', grade: 'A' },
-      { term: 'Quiz 2: Graph Algorithms', score: '17/20', weight: '10%', grade: 'A-' },
-      { term: 'Assignment 1: Algorithms Practice', score: '45/50', weight: '15%', grade: 'A' },
-      { term: 'Assignment 2: CI/CD Pipeline Lab', score: '44/50', weight: '15%', grade: 'A' },
-      { term: 'Class Performance Evaluation', score: '92%', weight: '10%', grade: 'A+' }
-    ]
-  },
-  {
-    id: 'UG02-098',
-    name: 'Sajjad Karim',
-    email: 'sajjad.k@qgenix.edu',
-    semester: '5th Semester',
-    batch: 'Batch 21',
-    attendance: 74.2,
-    grade: 'B+',
-    status: 'away',
-    courses: ['CSE-301', 'CSE-304'],
-    risk: 'Medium',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop&crop=face',
-    attendanceDetails: { present: 21, absent: 5, late: 2, total: 28 },
-    results: [
-      { term: 'Midterm Exam', score: '80/100', weight: '30%', grade: 'B' },
-      { term: 'Quiz 1: Data Structures', score: '16/20', weight: '10%', grade: 'B' },
-      { term: 'Quiz 2: Graph Algorithms', score: '15/20', weight: '10%', grade: 'B' },
-      { term: 'Assignment 1: Algorithms Practice', score: '40/50', weight: '15%', grade: 'B' },
-      { term: 'Assignment 2: CI/CD Pipeline Lab', score: '41/50', weight: '15%', grade: 'B+' },
-      { term: 'Class Performance Evaluation', score: '85%', weight: '10%', grade: 'B+' }
-    ]
-  },
-  {
-    id: 'UG02-210',
-    name: 'Maria Sultana',
-    email: 'maria.s@qgenix.edu',
-    semester: '5th Semester',
-    batch: 'Batch 21',
-    attendance: 62.0,
-    grade: 'C',
-    status: 'active',
-    courses: ['CSE-301'],
-    risk: 'Critical',
-    avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face',
-    attendanceDetails: { present: 17, absent: 9, late: 2, total: 28 },
-    results: [
-      { term: 'Midterm Exam', score: '62/100', weight: '30%', grade: 'C' },
-      { term: 'Quiz 1: Data Structures', score: '12/20', weight: '10%', grade: 'C-' },
-      { term: 'Quiz 2: Graph Algorithms', score: '14/20', weight: '10%', grade: 'C' },
-      { term: 'Assignment 1: Algorithms Practice', score: '35/50', weight: '15%', grade: 'C+' },
-      { term: 'Assignment 2: CI/CD Pipeline Lab', score: '32/50', weight: '15%', grade: 'C' },
-      { term: 'Class Performance Evaluation', score: '70%', weight: '10%', grade: 'C' }
-    ]
-  },
-  {
-    id: 'UG02-005',
-    name: 'Sadia Rahman',
-    email: 'sadia.r@qgenix.edu',
-    semester: '6th Semester',
-    batch: 'Batch 20',
-    attendance: 92.5,
-    grade: 'A+',
-    status: 'active',
-    courses: ['CSE-312'],
-    risk: 'Low',
-    avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&h=150&fit=crop&crop=face',
-    attendanceDetails: { present: 26, absent: 1, late: 1, total: 28 },
-    results: [
-      { term: 'Midterm Exam', score: '96/100', weight: '30%', grade: 'A+' },
-      { term: 'Quiz 1: Artificial Intelligence', score: '19/20', weight: '10%', grade: 'A+' },
-      { term: 'Quiz 2: Heuristic Search', score: '20/20', weight: '10%', grade: 'A+' },
-      { term: 'Assignment 1: A* Implementation', score: '48/50', weight: '15%', grade: 'A+' },
-      { term: 'Assignment 2: Neural Net Foundations', score: '49/50', weight: '15%', grade: 'A+' },
-      { term: 'Class Performance Evaluation', score: '98%', weight: '10%', grade: 'A+' }
-    ]
-  },
-  {
-    id: 'UG02-119',
-    name: 'Mahmudul Hasan',
-    email: 'mahmudul@qgenix.edu',
-    semester: '6th Semester',
-    batch: 'Batch 20',
-    attendance: 95.0,
-    grade: 'A+',
-    status: 'offline',
-    courses: ['CSE-312'],
-    risk: 'Low',
-    avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&h=150&fit=crop&crop=face',
-    attendanceDetails: { present: 27, absent: 1, late: 0, total: 28 },
-    results: [
-      { term: 'Midterm Exam', score: '95/100', weight: '30%', grade: 'A+' },
-      { term: 'Quiz 1: Artificial Intelligence', score: '18/20', weight: '10%', grade: 'A' },
-      { term: 'Quiz 2: Heuristic Search', score: '19/20', weight: '10%', grade: 'A+' },
-      { term: 'Assignment 1: A* Implementation', score: '47/50', weight: '15%', grade: 'A' },
-      { term: 'Assignment 2: Neural Net Foundations', score: '48/50', weight: '15%', grade: 'A+' },
-      { term: 'Class Performance Evaluation', score: '96%', weight: '10%', grade: 'A+' }
-    ]
-  },
-  {
-    id: 'UG02-132',
-    name: 'Rafiul Islam',
-    email: 'rafiul@qgenix.edu',
-    semester: '5th Semester',
-    batch: 'Batch 21',
-    attendance: 88.0,
-    grade: 'A',
-    status: 'active',
-    courses: ['CSE-301', 'CSE-304'],
-    risk: 'Low',
-    avatar: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=150&h=150&fit=crop&crop=face',
-    attendanceDetails: { present: 25, absent: 2, late: 1, total: 28 },
-    results: [
-      { term: 'Midterm Exam', score: '91/100', weight: '30%', grade: 'A' },
-      { term: 'Quiz 1: Data Structures', score: '17/20', weight: '10%', grade: 'A-' },
-      { term: 'Quiz 2: Graph Algorithms', score: '18/20', weight: '10%', grade: 'A' },
-      { term: 'Assignment 1: Algorithms Practice', score: '46/50', weight: '15%', grade: 'A' },
-      { term: 'Assignment 2: CI/CD Pipeline Lab', score: '45/50', weight: '15%', grade: 'A' },
-      { term: 'Class Performance Evaluation', score: '94%', weight: '10%', grade: 'A+' }
-    ]
-  },
-  {
-    id: 'UG02-167',
-    name: 'Alice Johnson',
-    email: 'alice.j@qgenix.edu',
-    semester: '4th Semester',
-    batch: 'Batch 22',
-    attendance: 96.0,
-    grade: 'A+',
-    status: 'active',
-    courses: ['CSE-201'],
-    risk: 'Low',
-    avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&h=150&fit=crop&crop=face',
-    attendanceDetails: { present: 27, absent: 1, late: 0, total: 28 },
-    results: [
-      { term: 'Midterm Exam', score: '97/100', weight: '30%', grade: 'A+' },
-      { term: 'Quiz 1: Object Oriented Prog', score: '20/20', weight: '10%', grade: 'A+' },
-      { term: 'Quiz 2: Java Principles', score: '19/20', weight: '10%', grade: 'A+' },
-      { term: 'Assignment 1: Polymorphism Slides', score: '49/50', weight: '15%', grade: 'A+' },
-      { term: 'Assignment 2: Design Patterns', score: '50/50', weight: '15%', grade: 'A+' },
-      { term: 'Class Performance Evaluation', score: '98%', weight: '10%', grade: 'A+' }
-    ]
-  },
-  {
-    id: 'UG02-188',
-    name: 'Bob Smith',
-    email: 'bob.s@qgenix.edu',
-    semester: '4th Semester',
-    batch: 'Batch 22',
-    attendance: 78.0,
-    grade: 'B',
-    status: 'offline',
-    courses: ['CSE-201'],
-    risk: 'Low',
-    avatar: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150&h=150&fit=crop&crop=face',
-    attendanceDetails: { present: 22, absent: 5, late: 1, total: 28 },
-    results: [
-      { term: 'Midterm Exam', score: '82/100', weight: '30%', grade: 'B' },
-      { term: 'Quiz 1: Object Oriented Prog', score: '15/20', weight: '10%', grade: 'B' },
-      { term: 'Quiz 2: Java Principles', score: '14/20', weight: '10%', grade: 'B-' },
-      { term: 'Assignment 1: Polymorphism Slides', score: '38/50', weight: '15%', grade: 'B' },
-      { term: 'Assignment 2: Design Patterns', score: '42/50', weight: '15%', grade: 'B+' },
-      { term: 'Class Performance Evaluation', score: '80%', weight: '10%', grade: 'B' }
-    ]
-  },
-  {
-    id: 'UG02-192',
-    name: 'Charlie Brown',
-    email: 'charlie.b@qgenix.edu',
-    semester: '4th Semester',
-    batch: 'Batch 22',
-    attendance: 82.0,
-    grade: 'A',
-    status: 'away',
-    courses: ['CSE-201'],
-    risk: 'Low',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&h=150&fit=crop&crop=face',
-    attendanceDetails: { present: 23, absent: 4, late: 1, total: 28 },
-    results: [
-      { term: 'Midterm Exam', score: '90/100', weight: '30%', grade: 'A-' },
-      { term: 'Quiz 1: Object Oriented Prog', score: '17/20', weight: '10%', grade: 'A-' },
-      { term: 'Quiz 2: Java Principles', score: '18/20', weight: '10%', grade: 'A' },
-      { term: 'Assignment 1: Polymorphism Slides', score: '43/50', weight: '15%', grade: 'A-' },
-      { term: 'Assignment 2: Design Patterns', score: '45/50', weight: '15%', grade: 'A' },
-      { term: 'Class Performance Evaluation', score: '88%', weight: '10%', grade: 'A' }
-    ]
-  }
-];
+import { useAdminData } from '../../contexts/AdminDataContext';
+import { 
+  Users, 
+  GraduationCap, 
+  Search, 
+  CheckCircle2, 
+  X, 
+  Eye, 
+  Printer, 
+  Calendar, 
+  Award, 
+  Phone, 
+  FileText, 
+  Filter, 
+  RotateCcw,
+  Lock,
+  ZoomIn,
+  Clock,
+  BookOpen,
+  Download,
+  AlertTriangle,
+  ChevronRight
+} from 'lucide-react';
+import { getStudentDetailedRecord } from '../../utils/studentAcademicRecords';
 
 export default function TeacherStudents() {
-  const [isLightMode, setIsLightMode] = useState(document.body.classList.contains('light-mode'));
-  
-  useEffect(() => {
-    const observer = new MutationObserver(() => {
-      setIsLightMode(document.body.classList.contains('light-mode'));
-    });
-    observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
-    return () => observer.disconnect();
-  }, []);
+  const { 
+    students = [], 
+    batches = [], 
+    departments = [], 
+    attendances = [] 
+  } = useAdminData() || {};
 
-  // UI States
-  const [semesterFilter, setSemesterFilter] = useState('All');
-  const [batchFilter, setBatchFilter] = useState('All');
+  // Search & Filter States (Identical to admin/users)
   const [searchQuery, setSearchQuery] = useState('');
-  const [viewMode, setViewMode] = useState('grid'); // grid or table
-  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [studentDeptFilter, setStudentDeptFilter] = useState('ALL');
+  const [studentBatchFilter, setStudentBatchFilter] = useState('ALL');
+  const [studentSectionFilter, setStudentSectionFilter] = useState('ALL');
+  const [studentStatusFilter, setStudentStatusFilter] = useState('ALL');
 
-  // Toast notifications
-  const [toastMessage, setToastMessage] = useState(null);
-  const triggerToast = (msg) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3000);
+  // Modal States
+  const [viewingStudent, setViewingStudent] = useState(null);
+  const [activeSemIndex, setActiveSemIndex] = useState(0);
+  const [studentCardTab, setStudentCardTab] = useState('attendance'); // 'attendance' | 'results' | 'profile'
+  const [previewingPhoto, setPreviewingPhoto] = useState(null);
+
+  // Keyboard shortcut: close modal on ESC
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (previewingPhoto) setPreviewingPhoto(null);
+        else if (viewingStudent) setViewingStudent(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [viewingStudent, previewingPhoto]);
+
+  // Batch & Section matching helpers (Identical to admin/users)
+  const matchesBatch = (itemBatch, filterBatch) => {
+    if (!filterBatch || filterBatch === 'ALL') return true;
+    if (!itemBatch) return false;
+    const bClean = String(itemBatch).toLowerCase().trim();
+    const fClean = String(filterBatch).toLowerCase().trim();
+    if (bClean === fClean) return true;
+    const bDigits = bClean.replace(/\D/g, '');
+    const fDigits = fClean.replace(/\D/g, '');
+    return (bDigits && fDigits && (bDigits === fDigits || bClean.includes(fClean) || fClean.includes(bClean)));
   };
 
-  // Filter students based on UI selections
-  const filteredStudents = useMemo(() => {
-    return initialStudentsData.filter(student => {
-      const matchesSemester = semesterFilter === 'All' || student.semester === semesterFilter;
-      const matchesBatch = batchFilter === 'All' || student.batch === batchFilter;
-      const matchesSearch = student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                            student.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                            student.email.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesSemester && matchesBatch && matchesSearch;
-    });
-  }, [semesterFilter, batchFilter, searchQuery]);
+  const matchesSection = (itemSection, filterSection) => {
+    if (!filterSection || filterSection === 'ALL') return true;
+    if (!itemSection) return false;
+    const sClean = String(itemSection).replace(/^(sec|section)\s*/i, '').toLowerCase().trim();
+    const fClean = String(filterSection).replace(/^(sec|section)\s*/i, '').toLowerCase().trim();
+    return sClean === fClean || sClean.includes(fClean) || fClean.includes(sClean);
+  };
 
-  // Compute analytics
-  const statistics = useMemo(() => {
-    const total = filteredStudents.length;
-    const active = filteredStudents.filter(s => s.status === 'active').length;
-    const atRisk = filteredStudents.filter(s => s.attendance < 75.0).length;
-    return { total, active, atRisk };
-  }, [filteredStudents]);
+  // Distinct Filter Options
+  const availableStudentDepts = useMemo(() => Array.from(new Set([
+    ...(departments || []).map(d => d.code || d.name),
+    ...(students || []).map(s => s.dept || s.department)
+  ].filter(Boolean))).sort(), [departments, students]);
+
+  const availableStudentBatches = useMemo(() => Array.from(new Set([
+    ...(batches || []).map(b => b.name),
+    ...(students || []).map(s => s.batch)
+  ].filter(Boolean))).sort(), [batches, students]);
+
+  const availableStudentSections = useMemo(() => Array.from(new Set([
+    'A', 'B', 'C', 'D',
+    ...(students || []).map(s => (s.section || '').replace(/^(sec|section)\s*/i, '').trim())
+  ].filter(Boolean))).sort(), [students]);
+
+  // Filtered Students List
+  const filteredStudents = useMemo(() => {
+    return (students || []).filter(s => {
+      // 1. Text Search Query (ID, Name, Email, Dept, Batch, Section)
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const sId = (s.id || s.regNo || '').toLowerCase();
+        const sName = (s.name || '').toLowerCase();
+        const sEmail = (s.email || '').toLowerCase();
+        const sDept = (s.dept || s.department || '').toLowerCase();
+        const sBatch = (s.batch || '').toLowerCase();
+        const sSec = (s.section || '').toLowerCase();
+        const matchSearch = sId.includes(q) || sName.includes(q) || sEmail.includes(q) || sDept.includes(q) || sBatch.includes(q) || sSec.includes(q);
+        if (!matchSearch) return false;
+      }
+
+      // 2. Department Filter
+      if (studentDeptFilter !== 'ALL') {
+        const sDept = (s.dept || s.department || '').toLowerCase().trim();
+        const fDept = studentDeptFilter.toLowerCase().trim();
+        if (sDept !== fDept) return false;
+      }
+
+      // 3. Batch Filter
+      if (!matchesBatch(s.batch, studentBatchFilter)) return false;
+
+      // 4. Section Filter
+      if (!matchesSection(s.section, studentSectionFilter)) return false;
+
+      // 5. Status Filter
+      if (studentStatusFilter !== 'ALL' && s.status !== studentStatusFilter) return false;
+
+      return true;
+    });
+  }, [students, searchQuery, studentDeptFilter, studentBatchFilter, studentSectionFilter, studentStatusFilter]);
+
+  // Open Student Details Dossier Modal
+  const handleOpenStudentDetails = useCallback((student) => {
+    const detailedData = getStudentDetailedRecord(student, attendances);
+    setViewingStudent(detailedData);
+    setActiveSemIndex(detailedData.activeSemesterIndex !== undefined ? detailedData.activeSemesterIndex : 0);
+    setStudentCardTab('attendance');
+  }, [attendances]);
+
+
 
   return (
     <div className="flex-col gap-6 w-full relative z-10" style={{ display: 'flex' }}>
       
-      {/* =======================================================================
-         PAGE STYLES OVERRIDES (LIQUID GLASSMORPHISM AESTHETICS)
-         ======================================================================= */}
+      {/* Styles */}
       <style>{`
         .glass-card-students {
           position: relative;
           background: linear-gradient(
             135deg,
-            rgba(10, 20, 42, 0.38) 0%,
-            rgba(6, 12, 28, 0.48) 100%
+            rgba(10, 20, 42, 0.42) 0%,
+            rgba(6, 12, 28, 0.52) 100%
           ) !important;
           border: 1px solid rgba(255, 255, 255, 0.12) !important;
           border-radius: 20px !important;
@@ -315,809 +170,1107 @@ export default function TeacherStudents() {
           box-shadow:
             inset 0 1.5px 0   rgba(255, 255, 255, 0.14),
             inset 0 12px 24px rgba(255, 255, 255, 0.02),
-            0 8px 32px -8px   rgba(0, 0, 0, 0.4) !important;
-          transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.4s cubic-bezier(0.25, 1, 0.5, 1);
-        }
-
-        .glass-card-students:hover {
-          transform: translateY(-3px) !important;
-          box-shadow:
-            inset 0 1.5px 0   rgba(255, 255, 255, 0.20),
-            0 16px 40px -12px rgba(0, 0, 0, 0.55),
-            0 0 25px -5px     rgba(139, 92, 246, 0.15) !important;
+            0 8px 32px -8px   rgba(0, 0, 0, 0.45) !important;
+          transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
 
         body.light-mode .glass-card-students {
-          background: rgba(255, 255, 255, 0.28) !important;
+          background: rgba(255, 255, 255, 0.85) !important;
           border: 1px solid rgba(0, 0, 0, 0.08) !important;
           box-shadow: 0 8px 30px -10px rgba(100, 160, 220, 0.15) !important;
         }
 
-        body.light-mode .glass-card-students:hover {
-          background: rgba(255, 255, 255, 0.4) !important;
-          box-shadow: 0 12px 40px -10px rgba(100, 160, 220, 0.2) !important;
+        .student-table-row {
+          transition: background 0.15s ease;
         }
 
-        .glow-orb-students-1 {
-          position: absolute;
-          width: 320px;
-          height: 320px;
-          border-radius: 50%;
-          background: radial-gradient(circle, rgba(139, 92, 246, 0.08) 0%, rgba(139, 92, 246, 0) 70%);
-          filter: blur(60px);
-          pointer-events: none;
-          z-index: 0;
+        .student-table-row:hover {
+          background: rgba(139, 92, 246, 0.06);
         }
 
-        .glow-orb-students-2 {
-          position: absolute;
-          width: 300px;
-          height: 300px;
-          border-radius: 50%;
-          background: radial-gradient(circle, rgba(59, 130, 246, 0.06) 0%, rgba(59, 130, 246, 0) 70%);
-          filter: blur(55px);
-          pointer-events: none;
-          z-index: 0;
+        .dossier-photo-overlay {
+          opacity: 0;
+          transition: opacity 0.2s ease;
         }
 
-        /* Pulsing Dot Animations for active/online status */
-        .pulse-active {
-          position: relative;
-          display: inline-block;
-          width: 10px;
-          height: 10px;
-          border-radius: 50%;
-          background-color: var(--accent-success);
-          box-shadow: 0 0 0 rgba(16, 185, 129, 0.4);
-          animation: pulse-green 2s infinite;
-        }
-        @keyframes pulse-green {
-          0% {
-            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
-          }
-          70% {
-            box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
-          }
-          100% {
-            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
-          }
+        .dossier-photo-clickable:hover .dossier-photo-overlay {
+          opacity: 1 !important;
         }
 
-        .status-badge {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          font-size: 0.7rem;
-          font-weight: 700;
-          padding: 3px 8px;
-          border-radius: 9999px;
-          text-transform: uppercase;
-        }
-        .status-active { background: rgba(16, 185, 129, 0.12); color: var(--accent-success); }
-        .status-away { background: rgba(245, 158, 11, 0.12); color: var(--accent-warning); }
-        .status-offline { background: rgba(148, 163, 184, 0.12); color: var(--text-secondary); }
-
-        .attendance-track {
-          width: 100%;
-          background: rgba(255, 255, 255, 0.05);
-          height: 6px;
-          border-radius: 3px;
-          overflow: hidden;
-        }
-
-        body.light-mode .attendance-track {
-          background: rgba(0, 0, 0, 0.05);
-        }
-
-        .avatar-frame {
-          position: relative;
-          width: 48px;
-          height: 48px;
-          border-radius: 50%;
-          background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: white;
-          font-weight: bold;
-          font-size: 1.1rem;
-          box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-        }
-
-        .avatar-img {
-          width: 100%;
-          height: 100%;
-          border-radius: 50%;
-          object-fit: cover;
-        }
-
-        .view-btn {
-          padding: 8px;
-          border-radius: 10px;
-          border: 1px solid var(--border-color);
-          background: transparent;
-          color: var(--text-secondary);
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .view-btn-active {
-          background: var(--accent-primary) !important;
-          color: white !important;
-          border-color: transparent !important;
+        .dossier-photo-clickable:hover {
+          transform: scale(1.02);
+          box-shadow: 0 16px 35px rgba(0, 0, 0, 0.8), 0 0 30px rgba(139, 92, 246, 0.5) !important;
         }
       `}</style>
-
-      {/* Decorative Orbs */}
-      <div className="glow-orb-students-1" style={{ top: '10%', left: '-8%' }} />
-      <div className="glow-orb-students-2" style={{ bottom: '15%', right: '-8%' }} />
 
       {/* =======================================================================
          SECTION 1: PAGE HEADER
          ======================================================================= */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', paddingBottom: '4px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', paddingBottom: '4px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
           <h1 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '2.1rem', fontWeight: 800, letterSpacing: '-0.02em', fontFamily: 'var(--font-heading)' }} className="flex items-center gap-3">
             <Users className="text-violet-500" size={32} />
-            Student Enrollment Roster
+            Student Directory & Academic Dossiers
           </h1>
-          <p style={{ color: 'var(--text-secondary)', margin: '4px 0 0 0', fontSize: '1rem', fontWeight: '500' }}>
-            Monitor enrolled students across your academic courses, check their active status, and track performance records.
+          <p style={{ color: 'var(--text-secondary)', margin: '4px 0 0 0', fontSize: '0.96rem', fontWeight: '500' }}>
+            Inspect student profiles, full attendance breakdown, semester exam results, and official academic records.
           </p>
         </div>
       </div>
 
+
+
       {/* =======================================================================
-         SECTION 2: ANALYTICS OVERVIEW
+         SECTION 3: STUDENT DIRECTORY CARD (Exact layout from admin/users)
          ======================================================================= */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
+      <Card title={`Student Directory (${filteredStudents.length} of ${students.length} Enrolled)`}>
         
-        {/* Total Students */}
-        <div className="glass-card-students" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Total Students Enrolled</span>
-            <div style={{ padding: '8px', borderRadius: '12px', background: 'rgba(99, 102, 241, 0.1)', color: 'var(--accent-primary)' }}>
-              <Users size={20} />
-            </div>
-          </div>
-          <div>
-            <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-heading)' }}>
-              {statistics.total} Students
-            </div>
-            <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'block', marginTop: '4px', fontWeight: 600 }}>
-              Across selected filters
-            </span>
-          </div>
-        </div>
-
-        {/* Active Now */}
-        <div className="glass-card-students" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Active / Online Now</span>
-            <div style={{ padding: '8px', borderRadius: '12px', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--accent-success)' }}>
-              <CheckCircle size={20} />
-            </div>
-          </div>
-          <div>
-            <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--accent-success)', fontFamily: 'var(--font-heading)' }} className="flex items-center gap-2">
-              <span className="pulse-active" style={{ width: '12px', height: '12px' }} />
-              {statistics.active} Active
-            </div>
-            <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'block', marginTop: '4px', fontWeight: 600 }}>
-              Currently exploring platforms
-            </span>
-          </div>
-        </div>
-
-        {/* At Risk */}
-        <div className="glass-card-students" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>At-Risk Students</span>
-            <div style={{ padding: '8px', borderRadius: '12px', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--accent-danger)' }}>
-              <AlertTriangle size={20} />
-            </div>
-          </div>
-          <div>
-            <div style={{ fontSize: '1.8rem', fontWeight: 800, color: statistics.atRisk > 0 ? 'var(--accent-danger)' : 'var(--text-primary)', fontFamily: 'var(--font-heading)' }}>
-              {statistics.atRisk} Alerts
-            </div>
-            <span style={{ fontSize: '0.72rem', color: statistics.atRisk > 0 ? 'var(--accent-danger)' : 'var(--text-secondary)', display: 'block', marginTop: '4px', fontWeight: 600 }}>
-              Attendance below 75% threshold
-            </span>
-          </div>
-        </div>
-
-      </div>
-
-      {/* =======================================================================
-         SECTION 3: FILTRATION & VIEWS TOOLBAR
-         ======================================================================= */}
-      <Card className="glass-card-students" style={{ padding: '20px' }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', justifyContent: 'space-between', alignItems: 'center' }}>
-          
-          {/* Filters */}
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-            
-            {/* Semester Filter */}
-            <div className="flex flex-col gap-1">
-              <label style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 'bold' }}>Academic Semester</label>
-              <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.02] border border-white/[0.05] hover:border-white/[0.12] transition-all">
-                <SlidersHorizontal size={14} style={{ color: 'var(--text-secondary)' }} />
-                <select
-                  value={semesterFilter}
-                  onChange={(e) => setSemesterFilter(e.target.value)}
-                  style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none', cursor: 'pointer' }}
-                >
-                  <option value="All" style={{ background: 'var(--bg-primary)' }}>All Semesters</option>
-                  <option value="4th Semester" style={{ background: 'var(--bg-primary)' }}>4th Semester</option>
-                  <option value="5th Semester" style={{ background: 'var(--bg-primary)' }}>5th Semester</option>
-                  <option value="6th Semester" style={{ background: 'var(--bg-primary)' }}>6th Semester</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Batch Filter */}
-            <div className="flex flex-col gap-1">
-              <label style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 'bold' }}>Student Batch</label>
-              <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.02] border border-white/[0.05] hover:border-white/[0.12] transition-all">
-                <Users size={14} style={{ color: 'var(--text-secondary)' }} />
-                <select
-                  value={batchFilter}
-                  onChange={(e) => setBatchFilter(e.target.value)}
-                  style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none', cursor: 'pointer' }}
-                >
-                  <option value="All" style={{ background: 'var(--bg-primary)' }}>All Batches</option>
-                  <option value="Batch 20" style={{ background: 'var(--bg-primary)' }}>Batch 20</option>
-                  <option value="Batch 21" style={{ background: 'var(--bg-primary)' }}>Batch 21</option>
-                  <option value="Batch 22" style={{ background: 'var(--bg-primary)' }}>Batch 22</option>
-                </select>
-              </div>
-            </div>
-
+        {/* Standard Academic Multi-Criteria Filter Bar */}
+        <div 
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px',
+            padding: '14px 16px',
+            background: 'var(--bg-secondary)',
+            borderRadius: '12px',
+            marginBottom: '16px',
+            border: '1px solid var(--border-color-light)'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: 600 }}>
+            <Filter size={16} color="var(--accent-primary)" />
+            <span>Academic Filters:</span>
           </div>
 
-          {/* Search bar & View Toggles */}
-          <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap', width: '100%', mdWidth: 'auto', maxWidth: '520px' }}>
-            
-            {/* Search */}
-            <div className="flex flex-col gap-1" style={{ flex: 1, minWidth: '200px' }}>
-              <label style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 'bold' }}>Search Student</label>
-              <div style={{ position: 'relative' }}>
-                <Search size={16} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                <input 
-                  type="text"
-                  placeholder="Search name, email, or Student ID..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="input-field"
-                  style={{ paddingLeft: '38px', borderRadius: '12px', fontSize: '0.85rem', height: '38px' }}
-                />
-              </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px', flex: 1, justifyContent: 'flex-end' }}>
+            {/* Search Input */}
+            <div style={{ position: 'relative', minWidth: '220px' }}>
+              <Search size={15} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+              <input 
+                type="text"
+                placeholder="Search name, ID, email..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="input-field"
+                style={{ paddingLeft: '32px', fontSize: '0.8rem', height: '34px', width: '100%' }}
+              />
             </div>
 
-            {/* View Toggles */}
-            <div className="flex gap-2">
-              <button 
-                onClick={() => setViewMode('grid')}
-                className={`view-btn ${viewMode === 'grid' ? 'view-btn-active' : ''}`}
-                title="Grid view"
+            {/* Department Filter */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Dept:</span>
+              <select 
+                className="input-field"
+                value={studentDeptFilter}
+                onChange={e => setStudentDeptFilter(e.target.value)}
+                style={{ fontSize: '0.8rem', padding: '6px 10px', minWidth: '110px' }}
               >
-                <LayoutGrid size={18} />
-              </button>
-              <button 
-                onClick={() => setViewMode('table')}
-                className={`view-btn ${viewMode === 'table' ? 'view-btn-active' : ''}`}
-                title="List view"
-              >
-                <List size={18} />
-              </button>
+                <option value="ALL">All Depts</option>
+                {availableStudentDepts.map(d => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
             </div>
 
-          </div>
+            {/* Batch Cohort Filter */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Batch:</span>
+              <select 
+                className="input-field"
+                value={studentBatchFilter}
+                onChange={e => setStudentBatchFilter(e.target.value)}
+                style={{ fontSize: '0.8rem', padding: '6px 10px', minWidth: '140px' }}
+              >
+                <option value="ALL">All Batches</option>
+                {availableStudentBatches.map(b => (
+                  <option key={b} value={b}>{b}</option>
+                ))}
+              </select>
+            </div>
 
+            {/* Section Filter */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Section:</span>
+              <select 
+                className="input-field"
+                value={studentSectionFilter}
+                onChange={e => setStudentSectionFilter(e.target.value)}
+                style={{ fontSize: '0.8rem', padding: '6px 10px', minWidth: '100px' }}
+              >
+                <option value="ALL">All Secs</option>
+                {availableStudentSections.map(sec => (
+                  <option key={sec} value={sec}>Sec {sec}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Status Filter */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Status:</span>
+              <select 
+                className="input-field"
+                value={studentStatusFilter}
+                onChange={e => setStudentStatusFilter(e.target.value)}
+                style={{ fontSize: '0.8rem', padding: '6px 10px', minWidth: '100px' }}
+              >
+                <option value="ALL">All Status</option>
+                <option value="Active">Active</option>
+                <option value="Suspended">Suspended</option>
+              </select>
+            </div>
+
+            {/* Reset Filters Button */}
+            {(studentDeptFilter !== 'ALL' || studentBatchFilter !== 'ALL' || studentSectionFilter !== 'ALL' || studentStatusFilter !== 'ALL' || searchQuery) && (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => {
+                  setStudentDeptFilter('ALL');
+                  setStudentBatchFilter('ALL');
+                  setStudentSectionFilter('ALL');
+                  setStudentStatusFilter('ALL');
+                  setSearchQuery('');
+                }}
+                style={{ padding: '6px 10px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                title="Clear all filters"
+              >
+                <RotateCcw size={13} />
+                <span>Reset</span>
+              </button>
+            )}
+          </div>
         </div>
+
+        {/* Directory Table (Same columns and formatting as admin/users) */}
+        <div style={{ overflowX: 'auto', marginTop: '12px' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '760px' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                <th style={{ padding: '12px' }}>Student ID</th>
+                <th style={{ padding: '12px' }}>Full Name & Assigned Email</th>
+                <th style={{ padding: '12px' }}>Department</th>
+                <th style={{ padding: '12px' }}>Batch</th>
+                <th style={{ padding: '12px' }}>Section</th>
+                <th style={{ padding: '12px' }}>CGPA</th>
+                <th style={{ padding: '12px' }}>Status</th>
+                <th style={{ padding: '12px', textAlign: 'center' }}>Academic Record</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredStudents.length === 0 ? (
+                <tr>
+                  <td colSpan={8} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                    No students found matching the selected filters. Try adjusting Department, Batch, or Section filters.
+                  </td>
+                </tr>
+              ) : (
+                filteredStudents.map((s) => (
+                  <tr key={s.id} className="student-table-row" style={{ borderBottom: '1px solid var(--border-color-light)', fontSize: '0.9rem' }}>
+                    
+                    {/* Student ID (Clickable badge to open dossier) */}
+                    <td style={{ padding: '14px 12px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      <span 
+                        className="badge badge-primary" 
+                        style={{ fontFamily: 'monospace', fontSize: '0.82rem', cursor: 'pointer', transition: 'transform 0.15s' }}
+                        title="Click to view full student academic card"
+                        onClick={() => handleOpenStudentDetails(s)}
+                      >
+                        {s.id}
+                      </span>
+                    </td>
+
+                    {/* Student Avatar + Name + Email */}
+                    <td style={{ padding: '14px 12px' }}>
+                      <div 
+                        style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', userSelect: 'none' }}
+                        onClick={() => handleOpenStudentDetails(s)}
+                        title="Click to view full student details card (Attendance, Exam Results & Dossier)"
+                      >
+                        {s.profile_picture ? (
+                          <img 
+                            src={s.profile_picture} 
+                            alt={s.name} 
+                            style={{ width: '34px', height: '34px', borderRadius: '50%', objectFit: 'cover', border: '1.5px solid var(--accent-primary)', flexShrink: 0, boxShadow: '0 0 8px rgba(139, 92, 246, 0.3)' }} 
+                          />
+                        ) : (
+                          <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'linear-gradient(135deg, #8B5CF6, #3B82F6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '0.75rem', fontWeight: 700, flexShrink: 0 }}>
+                            {s.name?.charAt(0) || 'S'}
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: '170px' }}>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', flexWrap: 'nowrap' }}>
+                            <span style={{ fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                              {s.name}
+                            </span>
+                            <span 
+                              style={{ 
+                                fontSize: '0.68rem', 
+                                padding: '2px 7px', 
+                                borderRadius: '6px', 
+                                background: 'rgba(139, 92, 246, 0.15)', 
+                                color: 'var(--accent-primary)', 
+                                border: '1px solid rgba(139, 92, 246, 0.28)',
+                                fontWeight: 600,
+                                whiteSpace: 'nowrap',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '3px',
+                                lineHeight: 1.2,
+                                flexShrink: 0
+                              }}
+                            >
+                              View ↗
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <Lock size={11} style={{ opacity: 0.7 }} /> {s.email}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Department */}
+                    <td style={{ padding: '14px 12px' }}>
+                      <span className="badge badge-secondary">{s.dept || s.department}</span>
+                    </td>
+
+                    {/* Batch */}
+                    <td style={{ padding: '14px 12px' }}>
+                      {s.batch}
+                    </td>
+
+                    {/* Section */}
+                    <td style={{ padding: '14px 12px' }}>
+                      <span className="badge badge-secondary" style={{ fontWeight: 600 }}>
+                        Sec {String(s.section || 'A').replace(/^(sec|section)\s*/i, '').trim()}
+                      </span>
+                    </td>
+
+                    {/* CGPA */}
+                    <td style={{ padding: '14px 12px', fontWeight: 700, color: 'var(--accent-primary)' }}>
+                      {s.cgpa || '3.75'}
+                    </td>
+
+                    {/* Status */}
+                    <td style={{ padding: '14px 12px' }}>
+                      <span className={`badge ${s.status === 'Active' ? 'badge-success' : 'badge-danger'}`}>
+                        {s.status}
+                      </span>
+                    </td>
+
+                    {/* Actions: View Dossier Button */}
+                    <td style={{ padding: '14px 12px', textAlign: 'center' }}>
+                      <button 
+                        className="btn btn-secondary" 
+                        title="View Full Student Academic Dossier"
+                        style={{ padding: '6px 12px', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'var(--accent-primary)', border: '1px solid rgba(139, 92, 246, 0.25)' }}
+                        onClick={() => handleOpenStudentDetails(s)}
+                      >
+                        <Eye size={14} />
+                        <span>View Dossier</span>
+                      </button>
+                    </td>
+
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
       </Card>
 
       {/* =======================================================================
-         SECTION 4: STUDENTS DISPLAYS (GRID VS TABLE)
+         SECTION 4: STUDENT ACADEMIC DOSSIER & OFFICIAL RECORD MODAL
+         (Exact same comprehensive modal as in admin/users)
          ======================================================================= */}
-      <div>
-        {filteredStudents.length === 0 ? (
-          <div className="glass-card-students" style={{ padding: '60px 20px', textAlign: 'center' }}>
-            <HelpCircle size={40} style={{ color: 'var(--text-muted)', margin: '0 auto 12px auto' }} />
-            <h3 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-primary)' }}>No students found</h3>
-            <p style={{ margin: '4px 0 0 0', fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
-              No matches found for your active search or filter combinations.
-            </p>
-          </div>
-        ) : viewMode === 'grid' ? (
-          /* ================= GRID CARD VIEW ================= */
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
-            {filteredStudents.map((student) => {
-              const nameInitials = student.name.split(' ').map(n => n[0]).join('');
-              const isAtRisk = student.attendance < 75.0;
-              const statusClass = student.status === 'active' ? 'status-active' :
-                                  student.status === 'away' ? 'status-away' : 'status-offline';
-              const statusText = student.status === 'active' ? 'Active Now' :
-                                 student.status === 'away' ? 'Away' : 'Offline';
-
-              return (
-                <div 
-                  key={student.id} 
-                  className="glass-card-students"
-                  onClick={() => setSelectedStudent(student)}
-                  style={{ 
-                    padding: '20px', 
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    gap: '16px',
-                    cursor: 'pointer',
-                    borderLeft: isAtRisk ? '4px solid var(--accent-danger)' : '1px solid rgba(255,255,255,0.1)' 
-                  }}
-                >
-                  
-                  {/* Top card segment: Avatar & Status */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <div className="avatar-frame" style={{ overflow: 'visible' }}>
-                        {student.avatar ? (
-                          <img src={student.avatar} alt={student.name} className="avatar-img" />
-                        ) : (
-                          nameInitials
-                        )}
-                        {/* Status dot on top of avatar */}
-                        <span style={{ 
-                          position: 'absolute', 
-                          bottom: '-2px', 
-                          right: '-2px', 
-                          width: '12px', 
-                          height: '12px', 
-                          borderRadius: '50%', 
-                          background: student.status === 'active' ? 'var(--accent-success)' : student.status === 'away' ? 'var(--accent-warning)' : '#94A3B8',
-                          border: '2px solid var(--bg-primary)'
-                        }} />
-                      </div>
-                      <div>
-                        <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)' }}>{student.name}</h4>
-                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>ID: {student.id}</span>
-                      </div>
-                    </div>
-
-                    <span className={`status-badge ${statusClass}`}>{statusText}</span>
-                  </div>
-
-                  {/* Contact Info & Academic stats */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                      <Mail size={12} className="text-violet-400" />
-                      <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{student.email}</span>
-                    </div>
-                    <div style={{ display: 'flex', gap: '12px', marginTop: '4px' }}>
-                      <span>Batch: <strong>{student.batch}</strong></span>
-                      <span>Semester: <strong>{student.semester.replace(' Semester', '')}</strong></span>
-                      <span>Grade: <strong style={{ color: 'var(--accent-secondary)' }}>{student.grade}</strong></span>
-                    </div>
-                  </div>
-
-                  {/* Enrolled Courses */}
-                  <div style={{ borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)', padding: '10px 0' }}>
-                    <span style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 'bold', marginBottom: '6px' }}>Enrolled Courses</span>
-                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                      {student.courses.map(course => (
-                        <span key={course} style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', fontWeight: 600 }}>
-                          {course}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Attendance Performance progress */}
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px', fontSize: '0.75rem' }}>
-                      <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>Class Attendance</span>
-                      <strong style={{ color: isAtRisk ? 'var(--accent-danger)' : 'var(--accent-success)' }}>{student.attendance}%</strong>
-                    </div>
-                    <div className="attendance-track">
-                      <div style={{ 
-                        width: `${student.attendance}%`, 
-                        height: '100%', 
-                        background: isAtRisk ? 'linear-gradient(90deg, #ef4444, #f59e0b)' : 'linear-gradient(90deg, #8B5CF6, #10B981)',
-                        borderRadius: '3px'
-                      }} />
-                    </div>
-                  </div>
-
-                  {/* Quick Action Button */}
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      triggerToast(`Initiated direct email to ${student.name} (${student.email})`);
-                    }}
-                    className="btn btn-secondary"
-                    style={{ padding: '6px 12px', fontSize: '0.75rem', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginTop: '4px' }}
-                  >
-                    <Send size={12} />
-                    <span>Contact Student</span>
-                  </button>
-
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          /* ================= TABLE LIST VIEW ================= */
-          <Card className="glass-card-students" style={{ padding: '0px', overflow: 'hidden' }}>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '800px', fontSize: '0.85rem' }}>
-                
-                <thead style={{ borderBottom: '1px solid var(--border-color)', background: 'rgba(255,255,255,0.01)' }}>
-                  <tr>
-                    <th style={{ padding: '16px 20px', fontWeight: 'bold', color: 'var(--text-secondary)' }}>Student Name</th>
-                    <th style={{ padding: '16px', fontWeight: 'bold', color: 'var(--text-secondary)' }}>Student ID</th>
-                    <th style={{ padding: '16px', fontWeight: 'bold', color: 'var(--text-secondary)' }}>Batch & Semester</th>
-                    <th style={{ padding: '16px', fontWeight: 'bold', color: 'var(--text-secondary)' }}>Enrolled Courses</th>
-                    <th style={{ padding: '16px', fontWeight: 'bold', color: 'var(--text-secondary)' }}>Attendance Rate</th>
-                    <th style={{ padding: '16px', fontWeight: 'bold', color: 'var(--text-secondary)' }}>Current Grade</th>
-                    <th style={{ padding: '16px 20px', fontWeight: 'bold', color: 'var(--text-secondary)', textAlign: 'right' }}>Actions</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {filteredStudents.map((student, idx) => {
-                    const nameInitials = student.name.split(' ').map(n => n[0]).join('');
-                    const isAtRisk = student.attendance < 75.0;
-                    const statusClass = student.status === 'active' ? 'status-active' :
-                                        student.status === 'away' ? 'status-away' : 'status-offline';
-                    const statusText = student.status === 'active' ? 'Active' :
-                                       student.status === 'away' ? 'Away' : 'Offline';
-
-                    return (
-                      <tr 
-                        key={student.id}
-                        onClick={() => setSelectedStudent(student)}
-                        style={{ 
-                          borderBottom: idx !== filteredStudents.length - 1 ? '1px solid var(--border-color)' : 'none',
-                          background: isAtRisk ? 'rgba(239, 68, 68, 0.01)' : 'transparent',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        
-                        {/* Name & Avatar with Active Pulse */}
-                        <td style={{ padding: '12px 20px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            <div className="avatar-frame" style={{ width: '36px', height: '36px', fontSize: '0.85rem', overflow: 'visible' }}>
-                              {student.avatar ? (
-                                <img src={student.avatar} alt={student.name} className="avatar-img" />
-                              ) : (
-                                nameInitials
-                              )}
-                              <span style={{ 
-                                position: 'absolute', 
-                                bottom: '-1px', 
-                                right: '-1px', 
-                                width: '10px', 
-                                height: '10px', 
-                                borderRadius: '50%', 
-                                background: student.status === 'active' ? 'var(--accent-success)' : student.status === 'away' ? 'var(--accent-warning)' : '#94A3B8',
-                                border: '1.5px solid var(--bg-primary)'
-                              }} />
-                            </div>
-                            <div>
-                              <div style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>{student.name}</div>
-                              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{student.email}</div>
-                            </div>
-                          </div>
-                        </td>
-
-                        {/* Student ID */}
-                        <td style={{ padding: '12px 16px', color: 'var(--text-primary)', fontFamily: 'monospace', fontWeight: 600 }}>
-                          {student.id}
-                        </td>
-
-                        {/* Batch & Semester */}
-                        <td style={{ padding: '12px 16px' }}>
-                          <div style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{student.batch}</div>
-                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{student.semester}</div>
-                        </td>
-
-                        {/* Enrolled Courses */}
-                        <td style={{ padding: '12px 16px' }}>
-                          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                            {student.courses.map(course => (
-                              <span key={course} style={{ fontSize: '0.68rem', padding: '1px 6px', borderRadius: '4px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', fontWeight: 600 }}>
-                                {course}
-                              </span>
-                            ))}
-                          </div>
-                        </td>
-
-                        {/* Attendance percentage rate */}
-                        <td style={{ padding: '12px 16px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <strong style={{ color: isAtRisk ? 'var(--accent-danger)' : 'var(--accent-success)' }}>
-                              {student.attendance}%
-                            </strong>
-                            {isAtRisk && <span className="badge badge-danger" style={{ fontSize: '0.62rem', padding: '1px 5px' }}>At Risk</span>}
-                          </div>
-                        </td>
-
-                        {/* Current Grade */}
-                        <td style={{ padding: '12px 16px' }}>
-                          <span style={{ fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--accent-secondary)' }}>
-                            {student.grade}
-                          </span>
-                        </td>
-
-                        {/* Action details */}
-                        <td style={{ padding: '12px 20px', textAlign: 'right' }}>
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              triggerToast(`Initiated email compose to ${student.name}`);
-                            }}
-                            className="btn btn-secondary"
-                            style={{ padding: '6px 12px', fontSize: '0.72rem', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '4px', marginLeft: 'auto' }}
-                          >
-                            <Send size={11} />
-                            <span>Contact</span>
-                          </button>
-                        </td>
-
-                      </tr>
-                    );
-                  })}
-                </tbody>
-
-              </table>
-            </div>
-          </Card>
-        )}
-      </div>
-
-      {/* =======================================================================
-         SECTION 5: NOTIFICATION TOASTS
-         ======================================================================= */}
-      <AnimatePresence>
-        {toastMessage && (
-          <motion.div
-            initial={{ opacity: 0, y: 30, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 30, scale: 0.95 }}
-            style={{
-              position: 'fixed',
-              bottom: '24px',
-              right: '24px',
-              background: 'rgba(139, 92, 246, 0.15)',
-              border: '1px solid rgba(139, 92, 246, 0.3)',
-              borderRadius: '16px',
-              padding: '16px 24px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              color: 'var(--text-primary)',
-              fontWeight: '600',
-              fontSize: '0.88rem',
-              boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
-              backdropFilter: 'blur(16px)',
-              zIndex: 2000
-            }}
-          >
-            <CheckCircle2 size={18} style={{ color: 'var(--accent-primary)' }} />
-            <span>{toastMessage}</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* =======================================================================
-         SECTION 6: STUDENT DETAILS MODAL
-         ======================================================================= */}
-      <AnimatePresence>
-        {selectedStudent && (
+      {viewingStudent && (
+        <div 
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.85)',
+            backdropFilter: 'blur(12px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+            padding: '16px'
+          }}
+          onClick={() => setViewingStudent(null)}
+        >
           <div 
-            className="modal-blur-overlay" 
-            onClick={() => setSelectedStudent(null)}
+            className="glass-panel"
             style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: 'rgba(8, 12, 21, 0.7)',
-              backdropFilter: 'blur(12px)',
+              width: '100%',
+              maxWidth: '960px',
+              maxHeight: '92vh',
+              borderRadius: '24px',
+              background: 'linear-gradient(180deg, #131B2E 0%, #0B0F19 100%)',
+              border: '1px solid rgba(139, 92, 246, 0.35)',
+              boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.9), 0 0 50px rgba(139, 92, 246, 0.18)',
+              overflowY: 'auto',
               display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 1500,
-              padding: '16px'
+              flexDirection: 'column',
+              position: 'relative'
             }}
+            onClick={e => e.stopPropagation()}
           >
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="glass-detail-modal"
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                background: 'rgba(13, 20, 38, 0.9)',
-                backdropFilter: 'blur(30px)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                boxShadow: '0 30px 70px rgba(0, 0, 0, 0.8)',
-                borderRadius: '24px',
-                padding: '28px',
-                width: '100%',
-                maxWidth: '650px',
-                maxHeight: '90vh',
-                overflowY: 'auto',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '20px'
-              }}
-            >
-              
-              {/* Modal Header */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                  <div className="avatar-frame" style={{ width: '56px', height: '56px', fontSize: '1.2rem', overflow: 'visible' }}>
-                    {selectedStudent.avatar ? (
-                      <img src={selectedStudent.avatar} alt={selectedStudent.name} className="avatar-img" />
-                    ) : (
-                      selectedStudent.name.split(' ').map(n => n[0]).join('')
-                    )}
-                    <span style={{ 
-                      position: 'absolute', 
-                      bottom: '0px', 
-                      right: '0px', 
-                      width: '14px', 
-                      height: '14px', 
-                      borderRadius: '50%', 
-                      background: selectedStudent.status === 'active' ? 'var(--accent-success)' : selectedStudent.status === 'away' ? 'var(--accent-warning)' : '#94A3B8',
-                      border: '2px solid var(--bg-primary)'
-                    }} />
-                  </div>
-                  <div>
-                    <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)' }}>{selectedStudent.name}</h3>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Student ID: <strong style={{ color: 'var(--text-primary)' }}>{selectedStudent.id}</strong></span>
+            {/* Modal Header & Quick Actions Bar */}
+            <div style={{
+              position: 'sticky',
+              top: 0,
+              zIndex: 20,
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '16px 24px',
+              borderBottom: '1px solid var(--border-color)',
+              background: 'rgba(19, 27, 46, 0.95)',
+              backdropFilter: 'blur(16px)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '8px',
+                  background: 'linear-gradient(135deg, var(--accent-primary), #3B82F6)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'white'
+                }}>
+                  <GraduationCap size={18} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    Student Academic Dossier & Official Record
+                  </h3>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                    Institutional Profile • University Portal
                   </div>
                 </div>
-                
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {/* Print Profile Button */}
                 <button 
-                  className="btn-close-modal"
-                  onClick={() => setSelectedStudent(null)}
+                  type="button"
+                  className="btn btn-secondary" 
+                  style={{ padding: '6px 12px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  onClick={() => window.print()}
+                  title="Print / Save Student Record"
+                >
+                  <Printer size={14} /> Print Card
+                </button>
+
+                {/* Close Button */}
+                <button 
+                  type="button"
+                  onClick={() => setViewingStudent(null)} 
+                  style={{ 
+                    background: 'rgba(255, 255, 255, 0.05)', 
+                    border: '1px solid var(--border-color)', 
+                    borderRadius: '50%',
+                    color: 'var(--text-muted)', 
+                    cursor: 'pointer',
+                    width: '32px',
+                    height: '32px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                  title="Close"
                 >
                   <X size={18} />
                 </button>
               </div>
+            </div>
 
-              {/* Modal Body Content */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                
-                {/* Personal Information Grid */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', background: 'var(--bg-secondary)', borderRadius: '12px', padding: '16px', border: '1px solid var(--border-color)' }}>
-                  <div>
-                    <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'block', fontWeight: 'bold' }}>Email Address</span>
-                    <span style={{ fontSize: '0.88rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}><Mail size={12} />{selectedStudent.email}</span>
-                  </div>
-                  <div>
-                    <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'block', fontWeight: 'bold' }}>Academic Profile</span>
-                    <span style={{ fontSize: '0.88rem', color: 'var(--text-primary)' }}>{selectedStudent.batch} • {selectedStudent.semester}</span>
-                  </div>
-                  <div>
-                    <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'block', fontWeight: 'bold' }}>Current Standing</span>
-                    <span style={{ fontSize: '0.88rem', color: 'var(--accent-secondary)', fontWeight: 'bold' }}>Grade {selectedStudent.grade}</span>
-                  </div>
-                  <div>
-                    <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'block', fontWeight: 'bold' }}>Active Status</span>
-                    <span style={{ fontSize: '0.88rem', color: selectedStudent.status === 'active' ? 'var(--accent-success)' : selectedStudent.status === 'away' ? 'var(--accent-warning)' : 'var(--text-secondary)', fontWeight: 'bold' }}>
-                      {selectedStudent.status === 'active' ? 'Active Now' : selectedStudent.status === 'away' ? 'Away' : 'Offline'}
+            {/* Passport Photo Frame & Identity Header */}
+            <div style={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              padding: '24px 20px 18px',
+              borderBottom: '1px solid var(--border-color)',
+              background: 'radial-gradient(ellipse at top, rgba(139, 92, 246, 0.15) 0%, transparent 70%)'
+            }}>
+              {/* Passport Photo Frame: Standard 35mm x 45mm ratio (~124px x 155px) */}
+              <div 
+                style={{
+                  position: 'relative',
+                  width: '124px',
+                  height: '155px',
+                  borderRadius: '12px',
+                  overflow: 'hidden',
+                  border: '3px solid var(--accent-primary)',
+                  boxShadow: '0 12px 30px rgba(0, 0, 0, 0.6), 0 0 25px rgba(139, 92, 246, 0.35)',
+                  background: '#0F172A',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: '12px',
+                  flexShrink: 0,
+                  cursor: viewingStudent.profile_picture ? 'pointer' : 'default',
+                  transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+                }}
+                className={viewingStudent.profile_picture ? "dossier-photo-clickable" : ""}
+                title={viewingStudent.profile_picture ? "Click to view full photo & download" : "No photo available"}
+                onClick={() => {
+                  if (viewingStudent.profile_picture) {
+                    setPreviewingPhoto({
+                      url: viewingStudent.profile_picture,
+                      name: viewingStudent.name,
+                      id: viewingStudent.studentId
+                    });
+                  }
+                }}
+              >
+                {viewingStudent.profile_picture ? (
+                  <>
+                    <img 
+                      src={viewingStudent.profile_picture} 
+                      alt={viewingStudent.name}
+                      style={{ 
+                        width: '100%', 
+                        height: '100%', 
+                        objectFit: 'cover',
+                        objectPosition: 'center top'
+                      }} 
+                    />
+                    <div 
+                      className="dossier-photo-overlay"
+                      style={{
+                        position: 'absolute',
+                        inset: 0,
+                        background: 'rgba(15, 23, 42, 0.55)',
+                        backdropFilter: 'blur(2px)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '4px',
+                        color: 'white',
+                        pointerEvents: 'none'
+                      }}
+                    >
+                      <ZoomIn size={22} style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }} />
+                      <span style={{ fontSize: '0.62rem', fontWeight: 600, letterSpacing: '0.3px', background: 'rgba(0,0,0,0.6)', padding: '2px 6px', borderRadius: '4px' }}>
+                        View / Download
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ 
+                    width: '100%', 
+                    height: '100%', 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.25), rgba(59, 130, 246, 0.25))',
+                    color: 'var(--text-muted)',
+                    gap: '6px',
+                    padding: '8px',
+                    textAlign: 'center'
+                  }}>
+                    <div style={{
+                      width: '54px',
+                      height: '54px',
+                      borderRadius: '50%',
+                      background: 'linear-gradient(135deg, #8B5CF6, #3B82F6)',
+                      color: 'white',
+                      fontSize: '1.4rem',
+                      fontWeight: 700,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      {viewingStudent.name?.charAt(0) || 'S'}
+                    </div>
+                    <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+                      No Photo Assigned
                     </span>
                   </div>
-                </div>
+                )}
+              </div>
 
-                {/* Attendance Summary */}
-                <div>
-                  <h4 style={{ margin: '0 0 12px 0', fontSize: '0.92rem', fontWeight: 'bold', color: 'var(--text-primary)' }} className="flex items-center gap-2">
-                    <Clock size={16} className="text-violet-400" />
-                    Attendance Breakdown
-                  </h4>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', textAlign: 'center', marginBottom: '16px' }}>
-                    <div style={{ padding: '12px 8px', background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', borderRadius: '10px' }}>
-                      <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', display: 'block' }}>Total Classes</span>
-                      <span style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)', display: 'block', marginTop: '2px' }}>
-                        {selectedStudent.attendanceDetails.total}
-                      </span>
+              {/* Student Name */}
+              <h2 style={{ 
+                margin: '0 0 4px', 
+                fontSize: '1.5rem', 
+                fontWeight: 800, 
+                color: 'var(--text-primary)',
+                letterSpacing: '-0.3px',
+                textAlign: 'center'
+              }}>
+                {viewingStudent.name}
+              </h2>
+
+              {/* Key Identity Badges */}
+              <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px', justifyContent: 'center', marginTop: '4px' }}>
+                <span className="badge badge-primary" style={{ fontFamily: 'monospace', fontSize: '0.82rem', padding: '3px 10px' }}>
+                  ID: {viewingStudent.studentId}
+                </span>
+                <span style={{ fontSize: '0.8rem', color: 'var(--accent-primary)', display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(139, 92, 246, 0.1)', padding: '3px 10px', borderRadius: '12px' }}>
+                  <Lock size={12} /> {viewingStudent.email}
+                </span>
+                <span className="badge badge-secondary" style={{ fontSize: '0.78rem' }}>
+                  {viewingStudent.dept} • {viewingStudent.departmentFullName}
+                </span>
+                <span className="badge badge-secondary" style={{ fontSize: '0.78rem' }}>
+                  {viewingStudent.batch}
+                </span>
+                <span className={`badge ${viewingStudent.status === 'Active' ? 'badge-success' : 'badge-danger'}`} style={{ fontSize: '0.78rem' }}>
+                  {viewingStudent.status}
+                </span>
+              </div>
+            </div>
+
+            {/* Key Summary Indicators Bar */}
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', 
+              gap: '12px', 
+              padding: '16px 24px',
+              background: 'rgba(255, 255, 255, 0.015)',
+              borderBottom: '1px solid var(--border-color)'
+            }}>
+              {/* CGPA */}
+              <div style={{ background: 'rgba(139, 92, 246, 0.06)', border: '1px solid rgba(139, 92, 246, 0.2)', borderRadius: '12px', padding: '10px 14px' }}>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Current CGPA</div>
+                <div style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--accent-primary)', marginTop: '2px' }}>
+                  {viewingStudent.cgpa} <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>/ 4.00</span>
+                </div>
+                <div style={{ fontSize: '0.7rem', color: '#10B981', marginTop: '2px' }}>{viewingStudent.standing}</div>
+              </div>
+
+              {/* Cumulative Attendance */}
+              <div style={{ background: 'rgba(16, 185, 129, 0.06)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '12px', padding: '10px 14px' }}>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Cumulative Attendance</div>
+                <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#10B981', marginTop: '2px' }}>
+                  {viewingStudent.cumulativeAttendance}%
+                </div>
+                <div style={{ fontSize: '0.7rem', color: '#10B981', marginTop: '2px' }}>✓ University Attendance Record</div>
+              </div>
+
+              {/* Completed Credits */}
+              <div style={{ background: 'rgba(59, 130, 246, 0.06)', border: '1px solid rgba(59, 130, 246, 0.2)', borderRadius: '12px', padding: '10px 14px' }}>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Credits Completed</div>
+                <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#3B82F6', marginTop: '2px' }}>
+                  {viewingStudent.totalCompletedCredits} <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>/ 144 Cr</span>
+                </div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '2px' }}>Degree Progress</div>
+              </div>
+
+              {/* Faculty Advisor */}
+              <div style={{ background: 'rgba(245, 158, 11, 0.06)', border: '1px solid rgba(245, 158, 11, 0.2)', borderRadius: '12px', padding: '10px 14px' }}>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Assigned Faculty Advisor</div>
+                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {viewingStudent.advisor.split('(')[0]}
+                </div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--accent-warning)', marginTop: '2px' }}>Academic Advisor</div>
+              </div>
+
+              {/* Fee & Accounts Clearance */}
+              <div style={{ background: 'rgba(16, 185, 129, 0.06)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '12px', padding: '10px 14px' }}>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Clearance & Dues</div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#10B981', marginTop: '4px' }}>
+                  100% Cleared
+                </div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>No Pending Institutional Dues</div>
+              </div>
+            </div>
+
+            {/* SEMESTER-WISE SELECTOR TABS */}
+            <div style={{ 
+              padding: '14px 24px 0',
+              borderBottom: '1px solid var(--border-color)',
+              background: 'rgba(0, 0, 0, 0.15)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
+                <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Select Semester to Inspect Attendance & Examination Results:
+                </span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--accent-primary)' }}>
+                  Active Semester: <strong>{viewingStudent.activeSemesterName}</strong>
+                </span>
+              </div>
+
+              {/* 8 Semesters Horizontal Buttons */}
+              <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '12px' }}>
+                {viewingStudent.semesters.map((sem, sIdx) => {
+                  const isSelected = activeSemIndex === sIdx;
+                  return (
+                    <button
+                      key={sem.name}
+                      type="button"
+                      onClick={() => setActiveSemIndex(sIdx)}
+                      style={{
+                        padding: '6px 14px',
+                        borderRadius: '20px',
+                        border: isSelected ? '1.5px solid var(--accent-primary)' : '1px solid var(--border-color)',
+                        background: isSelected ? 'linear-gradient(135deg, var(--accent-primary), #6366F1)' : 'rgba(255, 255, 255, 0.03)',
+                        color: isSelected ? 'white' : 'var(--text-secondary)',
+                        fontSize: '0.78rem',
+                        fontWeight: isSelected ? 700 : 500,
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        transition: 'all 0.15s ease',
+                        boxShadow: isSelected ? '0 0 12px rgba(139, 92, 246, 0.4)' : 'none'
+                      }}
+                    >
+                      <span>{sem.name}</span>
+                      {sem.isCurrent && (
+                        <span style={{ 
+                          fontSize: '0.62rem', 
+                          padding: '1px 5px', 
+                          borderRadius: '10px', 
+                          background: isSelected ? '#10B981' : 'rgba(16, 185, 129, 0.2)', 
+                          color: isSelected ? 'white' : '#10B981',
+                          fontWeight: 700 
+                        }}>
+                          Current
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* ACTIVE SEMESTER CONTENT AREA */}
+            {(() => {
+              const currentSem = viewingStudent.semesters[activeSemIndex] || viewingStudent.semesters[0];
+
+              return (
+                <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  
+                  {/* Sub-Tabs: Attendance vs Exam Results vs Institutional Profile */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        type="button"
+                        onClick={() => setStudentCardTab('attendance')}
+                        className={`btn ${studentCardTab === 'attendance' ? 'btn-primary' : 'btn-secondary'}`}
+                        style={{ padding: '6px 14px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                      >
+                        <Calendar size={14} />
+                        <span>Semester Attendance ({currentSem.attendance.percentage}%)</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setStudentCardTab('results')}
+                        className={`btn ${studentCardTab === 'results' ? 'btn-primary' : 'btn-secondary'}`}
+                        style={{ padding: '6px 14px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                      >
+                        <Award size={14} />
+                        <span>All Exam Results (SGPA: {currentSem.sgpa})</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setStudentCardTab('profile')}
+                        className={`btn ${studentCardTab === 'profile' ? 'btn-primary' : 'btn-secondary'}`}
+                        style={{ padding: '6px 14px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                      >
+                        <FileText size={14} />
+                        <span>Guardian & Institutional Dossier</span>
+                      </button>
                     </div>
-                    <div style={{ padding: '12px 8px', background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16,185,129,0.1)', borderRadius: '10px' }}>
-                      <span style={{ fontSize: '0.68rem', color: 'var(--accent-success)', display: 'block' }}>Present</span>
-                      <span style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--accent-success)', display: 'block', marginTop: '2px' }}>
-                        {selectedStudent.attendanceDetails.present}
-                      </span>
-                    </div>
-                    <div style={{ padding: '12px 8px', background: 'rgba(239, 68, 68, 0.05)', border: '1px solid rgba(239,68,68,0.1)', borderRadius: '10px' }}>
-                      <span style={{ fontSize: '0.68rem', color: 'var(--accent-danger)', display: 'block' }}>Absent</span>
-                      <span style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--accent-danger)', display: 'block', marginTop: '2px' }}>
-                        {selectedStudent.attendanceDetails.absent}
-                      </span>
-                    </div>
-                    <div style={{ padding: '12px 8px', background: 'rgba(245, 158, 11, 0.05)', border: '1px solid rgba(245,158,11,0.1)', borderRadius: '10px' }}>
-                      <span style={{ fontSize: '0.68rem', color: 'var(--accent-warning)', display: 'block' }}>Late</span>
-                      <span style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--accent-warning)', display: 'block', marginTop: '2px' }}>
-                        {selectedStudent.attendanceDetails.late}
-                      </span>
+
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                      Term: <strong style={{ color: 'var(--text-primary)' }}>{currentSem.term}</strong> • Credits: <strong style={{ color: 'var(--accent-primary)' }}>{currentSem.totalCredits} Cr</strong>
                     </div>
                   </div>
 
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', fontSize: '0.78rem' }}>
-                      <span style={{ color: 'var(--text-secondary)' }}>Attendance Rate</span>
-                      <strong style={{ color: selectedStudent.attendance < 75.0 ? 'var(--accent-danger)' : 'var(--accent-success)' }}>
-                        {selectedStudent.attendance}%
-                      </strong>
-                    </div>
-                    <div className="attendance-track" style={{ height: '8px' }}>
-                      <div style={{ 
-                        width: `${selectedStudent.attendance}%`, 
-                        height: '100%', 
-                        background: selectedStudent.attendance < 75.0 ? 'linear-gradient(90deg, #ef4444, #f59e0b)' : 'linear-gradient(90deg, #8B5CF6, #10B981)',
-                        borderRadius: '4px'
-                      }} />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Academic Results & Exam Scores */}
-                <div>
-                  <h4 style={{ margin: '0 0 12px 0', fontSize: '0.92rem', fontWeight: 'bold', color: 'var(--text-primary)' }} className="flex items-center gap-2">
-                    <Award size={16} className="text-violet-400" />
-                    Academic Results & Exam Performance
-                  </h4>
-                  <div style={{ border: '1px solid var(--border-color)', borderRadius: '12px', background: 'var(--bg-secondary)', overflow: 'hidden' }}>
-                    <div style={{ display: 'flex', background: 'rgba(255,255,255,0.01)', borderBottom: '1px solid var(--border-color)', padding: '10px 14px', fontSize: '0.72rem', fontWeight: 'bold', color: 'var(--text-secondary)' }}>
-                      <div style={{ flex: 2 }}>Assessment Name</div>
-                      <div style={{ flex: 1, textAlign: 'center' }}>Score</div>
-                      <div style={{ flex: 1, textAlign: 'center' }}>Weight</div>
-                      <div style={{ flex: 1, textAlign: 'right' }}>Grade</div>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', maxHeight: '180px', overflowY: 'auto' }}>
-                      {selectedStudent.results.map((res, i) => (
-                        <div key={i} style={{ display: 'flex', padding: '10px 14px', fontSize: '0.8rem', borderBottom: i !== selectedStudent.results.length - 1 ? '1px solid var(--border-color)' : 'none', color: 'var(--text-primary)' }}>
-                          <div style={{ flex: 2, fontWeight: '500' }}>{res.term}</div>
-                          <div style={{ flex: 1, textAlign: 'center', fontFamily: 'monospace' }}>{res.score}</div>
-                          <div style={{ flex: 1, textAlign: 'center', color: 'var(--text-muted)' }}>{res.weight}</div>
-                          <div style={{ flex: 1, textAlign: 'right', fontWeight: 'bold', color: 'var(--accent-secondary)' }}>{res.grade}</div>
+                  {/* ================= TAB 1: SEMESTER ATTENDANCE ================= */}
+                  {studentCardTab === 'attendance' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                      {/* Attendance Overview Card */}
+                      <div style={{
+                        background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(59, 130, 246, 0.05) 100%)',
+                        border: '1px solid rgba(16, 185, 129, 0.25)',
+                        borderRadius: '16px',
+                        padding: '16px 20px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        flexWrap: 'wrap',
+                        gap: '14px'
+                      }}>
+                        <div>
+                          <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.5px' }}>
+                            {currentSem.name} Overall Attendance Compliance
+                          </div>
+                          <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#10B981', marginTop: '2px' }}>
+                            {currentSem.attendance.percentage}%
+                          </div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                            Attended <strong>{currentSem.attendance.totalAttended}</strong> out of <strong>{currentSem.attendance.totalHeld}</strong> classes held (Absent: {currentSem.attendance.totalAbsent})
+                          </div>
                         </div>
-                      ))}
+
+                        <div style={{ textAlign: 'right' }}>
+                          <span className={`badge ${currentSem.attendance.isEligible ? 'badge-success' : 'badge-danger'}`} style={{ fontSize: '0.82rem', padding: '6px 12px' }}>
+                            {currentSem.attendance.statusText}
+                          </span>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '6px' }}>
+                            Minimum University Threshold: 75.0%
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Course-Wise Attendance Table */}
+                      <div style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', textAlign: 'left' }}>
+                          <thead>
+                            <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '0.78rem', background: 'rgba(255, 255, 255, 0.02)' }}>
+                              <th style={{ padding: '10px 14px' }}>Course Code</th>
+                              <th style={{ padding: '10px 14px' }}>Course Title</th>
+                              <th style={{ padding: '10px 14px' }}>Instructor</th>
+                              <th style={{ padding: '10px 14px', textAlign: 'center' }}>Held</th>
+                              <th style={{ padding: '10px 14px', textAlign: 'center' }}>Attended</th>
+                              <th style={{ padding: '10px 14px', textAlign: 'center' }}>Absent</th>
+                              <th style={{ padding: '10px 14px', textAlign: 'center' }}>Attendance %</th>
+                              <th style={{ padding: '10px 14px' }}>Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {currentSem.courses.map((c) => (
+                              <tr key={c.code} style={{ borderBottom: '1px solid var(--border-color-light)' }}>
+                                <td style={{ padding: '12px 14px', fontWeight: 700, fontFamily: 'monospace', color: 'var(--accent-primary)' }}>
+                                  {c.code}
+                                </td>
+                                <td style={{ padding: '12px 14px', fontWeight: 600 }}>
+                                  {c.title}
+                                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block' }}>
+                                    {c.credits} Credits
+                                  </span>
+                                </td>
+                                <td style={{ padding: '12px 14px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                                  {c.instructor}
+                                </td>
+                                <td style={{ padding: '12px 14px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                                  {c.classesHeld}
+                                </td>
+                                <td style={{ padding: '12px 14px', textAlign: 'center', fontWeight: 700, color: '#10B981' }}>
+                                  {c.classesAttended}
+                                </td>
+                                <td style={{ padding: '12px 14px', textAlign: 'center', color: '#EF4444' }}>
+                                  {c.classesAbsent}
+                                </td>
+                                <td style={{ padding: '12px 14px', textAlign: 'center', fontWeight: 700, color: c.attendancePct >= 85 ? '#10B981' : c.attendancePct >= 75 ? '#F59E0B' : '#EF4444' }}>
+                                  {c.attendancePct}%
+                                </td>
+                                <td style={{ padding: '12px 14px' }}>
+                                  <span className={`badge ${c.attendancePct >= 85 ? 'badge-success' : c.attendancePct >= 75 ? 'badge-primary' : 'badge-danger'}`} style={{ fontSize: '0.72rem' }}>
+                                    {c.attendanceStatus}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
-                  </div>
+                  )}
+
+                  {/* ================= TAB 2: SEMESTER EXAM RESULTS ================= */}
+                  {studentCardTab === 'results' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                      {/* SGPA & Exam Performance Ribbon */}
+                      <div style={{
+                        background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, rgba(59, 130, 246, 0.06) 100%)',
+                        border: '1px solid rgba(139, 92, 246, 0.25)',
+                        borderRadius: '16px',
+                        padding: '16px 20px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        flexWrap: 'wrap',
+                        gap: '14px'
+                      }}>
+                        <div>
+                          <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.5px' }}>
+                            {currentSem.name} Tabulated Examination Results
+                          </div>
+                          <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--accent-primary)', marginTop: '2px' }}>
+                            SGPA: {currentSem.sgpa} <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>/ 4.00</span>
+                          </div>
+                          <div style={{ fontSize: '0.8rem', color: '#10B981', marginTop: '2px' }}>
+                            ✓ Passed All {currentSem.courses.length} Courses • Total Credits Earned: {currentSem.totalCredits} Cr
+                          </div>
+                        </div>
+
+                        <div style={{ textAlign: 'right' }}>
+                          <span className="badge badge-success" style={{ fontSize: '0.82rem', padding: '6px 12px' }}>
+                            Result Status: Published & Verified
+                          </span>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '6px' }}>
+                            Examination Session: {currentSem.term}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Complete Exam Scorecard Table */}
+                      <div style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', textAlign: 'left' }}>
+                          <thead>
+                            <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '0.78rem', background: 'rgba(255, 255, 255, 0.02)' }}>
+                              <th style={{ padding: '10px 14px' }}>Course Code</th>
+                              <th style={{ padding: '10px 14px' }}>Course Title</th>
+                              <th style={{ padding: '10px 14px', textAlign: 'center' }}>Credits</th>
+                              <th style={{ padding: '10px 14px', textAlign: 'center' }}>Midterm (40)</th>
+                              <th style={{ padding: '10px 14px', textAlign: 'center' }}>Quizzes/CA (20)</th>
+                              <th style={{ padding: '10px 14px', textAlign: 'center' }}>Final Exam (40)</th>
+                              <th style={{ padding: '10px 14px', textAlign: 'center' }}>Total (100)</th>
+                              <th style={{ padding: '10px 14px', textAlign: 'center' }}>Grade</th>
+                              <th style={{ padding: '10px 14px', textAlign: 'center' }}>GPA</th>
+                              <th style={{ padding: '10px 14px' }}>Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {currentSem.courses.map((c) => (
+                              <tr key={c.code} style={{ borderBottom: '1px solid var(--border-color-light)' }}>
+                                <td style={{ padding: '12px 14px', fontWeight: 700, fontFamily: 'monospace', color: 'var(--accent-primary)' }}>
+                                  {c.code}
+                                </td>
+                                <td style={{ padding: '12px 14px', fontWeight: 600 }}>
+                                  {c.title}
+                                </td>
+                                <td style={{ padding: '12px 14px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                                  {c.credits}
+                                </td>
+                                <td style={{ padding: '12px 14px', textAlign: 'center', fontWeight: 600 }}>
+                                  {c.midtermMarks}
+                                </td>
+                                <td style={{ padding: '12px 14px', textAlign: 'center', fontWeight: 600 }}>
+                                  {c.quizMarks}
+                                </td>
+                                <td style={{ padding: '12px 14px', textAlign: 'center', fontWeight: 600 }}>
+                                  {c.finalMarks}
+                                </td>
+                                <td style={{ padding: '12px 14px', textAlign: 'center', fontWeight: 800, color: 'var(--accent-primary)' }}>
+                                  {c.totalMarks}
+                                </td>
+                                <td style={{ padding: '12px 14px', textAlign: 'center' }}>
+                                  <span className={`badge ${c.grade.startsWith('A') ? 'badge-success' : 'badge-primary'}`} style={{ fontWeight: 800, minWidth: '32px' }}>
+                                    {c.grade}
+                                  </span>
+                                </td>
+                                <td style={{ padding: '12px 14px', textAlign: 'center', fontWeight: 700 }}>
+                                  {c.gpa.toFixed(2)}
+                                </td>
+                                <td style={{ padding: '12px 14px' }}>
+                                  <span className="badge badge-success" style={{ fontSize: '0.72rem' }}>
+                                    {c.passStatus}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ================= TAB 3: INSTITUTIONAL & GUARDIAN DOSSIER ================= */}
+                  {studentCardTab === 'profile' && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
+                      {/* Personal & Contact Details */}
+                      <div style={{
+                        background: 'var(--bg-secondary)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '16px',
+                        padding: '18px'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px', color: 'var(--accent-primary)', fontWeight: 700, fontSize: '0.9rem' }}>
+                          <Phone size={16} /> Contact & Emergency Information
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.82rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color-light)', paddingBottom: '6px' }}>
+                            <span style={{ color: 'var(--text-muted)' }}>Student Phone:</span>
+                            <strong style={{ color: 'var(--text-primary)' }}>{viewingStudent.phone}</strong>
+                          </div>
+
+                          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color-light)', paddingBottom: '6px' }}>
+                            <span style={{ color: 'var(--text-muted)' }}>Assigned Institutional Email:</span>
+                            <strong style={{ color: 'var(--accent-primary)' }}>{viewingStudent.email}</strong>
+                          </div>
+
+                          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color-light)', paddingBottom: '6px' }}>
+                            <span style={{ color: 'var(--text-muted)' }}>Blood Group:</span>
+                            <strong style={{ color: '#EF4444' }}>{viewingStudent.bloodGroup}</strong>
+                          </div>
+
+                          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color-light)', paddingBottom: '6px' }}>
+                            <span style={{ color: 'var(--text-muted)' }}>Guardian Name:</span>
+                            <strong style={{ color: 'var(--text-primary)' }}>{viewingStudent.guardianName}</strong>
+                          </div>
+
+                          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color-light)', paddingBottom: '6px' }}>
+                            <span style={{ color: 'var(--text-muted)' }}>Guardian Phone:</span>
+                            <strong style={{ color: 'var(--text-primary)' }}>{viewingStudent.guardianPhone}</strong>
+                          </div>
+
+                          <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '2px' }}>
+                            <span style={{ color: 'var(--text-muted)' }}>Permanent Address:</span>
+                            <strong style={{ color: 'var(--text-primary)', textAlign: 'right', maxWidth: '240px' }}>{viewingStudent.address}</strong>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* University Registration & Financial Clearances */}
+                      <div style={{
+                        background: 'var(--bg-secondary)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '16px',
+                        padding: '18px'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px', color: '#10B981', fontWeight: 700, fontSize: '0.9rem' }}>
+                          <CheckCircle2 size={16} /> Institutional Registration & Clearances
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.82rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color-light)', paddingBottom: '6px' }}>
+                            <span style={{ color: 'var(--text-muted)' }}>Registration Session:</span>
+                            <strong style={{ color: 'var(--text-primary)' }}>Spring 2023 - Ongoing</strong>
+                          </div>
+
+                          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color-light)', paddingBottom: '6px' }}>
+                            <span style={{ color: 'var(--text-muted)' }}>Degree Program:</span>
+                            <strong style={{ color: 'var(--text-primary)' }}>B.Sc. in {viewingStudent.dept}</strong>
+                          </div>
+
+                          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color-light)', paddingBottom: '6px' }}>
+                            <span style={{ color: 'var(--text-muted)' }}>Enrollment Category:</span>
+                            <strong style={{ color: 'var(--text-primary)' }}>Regular (Undergraduate)</strong>
+                          </div>
+
+                          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color-light)', paddingBottom: '6px' }}>
+                            <span style={{ color: 'var(--text-muted)' }}>Library Clearance:</span>
+                            <strong style={{ color: '#10B981' }}>✓ Fully Cleared (0 Books Due)</strong>
+                          </div>
+
+                          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color-light)', paddingBottom: '6px' }}>
+                            <span style={{ color: 'var(--text-muted)' }}>Laboratory Clearance:</span>
+                            <strong style={{ color: '#10B981' }}>✓ No Pending Breakage Charges</strong>
+                          </div>
+
+                          <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '2px' }}>
+                            <span style={{ color: 'var(--text-muted)' }}>Academic Standing:</span>
+                            <strong style={{ color: 'var(--accent-primary)' }}>{viewingStudent.standing} (Good Standing)</strong>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                 </div>
+              );
+            })()}
 
-              </div>
-
-              {/* Modal Actions */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', borderTop: '1px solid var(--border-color)', paddingTop: '16px', marginTop: '8px' }}>
-                <button 
-                  className="btn btn-secondary" 
-                  onClick={() => setSelectedStudent(null)}
-                  style={{ padding: '8px 16px', fontSize: '0.82rem', borderRadius: '10px' }}
-                >
-                  Close Details
-                </button>
-                <button 
-                  className="btn btn-primary"
-                  onClick={() => {
-                    triggerToast(`Academic report sent to ${selectedStudent.name}`);
-                    setSelectedStudent(null);
-                  }}
-                  style={{ padding: '8px 16px', fontSize: '0.82rem', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}
-                >
-                  <Mail size={14} />
-                  <span>Send Report Alert</span>
-                </button>
-              </div>
-
-            </motion.div>
           </div>
-        )}
-      </AnimatePresence>
+        </div>
+      )}
+
+      {/* =======================================================================
+         PASSPORT PHOTO PREVIEW MODAL
+         ======================================================================= */}
+      {previewingPhoto && (
+        <div 
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.92)',
+            backdropFilter: 'blur(16px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 20000,
+            padding: '20px'
+          }}
+          onClick={() => setPreviewingPhoto(null)}
+        >
+          <div 
+            style={{
+              position: 'relative',
+              maxWidth: '460px',
+              width: '100%',
+              background: '#0F172A',
+              borderRadius: '20px',
+              padding: '24px',
+              border: '2px solid var(--accent-primary)',
+              boxShadow: '0 25px 60px rgba(0, 0, 0, 0.8), 0 0 40px rgba(139, 92, 246, 0.4)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '16px'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h4 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '1rem', fontWeight: 700 }}>
+                  {previewingPhoto.name}
+                </h4>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  ID: {previewingPhoto.id} • Official Photo
+                </span>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setPreviewingPhoto(null)}
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <img 
+              src={previewingPhoto.url} 
+              alt={previewingPhoto.name} 
+              style={{
+                width: '100%',
+                maxHeight: '440px',
+                objectFit: 'contain',
+                borderRadius: '12px',
+                border: '1px solid rgba(255, 255, 255, 0.1)'
+              }}
+            />
+
+            <div style={{ width: '100%', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <a 
+                href={previewingPhoto.url} 
+                download={`${previewingPhoto.name}_${previewingPhoto.id}.jpg`}
+                className="btn btn-primary"
+                style={{ padding: '6px 14px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '6px', textDecoration: 'none' }}
+              >
+                <Download size={14} /> Download Photo
+              </a>
+              <button 
+                type="button"
+                onClick={() => setPreviewingPhoto(null)}
+                className="btn btn-secondary"
+                style={{ padding: '6px 14px', fontSize: '0.8rem' }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

@@ -16,9 +16,13 @@ import autoTable from 'jspdf-autotable';
  */
 export function downloadEntranceModelQuestionPDF({
   examTitle = 'ENTRANCE MODEL QUESTION (A)',
-  subject = 'ENGLISH',
-  institution = 'QGENIX UNIVERSITY',
-  courseCode = 'ENG-101',
+  subject = 'Physics I: Mechanics & Thermodynamics',
+  institution = 'DAFFODIL INSTITUTE OF IT',
+  degreeProgram = 'B.Sc (Hons) in Computer Science & Engineering',
+  semesterExam = 'Midterm Examination, CSE 4th Year 8th Semester, 21st Batch, 2026',
+  setName = 'SET: A',
+  courseCode = 'PHY-101',
+  courseTitle = 'Physics I: Mechanics & Thermodynamics',
   questions = [],
   totalMarks = 50,
   timeAllowed = '60 Minutes',
@@ -32,34 +36,52 @@ export function downloadEntranceModelQuestionPDF({
 
   let y = 45;
 
+  // Set badge in top right
+  if (setName) {
+    doc.setFont('times', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(15, 23, 42);
+    doc.text(`[${setName}]`, pageWidth - margin, y - 2, { align: 'right' });
+  }
+
   // 1. Top Document Header (Centered, bold standard entrance style)
   doc.setFont('times', 'bold');
-  doc.setFontSize(20);
+  doc.setFontSize(18);
   doc.setTextColor(15, 23, 42);
-  doc.text(examTitle.toUpperCase(), pageWidth / 2, y, { align: 'center' });
+  doc.text((institution || 'DAFFODIL INSTITUTE OF IT').toUpperCase(), pageWidth / 2, y, { align: 'center' });
 
-  y += 20;
-  doc.setFont('times', 'bold');
-  doc.setFontSize(13);
-  doc.setTextColor(51, 65, 85);
-  doc.text(institution.toUpperCase(), pageWidth / 2, y, { align: 'center' });
+  if (degreeProgram) {
+    y += 18;
+    doc.setFont('times', 'bold');
+    doc.setFontSize(12);
+    doc.setTextColor(51, 65, 85);
+    doc.text(degreeProgram, pageWidth / 2, y, { align: 'center' });
+  }
+
+  if (semesterExam) {
+    y += 16;
+    doc.setFont('times', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(51, 65, 85);
+    doc.text(semesterExam, pageWidth / 2, y, { align: 'center' });
+  }
 
   y += 18;
-  // Subject Box: e.g. [ ENGLISH ]
-  const subjectText = subject.toUpperCase();
-  doc.setFontSize(14);
-  const subjWidth = doc.getTextWidth(`  ${subjectText}  `) + 20;
+  // Subject Box: e.g. [ PHY-101: Physics I: Mechanics & Thermodynamics ]
+  const subjectDisplay = (courseCode ? `${courseCode}: ${courseTitle || subject}` : (courseTitle || subject || 'SUBJECT')).toUpperCase();
+  doc.setFontSize(12);
+  const subjWidth = Math.min(doc.getTextWidth(`  ${subjectDisplay}  `) + 20, contentWidth);
   doc.setFillColor(15, 23, 42);
   doc.rect((pageWidth - subjWidth) / 2, y - 13, subjWidth, 20, 'F');
   doc.setTextColor(255, 255, 255);
-  doc.text(subjectText, pageWidth / 2, y + 2, { align: 'center' });
+  doc.text(subjectDisplay, pageWidth / 2, y + 2, { align: 'center' });
 
   y += 20;
-  // Metadata Bar (Course, Time, Marks)
+  // Metadata Bar (Time, Marks)
   doc.setFont('times', 'normal');
   doc.setFontSize(9.5);
   doc.setTextColor(71, 85, 105);
-  doc.text(`Course: ${courseCode} • Time: ${timeAllowed} • Full Marks: ${totalMarks}`, pageWidth / 2, y, { align: 'center' });
+  doc.text(`Time Allowed: ${timeAllowed} • Full Marks: ${totalMarks}`, pageWidth / 2, y, { align: 'center' });
 
   y += 8;
   doc.setDrawColor(30, 41, 59);

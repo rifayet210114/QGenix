@@ -121,10 +121,50 @@ class ExamSession(models.Model):
     end_date = models.CharField(max_length=50, blank=True)
     is_locked = models.BooleanField(default=False)
     submitted_papers = models.IntegerField(default=0)
-    total_expected = models.IntegerField(default=40)
+    total_expected = models.IntegerField(default=0)
+    batch = models.CharField(max_length=100, blank=True, default='')
+    semester = models.CharField(max_length=100, blank=True, default='')
+    expected_students = models.IntegerField(default=0)
+    status = models.CharField(max_length=50, default='Scheduled')
+    is_published = models.BooleanField(default=False)
+    routine = models.JSONField(default=list, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+
+    @property
+    def computed_status(self):
+        from datetime import date
+        today_str = date.today().strftime('%Y-%m-%d')
+        if self.end_date and self.end_date < today_str:
+            return 'Completed'
+        if self.is_published:
+            return 'Active'
+        return 'Scheduled'
+
+    def save(self, *args, **kwargs):
+        if self.expected_students and not self.total_expected:
+            self.total_expected = self.expected_students
+        elif self.total_expected and not self.expected_students:
+            self.expected_students = self.total_expected
+        self.status = self.computed_status
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.name
+
+
+class GradingScaleRule(models.Model):
+    grade = models.CharField(max_length=20)
+    min_marks = models.IntegerField(default=0)
+    max_marks = models.IntegerField(default=100)
+    gpa = models.FloatField(default=4.0)
+    remarks = models.CharField(max_length=100, blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+
+    class Meta:
+        ordering = ['-min_marks']
+
+    def __str__(self):
+        return f"{self.grade} ({self.min_marks}% - {self.max_marks}%, GPA: {self.gpa})"
 
 
 class Notice(models.Model):
@@ -165,6 +205,32 @@ class SemesterResult(models.Model):
 
     def __str__(self):
         return f"{self.student.username} - {self.semester}: GPA {self.gpa}"
+
+
+class StudentExamResult(models.Model):
+    student = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='exam_results', null=True, blank=True)
+    student_uid = models.CharField(max_length=50) # Institutional ID or username
+    student_name = models.CharField(max_length=150)
+    batch = models.CharField(max_length=100) # e.g. Batch 2027 - 2028
+    semester = models.CharField(max_length=50) # e.g. 2nd Semester
+    course_code = models.CharField(max_length=50) # e.g. CSE-301
+    course_title = models.CharField(max_length=200) # e.g. Advanced Data Structures
+    exam_name = models.CharField(max_length=150) # e.g. Mid Term Exam
+    obtained_marks = models.FloatField(default=0.0)
+    max_marks = models.FloatField(default=100.0)
+    percentage = models.FloatField(default=0.0)
+    grade = models.CharField(max_length=10, default='F')
+    gpa = models.FloatField(default=0.0)
+    is_published = models.BooleanField(default=False)
+    submitted_by = models.CharField(max_length=150, blank=True, default='')
+    submitted_at = models.DateTimeField(auto_now_add=True)
+    published_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-submitted_at']
+
+    def __str__(self):
+        return f"{self.student_name} - {self.course_code} ({self.batch}, {self.semester}): {self.grade} ({self.gpa})"
 
 
 class ClassRoutine(models.Model):

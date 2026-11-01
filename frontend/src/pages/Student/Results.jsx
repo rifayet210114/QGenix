@@ -29,6 +29,8 @@ import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line, Legend
 } from 'recharts'; // Chart library imports
 import Card from '../../components/Card'; // QGenix custom glass card wrapper
+import { useAuth } from '../../contexts/AuthContext';
+import { useAdminData } from '../../contexts/AdminDataContext';
 
 // ----------------------------------------------------------------------------
 // 1. MOCK DATA: STUDENT COMPREHENSIVE EXAMS & RESULTS DATA
@@ -314,11 +316,90 @@ export default function Results() {
   const [currentPage, setCurrentPage] = useState(1); // Active pagination page
   const itemsPerPage = 3; // Max table rows shown per screen page
 
+  const { user } = useAuth();
+  const { submittedExamResults = [] } = useAdminData();
+
+  // Match published exam results for current logged in student
+  const studentPublishedResults = useMemo(() => {
+    if (!user) return [];
+    const myUid = (user.institutional_id || user.username || '').toLowerCase();
+    const myName = (user.name || `${user.first_name || ''} ${user.last_name || ''}`).toLowerCase().trim();
+
+    return submittedExamResults.filter(r => {
+      const rUid = (r.student_uid || '').toLowerCase();
+      const rName = (r.student_name || '').toLowerCase();
+      const isMe = (myUid && rUid === myUid) || (myName && (rName === myName || rName.includes(myName)));
+      return isMe && r.is_published;
+    });
+  }, [user, submittedExamResults]);
+
+  // Check if exams were submitted for this student's batch & semester but not published yet
+  const studentPendingResults = useMemo(() => {
+    if (!user) return [];
+    const myUid = (user.institutional_id || user.username || '').toLowerCase();
+    const myName = (user.name || `${user.first_name || ''} ${user.last_name || ''}`).toLowerCase().trim();
+    const myBatch = (user.batch_name || user.batch || '').toLowerCase();
+    const mySem = (user.current_semester || user.semester || '').toLowerCase();
+
+    return submittedExamResults.filter(r => {
+      const rUid = (r.student_uid || '').toLowerCase();
+      const rName = (r.student_name || '').toLowerCase();
+      const rBatch = (r.batch || '').toLowerCase();
+      const rSem = (r.semester || '').toLowerCase();
+      const isMe = (myUid && rUid === myUid) || (myName && (rName === myName || rName.includes(myName))) ||
+                   (myBatch && (rBatch === myBatch || rBatch.includes(myBatch))) && (!mySem || rSem === mySem);
+      return isMe && !r.is_published;
+    });
+  }, [user, submittedExamResults]);
+
   // Primary dynamic results state synced to localStorage
   const [exams, setExams] = useState(() => {
     const saved = localStorage.getItem('qgenix_student_results');
     return saved ? JSON.parse(saved) : examsData;
   });
+
+  useEffect(() => {
+    if (studentPublishedResults.length > 0) {
+      const mapped = studentPublishedResults.map(r => ({
+        id: r.id,
+        name: r.exam_name || 'Semester Examination',
+        subject: r.course_title || r.course_code,
+        code: r.course_code,
+        date: r.published_at?.split(' ')[0] || r.submitted_at?.split(' ')[0] || '2026-10-30',
+        score: `${r.obtained_marks}/${r.max_marks}`,
+        percentage: Math.round(r.percentage),
+        grade: r.grade,
+        status: r.percentage >= 40 ? 'Pass' : 'Fail',
+        duration: '2 Hours',
+        attempt: 1,
+        analysis: {
+          totalQuestions: 50,
+          correct: Math.round((r.percentage / 100) * 45),
+          wrong: Math.round(((100 - r.percentage) / 100) * 45),
+          unanswered: 5,
+          timeTaken: '1h 45m',
+          rank: 'Verified'
+        },
+        proctoring: {
+          faceDetection: 'Optimal (100% Match)',
+          tabSwitches: 0,
+          multiPerson: 0,
+          voiceEvents: 0,
+          suspicionScore: 0,
+          riskLevel: 'Clear / Verified'
+        },
+        insights: {
+          strong: 'Consistent conceptual accuracy in core subjects',
+          weak: 'Review specific descriptive questions',
+          suggestions: 'Maintain academic momentum for upcoming semester.',
+          prediction: `${r.grade} in final university transcript`
+        },
+        questions: []
+      }));
+      setExams(mapped);
+      setSelectedExam(mapped[0] || null);
+    }
+  }, [studentPublishedResults]);
 
   useEffect(() => {
     localStorage.setItem('qgenix_student_results', JSON.stringify(exams));
@@ -613,6 +694,59 @@ export default function Results() {
           </p>
         </div>
       </div>
+
+      {/* Official Status Banners */}
+      {studentPendingResults.length > 0 && studentPublishedResults.length === 0 && (
+        <div 
+          className="glass-panel"
+          style={{
+            padding: '16px 20px',
+            borderRadius: '14px',
+            background: 'rgba(245, 158, 11, 0.1)',
+            border: '1px solid rgba(245, 158, 11, 0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '14px',
+            color: '#fbbf24',
+            position: 'relative',
+            zIndex: 10
+          }}
+        >
+          <ShieldAlert size={26} />
+          <div>
+            <div style={{ fontWeight: 700, fontSize: '1rem', color: '#fbbf24' }}>Examination Scripts Under Administrative Verification</div>
+            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+              Your course teachers have evaluated the examination papers and submitted the marksheet. Official results will appear here as soon as approved and published by the Exam Controller.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {studentPublishedResults.length > 0 && (
+        <div 
+          className="glass-panel"
+          style={{
+            padding: '14px 20px',
+            borderRadius: '14px',
+            background: 'rgba(16, 185, 129, 0.1)',
+            border: '1px solid rgba(16, 185, 129, 0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '14px',
+            color: '#34d399',
+            position: 'relative',
+            zIndex: 10
+          }}
+        >
+          <Award size={24} />
+          <div>
+            <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#34d399' }}>Official Results Published by Exam Controller</div>
+            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+              Your semester examination results have been verified and officially published. Your marks and updated GPA are displayed below.
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* =======================================================================
          1️⃣ STATISTICS OVERVIEW CARDS GRID

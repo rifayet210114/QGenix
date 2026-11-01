@@ -33,9 +33,9 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 // [MODIFICATION: Added Building2, ShieldAlert, Sparkles for complete Admin console navigation icons]
 import { 
   LayoutDashboard, Users, Settings, BookOpen, FileText, 
-  CheckSquare, Calendar, TrendingUp, CalendarCheck, 
+  CheckSquare, Calendar, CalendarCheck, 
   Award, Clock, Bell, MessageSquare, FolderOpen, BrainCircuit, User, LogOut,
-  Building2, ShieldAlert, Sparkles, Archive
+  Building2, ShieldAlert, Sparkles, Archive, Crown
 } from 'lucide-react';
 
 // ==================== LAYOUT ====================
@@ -60,7 +60,8 @@ import RoutineAttendance from './pages/Admin/RoutineAttendance'; // Master routi
 import NoticeBoard from './pages/Admin/NoticeBoard';             // Central circular publisher & audience delivery
 import AIEngine from './pages/Admin/AIEngine';                   // LLM providers, tokens quota & safety guardrails
 import AuditLogs from './pages/Admin/AuditLogs';                 // Audit trail logs & database backup vault
-import AdminSettings from './pages/Admin/Settings';             // Institutional preferences & maintenance mode
+import AdminSettings from './pages/Admin/Settings';
+import PremiumMembers from './pages/Admin/PremiumMembers';             // Institutional preferences & maintenance mode
 
 // ==================== TEACHER PAGES ====================
 // Pages for teachers / instructors
@@ -115,6 +116,7 @@ const adminLinks = [
   { path: '/admin', label: 'Executive Dashboard', icon: <LayoutDashboard size={20} /> },
   { path: '/admin/academics', label: 'Academics', icon: <Building2 size={20} /> },
   { path: '/admin/users', label: 'Users & RBAC', icon: <Users size={20} /> },
+  { path: '/admin/premium-members', label: 'Premium Member', icon: <Crown size={20} /> },
   { path: '/admin/exams', label: 'Exam Controller', icon: <Award size={20} /> },
   { path: '/admin/routine', label: 'Routine & Attendance', icon: <CalendarCheck size={20} /> },
   { path: '/admin/notices', label: 'Notice Board', icon: <Bell size={20} /> },
@@ -139,7 +141,6 @@ const teacherLinks = [
   { path: '/teacher/results', label: 'Result', icon: <Award size={20} /> },
   { path: '/teacher/routine', label: 'Routine', icon: <Clock size={20} /> },
   { path: '/teacher/notices', label: 'Notice', icon: <Bell size={20} /> },
-  { path: '/teacher/reports', label: 'Report', icon: <TrendingUp size={20} /> },
   { path: '/teacher/profile', label: 'Profile', icon: <User size={20} /> },
   { path: '/login', label: 'Logout', icon: <LogOut size={20} /> },
 ];
@@ -220,6 +221,7 @@ function App() {
             <Route path="archive" element={<ArchivePage />} />
             {/* /admin/users → Advanced User Directory, CSV Bulk Upload & RBAC */}
             <Route path="users" element={<UserManagement />} />
+            <Route path="premium-members" element={<PremiumMembers />} />
             {/* /admin/exams → Central Examination & Result Publishing Pipeline */}
             <Route path="exams" element={<ExamController />} />
             {/* /admin/routine → Master Timetable Scheduler & Attendance Defaulter Monitor */}
@@ -270,7 +272,6 @@ function App() {
             <Route path="results" element={<TeacherResults />} />
             <Route path="routine" element={<TeacherRoutine />} />
             <Route path="notices" element={<TeacherNotices />} />
-            <Route path="reports" element={<ComingSoon title="Report" />} />
             <Route path="profile" element={<TeacherProfile />} />
           </Route>
 

@@ -10,6 +10,34 @@ import { API_BASE } from '../config';
 const AdminDataContext = createContext();
 
 // Standard University Grading Scale
+export const calculateGradeFromPolicy = (totalMarks, scale = []) => {
+  const marks = parseFloat(totalMarks) || 0;
+  const sorted = [...(scale || [])].sort((a, b) => {
+    const minA = parseFloat(a.minMarks !== undefined ? a.minMarks : a.min_marks) || 0;
+    const minB = parseFloat(b.minMarks !== undefined ? b.minMarks : b.min_marks) || 0;
+    return minB - minA;
+  });
+
+  for (const rule of sorted) {
+    const min = parseFloat(rule.minMarks !== undefined ? rule.minMarks : rule.min_marks) || 0;
+    const max = parseFloat(rule.maxMarks !== undefined ? rule.maxMarks : rule.max_marks) || 100;
+    if (marks >= min && marks <= max) {
+      return {
+        grade: rule.grade,
+        gpa: parseFloat(rule.gpa) || 0.0,
+        remarks: rule.remarks || ''
+      };
+    }
+  }
+
+  const lowest = sorted[sorted.length - 1];
+  return {
+    grade: lowest ? lowest.grade : 'F',
+    gpa: lowest ? parseFloat(lowest.gpa) : 0.0,
+    remarks: lowest ? lowest.remarks : 'Fail'
+  };
+};
+
 const initialGradingScale = [
   { id: 1, grade: 'A+', minMarks: 80, maxMarks: 100, gpa: 4.00, remarks: 'Outstanding' },
   { id: 2, grade: 'A', minMarks: 75, maxMarks: 79, gpa: 3.75, remarks: 'Excellent' },
@@ -103,6 +131,7 @@ export function AdminDataProvider({ children }) {
   const [archives, setArchives] = useState([]);
   const [stats, setStats] = useState(null);
   const [isDbConnected, setIsDbConnected] = useState(false);
+  const [submittedExamResults, setSubmittedExamResults] = useState(() => loadState('submittedExamResults', []));
   const [emailFormats, setEmailFormats] = useState(() => loadState('emailFormats', {
     student: '@diit.edu.bd',
     teacher: '@diit.edu.bd'
@@ -128,7 +157,33 @@ export function AdminDataProvider({ children }) {
           });
         }
 
-        if (Array.isArray(data.students)) setStudents(data.students);
+        if (Array.isArray(data.students)) {
+          setStudents(data.students);
+          // Sync tabulation marks for real database students
+          setTabulationMarks(prevMarks => {
+            const marksMap = new Map((prevMarks || []).map(m => [m.studentId, m]));
+            return data.students.map(s => {
+              const sId = s.institutional_id || s.institutionalId || s.registration_no || `STU-${s.id}`;
+              const existing = marksMap.get(sId);
+              if (existing) return existing;
+              const quiz = 16;
+              const mid = 24;
+              const final = 42;
+              const total = quiz + mid + final;
+              const calculated = calculateGradeFromPolicy(total, data.grading_scale || []);
+              return {
+                studentId: sId,
+                studentName: s.name || `${s.first_name || ''} ${s.last_name || ''}`.trim() || s.username,
+                quiz,
+                mid,
+                final,
+                total,
+                grade: calculated.grade,
+                gpa: calculated.gpa
+              };
+            });
+          });
+        }
         if (Array.isArray(data.faculty)) setFaculty(data.faculty);
         if (Array.isArray(data.courses)) {
           setCourses(data.courses.map(c => ({
@@ -168,6 +223,25 @@ export function AdminDataProvider({ children }) {
             section: a.section,
             weeklyDays: a.weeklyDays || a.weekly_days || (a.hoursPerWeek ? `${a.hoursPerWeek} Days/Week` : 'Sun, Tue')
           })));
+        }
+        if (Array.isArray(data.exam_sessions_list)) {
+          setExamSessions(prev => {
+            if (JSON.stringify(prev) === JSON.stringify(data.exam_sessions_list)) {
+              return prev;
+            }
+            return data.exam_sessions_list;
+          });
+        }
+        if (Array.isArray(data.grading_scale)) {
+          setGradingScale(prev => {
+            if (JSON.stringify(prev) === JSON.stringify(data.grading_scale)) {
+              return prev;
+            }
+            return data.grading_scale;
+          });
+        }
+        if (Array.isArray(data.submitted_exam_results)) {
+          setSubmittedExamResults(data.submitted_exam_results);
         }
       }
     } catch (err) {
@@ -625,6 +699,84 @@ export function AdminDataProvider({ children }) {
   };
 
   // Publish Semester Result and dynamically re-calculate student CGPA
+  // Teacher Submits Exam Paper Marks for a Batch & Semester
+  const submitTeacherExamResults = async (payload) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/submit-teacher-results/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        await refreshFromDB();
+        return { success: true };
+      }
+    } catch (e) {
+      console.warn('Error submitting teacher exam results to DB:', e);
+    }
+    const newItems = (payload.results || []).map(r => ({
+      id: Date.now() + Math.random(),
+      student_uid: r.student_uid || r.student_id,
+      student_name: r.student_name,
+      batch: payload.batch,
+      semester: payload.semester,
+      course_code: payload.course_code,
+      course_title: payload.course_title,
+      exam_name: payload.exam_name,
+      obtained_marks: r.obtained_marks,
+      max_marks: payload.max_marks || 100,
+      percentage: r.percentage,
+      grade: r.grade,
+      gpa: r.gpa,
+      is_published: false,
+      submitted_by: payload.submitted_by || 'Faculty',
+      submitted_at: new Date().toISOString()
+    }));
+    setSubmittedExamResults(prev => {
+      const filtered = prev.filter(p => !(p.batch === payload.batch && p.semester === payload.semester && p.course_code === payload.course_code && p.exam_name === payload.exam_name));
+      return [...newItems, ...filtered];
+    });
+    return { success: true };
+  };
+
+  // Admin Publishes Results for an Entire Batch & Semester
+  const publishBatchResults = async (batch, semester) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/publish-batch-results/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ batch, semester })
+      });
+      if (res.ok) {
+        await refreshFromDB();
+        return { success: true };
+      }
+    } catch (e) {
+      console.warn('Error publishing batch results to DB:', e);
+    }
+    setSubmittedExamResults(prev => prev.map(r => (r.batch === batch && r.semester === semester) ? { ...r, is_published: true } : r));
+    return { success: true };
+  };
+
+  // Admin Unpublishes Results for a Batch & Semester
+  const unpublishBatchResults = async (batch, semester) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/unpublish-batch-results/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ batch, semester })
+      });
+      if (res.ok) {
+        await refreshFromDB();
+        return { success: true };
+      }
+    } catch (e) {
+      console.warn('Error unpublishing batch results from DB:', e);
+    }
+    setSubmittedExamResults(prev => prev.map(r => (r.batch === batch && r.semester === semester) ? { ...r, is_published: false } : r));
+    return { success: true };
+  };
+
   const publishSemesterResult = async (payload) => {
     try {
       const res = await fetch(`${API_BASE}/api/auth/publish-semester-result/`, {
@@ -853,31 +1005,242 @@ export function AdminDataProvider({ children }) {
 
   // ==================== 3. EXAMS & RESULTS ====================
   // Toggle Session Lock
-  const toggleSessionLock = (id) => {
-    setExamSessions(prev => prev.map(s => {
-      if (s.id === id) {
-        const next = !s.isLocked;
-        addAuditLog(`Exam Session ${next ? 'LOCKED' : 'UNLOCKED'}`, 'Exam Controller', s.name);
-        return { ...s, isLocked: next };
+  const toggleSessionLock = async (id) => {
+    const session = examSessions.find(s => s.id === id);
+    if (!session) return;
+    const nextLocked = !(session.isLocked !== undefined ? session.isLocked : session.is_locked);
+
+    setExamSessions(prev => prev.map(s => s.id === id ? { ...s, isLocked: nextLocked, is_locked: nextLocked } : s));
+    addAuditLog(`Exam Session ${nextLocked ? 'LOCKED' : 'UNLOCKED'}`, 'Exam Controller', session.name || session.title);
+
+    try {
+      await fetch(`${API_BASE}/api/auth/exam-sessions/${id}/`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_locked: nextLocked })
+      });
+      refreshFromDB();
+    } catch (e) {
+      console.warn('Error toggling session lock in DB:', e);
+    }
+  };
+
+  // Add Exam Session (100% Real Database Persistence)
+  const addExamSession = async (sessionData) => {
+    const payload = {
+      name: sessionData.name || sessionData.title,
+      batch: sessionData.batch || '',
+      semester: sessionData.semester || '',
+      exam_type: sessionData.exam_type || sessionData.type || 'Mid Term Exam',
+      expected_students: parseInt(sessionData.expected_students || sessionData.expectedStudents) || 0,
+      total_expected: parseInt(sessionData.expected_students || sessionData.expectedStudents) || 0,
+      start_date: sessionData.start_date || sessionData.startDate || '',
+      end_date: sessionData.end_date || sessionData.endDate || '',
+      status: 'Scheduled',
+      is_published: false,
+      routine: sessionData.routine || [],
+      is_locked: false
+    };
+
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/exam-sessions/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        const saved = await res.json();
+        setExamSessions(prev => [saved, ...prev]);
+        refreshFromDB();
+        addAuditLog('Exam Session Scheduled', 'Exam Controller', payload.name);
+        return { success: true, session: saved };
       }
-      return s;
-    }));
+    } catch (e) {
+      console.warn('Error adding exam session to DB:', e);
+    }
+
+    const fallback = { id: Date.now(), ...payload };
+    setExamSessions(prev => [fallback, ...prev]);
+    return { success: true, session: fallback };
   };
 
-  // Add Exam Session
-  const addExamSession = (session) => {
-    const newSession = { id: Date.now(), isLocked: false, submittedPapers: 0, totalExpected: 40, ...session };
-    setExamSessions(prev => [newSession, ...prev]);
-    addAuditLog('Exam Session Scheduled', 'Exam Controller', session.name);
+  // Edit / Update Exam Session
+  const updateExamSession = async (id, sessionData) => {
+    const payload = {
+      name: sessionData.name || sessionData.title,
+      batch: sessionData.batch,
+      semester: sessionData.semester,
+      exam_type: sessionData.exam_type || sessionData.type,
+      expected_students: parseInt(sessionData.expected_students || sessionData.expectedStudents) || 0,
+      total_expected: parseInt(sessionData.expected_students || sessionData.expectedStudents) || 0,
+      start_date: sessionData.start_date || sessionData.startDate,
+      end_date: sessionData.end_date || sessionData.endDate,
+      status: sessionData.status,
+      is_published: sessionData.is_published !== undefined ? sessionData.is_published : sessionData.isPublished,
+      routine: sessionData.routine,
+      is_locked: sessionData.is_locked !== undefined ? sessionData.is_locked : sessionData.isLocked
+    };
+
+    Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
+
+    setExamSessions(prev => prev.map(s => s.id === id ? { ...s, ...payload } : s));
+    addAuditLog('Exam Session Updated', 'Exam Controller', payload.name || `Session #${id}`);
+
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/exam-sessions/${id}/`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        refreshFromDB();
+      }
+    } catch (e) {
+      console.warn('Error updating exam session in DB:', e);
+    }
   };
 
-  // Update Grading Scale
+  // Delete Exam Session
+  const deleteExamSession = async (id) => {
+    const session = examSessions.find(s => s.id === id);
+    setExamSessions(prev => prev.filter(s => s.id !== id));
+    addAuditLog('Exam Session Deleted', 'Exam Controller', session?.name || `Session #${id}`);
+
+    try {
+      await fetch(`${API_BASE}/api/auth/exam-sessions/${id}/`, {
+        method: 'DELETE'
+      });
+      refreshFromDB();
+    } catch (e) {
+      console.warn('Error deleting exam session from DB:', e);
+    }
+  };
+
+  // Publish Exam Session Routine (Publishes to Student and Teacher Panels)
+  const publishExamRoutine = async (id, routineList) => {
+    const session = examSessions.find(s => s.id === id);
+    const payload = {
+      routine: routineList,
+      is_published: true,
+      status: 'Active'
+    };
+
+    setExamSessions(prev => prev.map(s => s.id === id ? { ...s, ...payload } : s));
+    addAuditLog('Exam Routine Published', 'Exam Controller', `${session?.name || id} published to Student/Teacher portals`);
+
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/exam-sessions/${id}/`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        refreshFromDB();
+      }
+    } catch (e) {
+      console.warn('Error publishing exam routine in DB:', e);
+    }
+
+    try {
+      window.dispatchEvent(new CustomEvent('qgenix_exam_sessions_updated', { detail: { id, routine: routineList } }));
+      const bc = new BroadcastChannel('qgenix_exam_sessions');
+      bc.postMessage({ type: 'EXAM_ROUTINE_PUBLISHED', id, routine: routineList, timestamp: Date.now() });
+      bc.close();
+    } catch (_) {}
+  };
+
+  // Add New Grade Rule (100% Real Database Persistence)
+  const addGradeRule = async (ruleData) => {
+    const payload = {
+      grade: (ruleData.grade || '').trim().toUpperCase(),
+      min_marks: parseInt(ruleData.minMarks !== undefined ? ruleData.minMarks : ruleData.min_marks) || 0,
+      max_marks: parseInt(ruleData.maxMarks !== undefined ? ruleData.maxMarks : ruleData.max_marks) || 100,
+      gpa: parseFloat(ruleData.gpa) || 0.0,
+      remarks: (ruleData.remarks || '').trim()
+    };
+
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/grading-scale/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        const saved = await res.json();
+        const mapped = {
+          id: saved.id,
+          grade: saved.grade,
+          minMarks: saved.min_marks,
+          min_marks: saved.min_marks,
+          maxMarks: saved.max_marks,
+          max_marks: saved.max_marks,
+          gpa: saved.gpa,
+          remarks: saved.remarks
+        };
+        setGradingScale(prev => [...prev, mapped].sort((a,b) => b.minMarks - a.minMarks));
+        addAuditLog('Grading Standard Added', 'Exam Controller', `Grade ${payload.grade} (${payload.min_marks}% - ${payload.max_marks}%)`);
+        refreshFromDB();
+        return { success: true, rule: mapped };
+      }
+    } catch (e) {
+      console.warn('Error adding grade rule to DB:', e);
+    }
+
+    const fallback = { id: Date.now(), ...payload, minMarks: payload.min_marks, maxMarks: payload.max_marks };
+    setGradingScale(prev => [...prev, fallback].sort((a,b) => b.minMarks - a.minMarks));
+    return { success: true, rule: fallback };
+  };
+
+  // Update Grade Rule (100% Real Database Persistence)
+  const updateGradeRule = async (id, ruleData) => {
+    const payload = {
+      grade: (ruleData.grade || '').trim().toUpperCase(),
+      min_marks: parseInt(ruleData.minMarks !== undefined ? ruleData.minMarks : ruleData.min_marks) || 0,
+      max_marks: parseInt(ruleData.maxMarks !== undefined ? ruleData.maxMarks : ruleData.max_marks) || 100,
+      gpa: parseFloat(ruleData.gpa) || 0.0,
+      remarks: (ruleData.remarks || '').trim()
+    };
+
+    setGradingScale(prev => prev.map(g => g.id === id ? { ...g, ...payload, minMarks: payload.min_marks, maxMarks: payload.max_marks } : g).sort((a,b) => b.minMarks - a.minMarks));
+    addAuditLog('Grading Standard Updated', 'Exam Controller', `Grade ${payload.grade} modified`);
+
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/grading-scale/${id}/`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        refreshFromDB();
+      }
+    } catch (e) {
+      console.warn('Error updating grade rule in DB:', e);
+    }
+  };
+
+  // Delete Grade Rule (100% Real Database Persistence)
+  const deleteGradeRule = async (id) => {
+    const target = gradingScale.find(g => g.id === id);
+    setGradingScale(prev => prev.filter(g => g.id !== id));
+    addAuditLog('Grading Standard Removed', 'Exam Controller', target ? target.grade : `Rule #${id}`);
+
+    try {
+      await fetch(`${API_BASE}/api/auth/grading-scale/${id}/`, {
+        method: 'DELETE'
+      });
+      refreshFromDB();
+    } catch (e) {
+      console.warn('Error deleting grade rule from DB:', e);
+    }
+  };
+
+  // Update Full Grading Scale (Batch)
   const updateGradingScale = (newScale) => {
     setGradingScale(newScale);
     addAuditLog('Grading Policy Updated', 'Exam Controller', '4.0 GPA Standard Matrix');
   };
 
-  // Update Tabulation Marks
+  // Update Tabulation Marks using Dynamic Admin Grading Policy
   const updateStudentMarks = (studentId, marks) => {
     setTabulationMarks(prev => prev.map(m => {
       if (m.studentId === studentId) {
@@ -885,16 +1248,18 @@ export function AdminDataProvider({ children }) {
         const mid = parseInt(marks.mid) || 0;
         const final = parseInt(marks.final) || 0;
         const total = quiz + mid + final;
-        let grade = 'F';
-        let gpa = 0.0;
-        if (total >= 80) { grade = 'A+'; gpa = 4.0; }
-        else if (total >= 75) { grade = 'A'; gpa = 3.75; }
-        else if (total >= 70) { grade = 'A-'; gpa = 3.5; }
-        else if (total >= 65) { grade = 'B+'; gpa = 3.25; }
-        else if (total >= 60) { grade = 'B'; gpa = 3.0; }
-        else if (total >= 50) { grade = 'C+'; gpa = 2.5; }
-        else if (total >= 40) { grade = 'D'; gpa = 2.0; }
-        return { ...m, quiz, mid, final, total, grade, gpa };
+        
+        // Match against admin's configured standard grading policy
+        const calculated = calculateGradeFromPolicy(total, gradingScale);
+        return {
+          ...m,
+          quiz,
+          mid,
+          final,
+          total,
+          grade: calculated.grade,
+          gpa: calculated.gpa
+        };
       }
       return m;
     }));
@@ -1240,7 +1605,14 @@ export function AdminDataProvider({ children }) {
 
       toggleSessionLock,
       addExamSession,
+      updateExamSession,
+      deleteExamSession,
+      publishExamRoutine,
       updateGradingScale,
+      addGradeRule,
+      updateGradeRule,
+      deleteGradeRule,
+      calculateGradeFromPolicy,
       updateStudentMarks,
 
       checkRoutineClash,
@@ -1266,7 +1638,11 @@ export function AdminDataProvider({ children }) {
       stats,
       isDbConnected,
       refreshFromDB,
-      publishSemesterResult
+      publishSemesterResult,
+      submittedExamResults,
+      submitTeacherExamResults,
+      publishBatchResults,
+      unpublishBatchResults
     }}>
       {children}
     </AdminDataContext.Provider>

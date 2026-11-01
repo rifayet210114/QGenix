@@ -17,6 +17,7 @@ from .views import (
     CourseViewSet,
     DepartmentViewSet,
     ExamSessionViewSet,
+    GradingScaleRuleViewSet,
     NoticeViewSet,
     AuditLogViewSet,
     PublishSemesterResultView,
@@ -37,7 +38,11 @@ from .views import (
     TeacherCourseResourceView,
     AIGenerateExamView,
     AIPublishExamView,
-    StudentAssignedExamView
+    StudentAssignedExamView,
+    StudentExamResultViewSet,
+    SubmitTeacherExamResultsView,
+    PublishBatchExamResultsView,
+    UnpublishBatchExamResultsView
 )
 
 router = DefaultRouter()
@@ -51,9 +56,11 @@ router.register(r'routines', ClassRoutineViewSet, basename='admin-routines')
 router.register(r'allocations', CourseAllocationViewSet, basename='admin-allocations')
 router.register(r'attendances', ClassAttendanceViewSet, basename='admin-attendances')
 router.register(r'exam-sessions', ExamSessionViewSet, basename='admin-exam-sessions')
+router.register(r'grading-scale', GradingScaleRuleViewSet, basename='admin-grading-scale')
 router.register(r'notices', NoticeViewSet, basename='admin-notices')
 router.register(r'audit-logs', AuditLogViewSet, basename='admin-audit-logs')
 router.register(r'ai-questions', AIQuestionPaperViewSet, basename='admin-ai-questions')
+router.register(r'student-exam-results', StudentExamResultViewSet, basename='student-exam-results')
 
 
 urlpatterns = [
@@ -85,6 +92,9 @@ urlpatterns = [
     path('backup/export/', DatabaseBackupView.as_view(), name='backup-export'),
     # Publish semester result and dynamic CGPA recalculation
     path('publish-semester-result/', PublishSemesterResultView.as_view(), name='publish-semester-result'),
+    path('submit-teacher-results/', SubmitTeacherExamResultsView.as_view(), name='submit-teacher-results'),
+    path('publish-batch-results/', PublishBatchExamResultsView.as_view(), name='publish-batch-results'),
+    path('unpublish-batch-results/', UnpublishBatchExamResultsView.as_view(), name='unpublish-batch-results'),
     # Public Student Registration
     path('register/student/', StudentRegistrationView.as_view(), name='register-student'),
     # JWT Login: Returns access, refresh, role and profile

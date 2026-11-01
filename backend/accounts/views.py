@@ -15,7 +15,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .models import (
-    CustomUser, Department, Course, Batch, ExamSession, Notice, AuditLog, SemesterResult,
+    CustomUser, Department, Course, Batch, ExamSession, Notice, AuditLog, SemesterResult, GradingScaleRule, StudentExamResult,
     ClassRoutine, CourseAllocation, AIConfiguration, SemesterArchive, StudentSemesterRecord,
     SystemSetting, FacultyBiometricLog, FacultyLeaveQuota, FacultyLeaveRecord, FacultySyllabusProgress,
     ClassAttendance, AIQuestionPaper, AITokenUsageLog, BiometricShiftPolicy, FacultyTimesheetEntry,
@@ -39,7 +39,9 @@ from .serializers import (
     StudentSemesterRecordSerializer,
     SystemSettingSerializer,
     ClassAttendanceSerializer,
-    AIQuestionPaperSerializer
+    AIQuestionPaperSerializer,
+    GradingScaleRuleSerializer,
+    StudentExamResultSerializer
 )
 import time
 import urllib.request
@@ -361,12 +363,25 @@ class DashboardStatsView(APIView):
             {
                 'id': e.id,
                 'name': e.name,
+                'title': e.name,
+                'batch': e.batch or '',
+                'semester': e.semester or '',
                 'type': e.exam_type,
+                'exam_type': e.exam_type,
+                'expectedStudents': e.expected_students or e.total_expected,
+                'expected_students': e.expected_students or e.total_expected,
                 'startDate': e.start_date,
+                'start_date': e.start_date,
                 'endDate': e.end_date,
+                'end_date': e.end_date,
+                'status': e.computed_status,
+                'isPublished': e.is_published,
+                'is_published': e.is_published,
+                'routine': e.routine or [],
                 'isLocked': e.is_locked,
+                'is_locked': e.is_locked,
                 'submittedPapers': e.submitted_papers,
-                'totalExpected': e.total_expected
+                'totalExpected': e.expected_students or e.total_expected
             }
             for e in ExamSession.objects.all().order_by('-id')
         ]
@@ -540,6 +555,41 @@ class DashboardStatsView(APIView):
             'attendances': attendances_list,
             'ai_config': ai_cfg_data,
             'exam_sessions_list': exam_sessions_list,
+            'grading_scale': [
+                {
+                    'id': g.id,
+                    'grade': g.grade,
+                    'minMarks': g.min_marks,
+                    'min_marks': g.min_marks,
+                    'maxMarks': g.max_marks,
+                    'max_marks': g.max_marks,
+                    'gpa': g.gpa,
+                    'remarks': g.remarks
+                }
+                for g in GradingScaleRule.objects.all().order_by('-min_marks')
+            ],
+            'submitted_exam_results': [
+                {
+                    'id': r.id,
+                    'student_uid': r.student_uid,
+                    'student_name': r.student_name,
+                    'batch': r.batch,
+                    'semester': r.semester,
+                    'course_code': r.course_code,
+                    'course_title': r.course_title,
+                    'exam_name': r.exam_name,
+                    'obtained_marks': r.obtained_marks,
+                    'max_marks': r.max_marks,
+                    'percentage': r.percentage,
+                    'grade': r.grade,
+                    'gpa': r.gpa,
+                    'is_published': r.is_published,
+                    'submitted_by': r.submitted_by,
+                    'submitted_at': r.submitted_at.strftime('%Y-%m-%d %H:%M') if r.submitted_at else '',
+                    'published_at': r.published_at.strftime('%Y-%m-%d %H:%M') if r.published_at else ''
+                }
+                for r in StudentExamResult.objects.all().order_by('-submitted_at')
+            ],
             'notices': notices_list,
             'audit_logs': audit_logs_list,
             'monthly_trends': monthly_trends,
@@ -771,10 +821,44 @@ class DepartmentViewSet(viewsets.ModelViewSet):
     serializer_class = DepartmentSerializer
     permission_classes = [permissions.AllowAny]
 
+class GradingScaleRuleViewSet(viewsets.ModelViewSet):
+    queryset = GradingScaleRule.objects.all().order_by('-min_marks')
+    serializer_class = GradingScaleRuleSerializer
+    permission_classes = [permissions.AllowAny]
+
 class ExamSessionViewSet(viewsets.ModelViewSet):
     queryset = ExamSession.objects.all().order_by('-id')
     serializer_class = ExamSessionSerializer
     permission_classes = [permissions.AllowAny]
+
+    def perform_create(self, serializer):
+        session = serializer.save()
+        try:
+            AuditLog.objects.create(
+                user='Admin (System Controller)',
+                action='Exam Session Scheduled',
+                category='Exam Controller',
+                target=f"{session.name} ({session.batch})",
+                timestamp=datetime.now().strftime('%I:%M %p'),
+                status='Success'
+            )
+        except Exception:
+            pass
+
+    def perform_destroy(self, instance):
+        name = instance.name
+        instance.delete()
+        try:
+            AuditLog.objects.create(
+                user='Admin (System Controller)',
+                action='Exam Session Removed',
+                category='Exam Controller',
+                target=name,
+                timestamp=datetime.now().strftime('%I:%M %p'),
+                status='Success'
+            )
+        except Exception:
+            pass
 
 class NoticeViewSet(viewsets.ModelViewSet):
     queryset = Notice.objects.all().order_by('-id')
@@ -2760,6 +2844,10 @@ class FacultyTimesheetView(APIView):
         identifier = (
             request.query_params.get('teacher_id') or 
             request.data.get('teacher_id') or 
+            request.query_params.get('teacher') or 
+            request.data.get('teacher') or 
+            request.query_params.get('teacher_name') or 
+            request.data.get('teacher_name') or 
             request.query_params.get('email') or 
             request.data.get('email') or 
             request.data.get('username') or 
@@ -3008,10 +3096,10 @@ class TeacherCourseResourceView(APIView):
 
     def get(self, request):
         teacher = self._resolve_teacher(request)
-        if teacher:
-            self._ensure_initial_seeds(teacher)
 
         qs = TeacherCourseResource.objects.all()
+        if teacher and (request.query_params.get('teacher_id') or request.query_params.get('teacher') or request.query_params.get('teacher_name') or request.query_params.get('email') or request.query_params.get('username')):
+            qs = qs.filter(teacher=teacher)
         course_filter = request.query_params.get('course')
         if course_filter and course_filter != 'All':
             qs = qs.filter(models.Q(course_code__iexact=course_filter) | models.Q(course_title__icontains=course_filter))
@@ -3403,14 +3491,61 @@ Return strictly valid JSON in the following format without markdown or backticks
 }}"""
                 else:
                     # Entrance Model MCQ Question Paper
-                    prompt_content = f"""You are a professional university entrance exam question setter.
+                    if len(exam_set_names) > 1:
+                        prompt_content = f"""You are a distinguished university professor and entrance exam question setter.
+Generate parallel multi-set Multiple Choice Question (MCQ) examination papers for anti-cheating exam hall distribution.
+Requested Sets: {json.dumps(exam_set_names)} (Total {len(exam_set_names)} different paper sets).
+Each set must contain exactly {questions_count} MCQs formatted in the standard institutional entrance exam format.
+
+{context_block}
+
+Exam Details:
+- Institution: {institution}
+- Degree: {degree_program}
+- Semester & Exam: {semester_exam}
+- Course Code & Subject: {course_code} ({course_title or subject})
+- Target Difficulty: {difficulty} ({difficulty_instruction})
+- Additional Notes: {custom_prompt or 'None'}
+
+ANTI-CHEATING MULTI-SET SPECIFICATION (MANDATORY):
+1. Approximately 30% of MCQs must be common anchor questions across all sets (to ensure equitable baseline grading).
+2. The remaining 70% of MCQs must be distinct non-similar questions or questions with different parameters, values, and shuffled options across each set so students seated side-by-side cannot copy answers.
+3. Every question must have 4 options labeled "a", "b", "c", "d" and a single correct option key.
+4. Categorize each question: "Easy", "Intermediate", or "Complicated".
+5. Provide a 1-sentence explanation referencing the concepts.
+
+Return strictly valid JSON in the following format without markdown or backticks:
+{{
+  "exam_sets": [
+    {{
+      "set_name": "{exam_set_names[0]}",
+      "questions": [
+        {{
+          "id": 1,
+          "question": "Question text based on the document...",
+          "options": {{
+            "a": "Option A",
+            "b": "Option B",
+            "c": "Option C",
+            "d": "Option D"
+          }},
+          "correct_answer": "a",
+          "difficulty": "Easy",
+          "explanation": "Reference to document concept"
+        }}
+      ]
+    }}
+  ]
+}}"""
+                    else:
+                        prompt_content = f"""You are a professional university entrance exam question setter.
 Generate exactly {questions_count} high-standard Multiple Choice Questions (MCQs) in the standard institutional entrance examination model.
 
 {context_block}
 
 Exam Details:
-- Exam Paper Title: {exam_title}
-- Subject: {subject}
+- Institution: {institution}
+- Course: {course_code} ({course_title or subject})
 - Target Difficulty: {difficulty} ({difficulty_instruction})
 - Additional Notes: {custom_prompt or 'None'}
 
@@ -3487,11 +3622,23 @@ Return strictly valid JSON in the following format without markdown or backticks
                                         tokens_consumed = raw_data.get('usageMetadata', {}).get('totalTokenCount', 1400)
                                         break
                                 else:
-                                    if isinstance(parsed, dict) and 'questions' in parsed:
+                                    if isinstance(parsed, dict) and 'exam_sets' in parsed and isinstance(parsed['exam_sets'], list):
+                                        exam_sets = parsed['exam_sets']
+                                        if exam_sets:
+                                            questions = exam_sets[0].get('questions', [])
+                                    elif isinstance(parsed, dict) and 'questions' in parsed:
                                         questions = parsed['questions']
+                                        exam_sets = [{'set_name': exam_set_names[0], 'questions': questions}]
                                     elif isinstance(parsed, list):
-                                        questions = parsed
-                                    if questions:
+                                        if len(parsed) > 0 and 'questions' in parsed[0]:
+                                            exam_sets = parsed
+                                            questions = exam_sets[0].get('questions', [])
+                                        else:
+                                            questions = parsed
+                                            exam_sets = [{'set_name': exam_set_names[0], 'questions': questions}]
+                                    if questions or exam_sets:
+                                        if not questions and exam_sets:
+                                            questions = exam_sets[0].get('questions', [])
                                         provider_used = model_choice
                                         tokens_consumed = raw_data.get('usageMetadata', {}).get('totalTokenCount', 900)
                                         break
@@ -3509,7 +3656,8 @@ Return strictly valid JSON in the following format without markdown or backticks
                 provider_used = 'document-content-engine'
                 pdf_clean_lines = []
                 if extracted_text:
-                    for line in extracted_text.split('\n'):
+                    for line in extracted_text.splitlines():
+                        cleaned = line.strip('-•* \t\r\n')
                         cleaned = line.strip('-•* \t\r')
                         if len(cleaned) > 12 and not cleaned.isdigit():
                             pdf_clean_lines.append(cleaned)
@@ -3645,47 +3793,110 @@ Return strictly valid JSON in the following format without markdown or backticks
                     flattened.append(sq)
             questions = flattened
         else:
-            # Fallback for MCQ
-            if not questions:
+            # Fallback for MCQ (with Anti-Cheating Multi-Set Support)
+            if not exam_sets and not questions:
                 provider_used = 'document-content-engine'
+                pdf_clean_lines = []
                 if extracted_text:
-                    lines = [line.strip('-•* \t\r') for line in extracted_text.split('\n') if len(line.strip()) > 8]
-                    topic_lines = lines[:15]
-                    synthesized = []
-                    diff_cycle = ['Easy', 'Intermediate', 'Complicated']
-                    for idx, t_line in enumerate(topic_lines):
-                        diff_lvl = diff_cycle[idx % 3] if difficulty == 'Mixed' else difficulty
-                        synthesized.append({
-                            "question": f"According to the source syllabus ({source_file_name or 'PDF'}), what is the core focus of '{t_line}'?",
+                    for line in extracted_text.splitlines():
+                        cleaned = line.strip('-•* \t\r\n')
+                        if len(cleaned) > 8 and not cleaned.isdigit():
+                            pdf_clean_lines.append(cleaned)
+                
+                if not pdf_clean_lines:
+                    pdf_clean_lines = [
+                        f"Core principles and fundamentals of {course_title or subject}",
+                        f"System architecture and operational workflow in {course_title or subject}",
+                        f"Mathematical modeling, computational structures, and algorithmic calculations",
+                        f"Performance evaluation, optimization trade-offs, and practical implementations",
+                        f"Fault-tolerance, security mechanisms, and modern deployment strategies",
+                        f"Key terminology, data structures, and state management",
+                        f"Protocol standards, interface specifications, and validation rules"
+                    ]
+
+                diff_cycle = ['Easy', 'Intermediate', 'Complicated']
+                
+                # 30% Common Anchor Questions across sets
+                anchor_count = max(1, int(questions_count * 0.3))
+                anchor_questions = []
+                for i in range(anchor_count):
+                    topic = pdf_clean_lines[i % len(pdf_clean_lines)]
+                    d_lvl = diff_cycle[i % 3] if difficulty == 'Mixed' else difficulty
+                    anchor_questions.append({
+                        "id": i + 1,
+                        "question": f"According to the core syllabus for '{course_title or subject}', which of the following best defines the primary function of '{topic}'?",
+                        "options": {
+                            "a": f"Primary implementation and operational mechanism of {topic}",
+                            "b": f"Secondary peripheral configuration unrelated to core workflow",
+                            "c": f"Deprecated legacy syntax replaced in modern standards",
+                            "d": f"Theoretical restriction with no practical application"
+                        },
+                        "correct_answer": "a",
+                        "difficulty": d_lvl,
+                        "explanation": f"Fundamental concept of {topic} as defined in {source_file_name or 'syllabus'}."
+                    })
+
+                constructed_exam_sets = []
+                for set_idx, current_set_name in enumerate(exam_set_names):
+                    set_q_list = []
+                    # Add 30% anchor questions
+                    for a_idx, a_q in enumerate(anchor_questions):
+                        set_q_list.append(dict(a_q))
+
+                    # 70% Distinct questions for this set
+                    remaining_count = questions_count - len(set_q_list)
+                    for r_idx in range(remaining_count):
+                        q_num = len(set_q_list) + 1
+                        offset = (set_idx * 11) + (r_idx * 3) + anchor_count
+                        topic = pdf_clean_lines[offset % len(pdf_clean_lines)]
+                        d_lvl = diff_cycle[(set_idx + r_idx) % 3] if difficulty == 'Mixed' else difficulty
+                        
+                        variants = [
+                            (
+                                f"In {current_set_name}, which parameter is critical when optimizing '{topic}' under standard operational constraints?",
+                                f"Throughput rate and resource synchronization in {topic}",
+                                f"Unbounded delay and buffer allocation",
+                                f"Complete bypass of boundary assertions",
+                                f"Arbitrary manual reassignment"
+                            ),
+                            (
+                                f"What is the expected behavior or output during the execution of '{topic}' in {course_title or subject}?",
+                                f"Deterministic state transition and validated output for {topic}",
+                                f"Undefined behavior leading to deadlock",
+                                f"Silent termination without status signaling",
+                                f"Unverified heuristic approximation"
+                            ),
+                            (
+                                f"Which methodology is recognized as the standard industry approach for validating '{topic}'?",
+                                f"Rigorous verification against specification criteria",
+                                f"Ad-hoc speculative assumption",
+                                f"Omitting validation under high load",
+                                f"Unchecked static defaults"
+                            )
+                        ]
+                        v_choice = variants[(set_idx + r_idx) % len(variants)]
+                        
+                        set_q_list.append({
+                            "id": q_num,
+                            "question": v_choice[0],
                             "options": {
-                                "a": f"Implementation & practical usage of {t_line}",
-                                "b": f"Theoretical background of {t_line}",
-                                "c": "Unrelated peripheral configuration",
-                                "d": "Deprecated legacy architecture"
+                                "a": v_choice[1],
+                                "b": v_choice[2],
+                                "c": v_choice[3],
+                                "d": v_choice[4]
                             },
                             "correct_answer": "a",
-                            "difficulty": diff_lvl,
-                            "explanation": f"Explicitly covered in {source_file_name or 'source material'} under {page_or_volume}."
+                            "difficulty": d_lvl,
+                            "explanation": f"Evaluated under {current_set_name} from {source_file_name or 'curriculum material'}."
                         })
-                    questions = (synthesized * 2)[:questions_count]
-                else:
-                    generic_bank = [
-                        {
-                            "question": f"In the study of {subject}, which foundational concept is primarily evaluated?",
-                            "options": { "a": "Core principles & terminology", "b": "Unrelated syntax", "c": "Legacy exceptions", "d": "None" },
-                            "correct_answer": "a",
-                            "difficulty": "Easy",
-                            "explanation": f"Fundamental basis of {subject} entrance assessment."
-                        },
-                        {
-                            "question": f"Which of the following methodologies represents standard best practice in {subject}?",
-                            "options": { "a": "Systematic verification", "b": "Random estimation", "c": "Uncalibrated testing", "d": "Skipping validation" },
-                            "correct_answer": "a",
-                            "difficulty": "Intermediate",
-                            "explanation": "Standard academic and professional procedure."
-                        }
-                    ]
-                    questions = (generic_bank * 10)[:questions_count]
+
+                    constructed_exam_sets.append({
+                        "set_name": current_set_name,
+                        "questions": set_q_list
+                    })
+
+                exam_sets = constructed_exam_sets
+                questions = exam_sets[0]['questions']
 
             for i, q in enumerate(questions):
                 q['id'] = i + 1
@@ -3760,7 +3971,7 @@ class AIPublishExamView(APIView):
 
         total_q_count = len(questions)
         if exam_sets and isinstance(exam_sets, list):
-            total_q_count = sum(len(s.get('question_sets', [])) for s in exam_sets)
+            total_q_count = sum(len(s.get('question_sets', [])) or len(s.get('questions', [])) for s in exam_sets)
 
         paper = AIQuestionPaper.objects.create(
             paper_id=paper_id,
@@ -3858,8 +4069,10 @@ class StudentAssignedExamView(APIView):
             'time_allowed': payload.get('time_allowed', '1 hour 20 minutes'),
             'full_marks': payload.get('full_marks', 40),
             'instructions': payload.get('instructions', ''),
+            'institution': payload.get('institution', 'DAFFODIL INSTITUTE OF IT'),
             'assigned_set_name': assigned_set_name or (matched_set.get('set_name') if matched_set else 'SET: A'),
             'question_sets': matched_set.get('question_sets', []) if matched_set else [],
+            'questions': matched_set.get('questions', []) if matched_set else (payload.get('questions', [])),
             'all_set_names': [es.get('set_name') for es in exam_sets],
             'generation_type': payload.get('generation_type', 'descriptive')
         }, status=status.HTTP_200_OK)
@@ -3871,3 +4084,178 @@ class StudentAssignedExamView(APIView):
 
 
 
+
+
+class StudentExamResultViewSet(viewsets.ModelViewSet):
+    queryset = StudentExamResult.objects.all().order_by('-submitted_at')
+    serializer_class = StudentExamResultSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        qs = StudentExamResult.objects.all().order_by('-submitted_at')
+        batch = self.request.query_params.get('batch')
+        semester = self.request.query_params.get('semester')
+        student_uid = self.request.query_params.get('student_uid')
+        is_published = self.request.query_params.get('is_published')
+
+        if batch:
+            qs = qs.filter(batch__iexact=batch)
+        if semester:
+            qs = qs.filter(semester__iexact=semester)
+        if student_uid:
+            qs = qs.filter(models.Q(student_uid__iexact=student_uid) | models.Q(student__username__iexact=student_uid))
+        if is_published is not None:
+            if is_published.lower() in ['true', '1']:
+                qs = qs.filter(is_published=True)
+            elif is_published.lower() in ['false', '0']:
+                qs = qs.filter(is_published=False)
+        return qs
+
+
+class SubmitTeacherExamResultsView(APIView):
+    """
+    POST /api/auth/submit-teacher-results/
+    Teacher enters exam paper marks for students in a batch/semester.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        batch = request.data.get('batch')
+        semester = request.data.get('semester')
+        course_code = request.data.get('course_code', '')
+        course_title = request.data.get('course_title', '')
+        exam_name = request.data.get('exam_name', 'Semester Examination')
+        max_marks = float(request.data.get('max_marks', 100))
+        submitted_by = request.data.get('submitted_by', '')
+        results = request.data.get('results', [])
+
+        if not batch or not semester or not results:
+            return Response({'error': 'batch, semester, and results array are required.'}, status=400)
+
+        saved_records = []
+        for r in results:
+            s_uid = r.get('student_uid') or r.get('student_id') or ''
+            s_name = r.get('student_name') or ''
+            obtained = float(r.get('obtained_marks', 0))
+            m_max = float(r.get('max_marks', max_marks))
+            pct = round((obtained / m_max) * 100, 1) if m_max > 0 else 0
+            grade = r.get('grade') or 'F'
+            gpa = float(r.get('gpa', 0.0))
+
+            student_obj = CustomUser.objects.filter(
+                models.Q(institutional_id=s_uid) | models.Q(username=s_uid),
+                role='STUDENT'
+            ).first()
+
+            obj, _ = StudentExamResult.objects.update_or_create(
+                student_uid=s_uid,
+                batch=batch,
+                semester=semester,
+                course_code=course_code,
+                exam_name=exam_name,
+                defaults={
+                    'student': student_obj,
+                    'student_name': s_name,
+                    'course_title': course_title,
+                    'obtained_marks': obtained,
+                    'max_marks': m_max,
+                    'percentage': pct,
+                    'grade': grade,
+                    'gpa': gpa,
+                    'is_published': False,
+                    'submitted_by': submitted_by
+                }
+            )
+            saved_records.append(obj.id)
+
+        try:
+            AuditLog.objects.create(
+                user=submitted_by or 'Faculty',
+                action='Exam Results Submitted',
+                category='Exam Controller',
+                target=f"{course_code} - {batch} ({semester})",
+                timestamp=datetime.now().strftime('%I:%M %p'),
+                status='Success'
+            )
+        except Exception:
+            pass
+
+        return Response({'success': True, 'count': len(saved_records)})
+
+
+class PublishBatchExamResultsView(APIView):
+    """
+    POST /api/auth/publish-batch-results/
+    Admin officially publishes results for an entire batch and semester.
+    Students can now see their result details and cumulative CGPA updates!
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        batch = request.data.get('batch')
+        semester = request.data.get('semester')
+
+        if not batch or not semester:
+            return Response({'error': 'batch and semester are required.'}, status=400)
+
+        updated_count = StudentExamResult.objects.filter(
+            batch=batch,
+            semester=semester
+        ).update(is_published=True, published_at=timezone.now())
+
+        keyword = batch.replace('Batch', '').split('(')[0].split('-')[0].strip()
+        students_qs = CustomUser.objects.filter(
+            models.Q(batch__icontains=keyword) | models.Q(batch__iexact=batch),
+            role='STUDENT'
+        )
+
+        for s in students_qs:
+            student_results = StudentExamResult.objects.filter(
+                models.Q(student=s) | models.Q(student_uid=s.institutional_id or s.username),
+                semester=semester,
+                is_published=True
+            )
+            if student_results.exists():
+                avg_gpa = round(sum(r.gpa for r in student_results) / student_results.count(), 2)
+            else:
+                avg_gpa = 3.50
+
+            sem_obj, _ = SemesterResult.objects.update_or_create(
+                student=s,
+                semester=semester,
+                defaults={'gpa': avg_gpa, 'is_published': True}
+            )
+            s.get_dynamic_cgpa()
+
+        try:
+            AuditLog.objects.create(
+                user='Admin (Controller of Examinations)',
+                action='Semester Results Published',
+                category='Exam Controller',
+                target=f"{batch} ({semester})",
+                timestamp=datetime.now().strftime('%I:%M %p'),
+                status='Success'
+            )
+        except Exception:
+            pass
+
+        return Response({'success': True, 'published_count': updated_count})
+
+
+class UnpublishBatchExamResultsView(APIView):
+    """
+    POST /api/auth/unpublish-batch-results/
+    Admin unpublishes results for a batch and semester.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        batch = request.data.get('batch')
+        semester = request.data.get('semester')
+
+        updated_count = StudentExamResult.objects.filter(
+            batch=batch,
+            semester=semester
+        ).update(is_published=False)
+
+        return Response({'success': True, 'unpublished_count': updated_count})
