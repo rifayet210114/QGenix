@@ -3895,67 +3895,67 @@ class AIPublishExamView(APIView):
     def post(self, request):
         try:
             exam_title = request.data.get('exam_title', 'ENTRANCE MODEL QUESTION (A)')
-        subject = request.data.get('subject', 'ENGLISH')
-        course = request.data.get('course', f"{subject} - {exam_title}")
-        teacher = request.data.get('teacher', 'Teacher')
-        questions = request.data.get('questions', [])
-        difficulty = request.data.get('difficulty', 'Mixed')
-        generation_type = request.data.get('generation_type', 'descriptive')
-        exam_sets = request.data.get('exam_sets', [])
-        student_allocations = request.data.get('student_allocations', {})
+            subject = request.data.get('subject', 'ENGLISH')
+            course = request.data.get('course', f"{subject} - {exam_title}")
+            teacher = request.data.get('teacher', 'Teacher')
+            questions = request.data.get('questions', [])
+            difficulty = request.data.get('difficulty', 'Mixed')
+            generation_type = request.data.get('generation_type', 'descriptive')
+            exam_sets = request.data.get('exam_sets', [])
+            student_allocations = request.data.get('student_allocations', {})
 
-        paper_id = f"EQ-{random.randint(1000, 9999)}"
+            paper_id = f"EQ-{random.randint(1000, 9999)}"
 
-        payload_to_store = {
-            'generation_type': generation_type,
-            'exam_title': exam_title,
-            'degree_program': request.data.get('degree_program', 'B.Sc (Hons) in Computer Science & Engineering'),
-            'semester_exam': request.data.get('semester_exam', 'Midterm Examination'),
-            'course_code': request.data.get('course_code', ''),
-            'course_title': request.data.get('course_title', ''),
-            'time_allowed': request.data.get('time_allowed', '1 hour 20 minutes'),
-            'full_marks': request.data.get('full_marks', 40),
-            'instructions': request.data.get('instructions', ''),
-            'exam_sets': exam_sets,
-            'student_allocations': student_allocations,
-            'questions': questions
-        }
+            payload_to_store = {
+                'generation_type': generation_type,
+                'exam_title': exam_title,
+                'degree_program': request.data.get('degree_program', 'B.Sc (Hons) in Computer Science & Engineering'),
+                'semester_exam': request.data.get('semester_exam', 'Midterm Examination'),
+                'course_code': request.data.get('course_code', ''),
+                'course_title': request.data.get('course_title', ''),
+                'time_allowed': request.data.get('time_allowed', '1 hour 20 minutes'),
+                'full_marks': request.data.get('full_marks', 40),
+                'instructions': request.data.get('instructions', ''),
+                'exam_sets': exam_sets,
+                'student_allocations': student_allocations,
+                'questions': questions
+            }
 
-        total_q_count = len(questions)
-        if exam_sets and isinstance(exam_sets, list):
-            total_q_count = sum(len(s.get('question_sets', [])) or len(s.get('questions', [])) for s in exam_sets)
+            total_q_count = len(questions)
+            if exam_sets and isinstance(exam_sets, list):
+                total_q_count = sum(len(s.get('question_sets', [])) or len(s.get('questions', [])) for s in exam_sets)
 
-        paper = AIQuestionPaper.objects.create(
-            paper_id=paper_id,
-            course=course,
-            teacher=teacher,
-            questions_count=total_q_count or 4,
-            difficulty=difficulty,
-            status='Approved',
-            sample_question=json.dumps(payload_to_store),
-            generated_on=datetime.now().strftime('%Y-%m-%d %I:%M %p')
-        )
-
-        try:
-            AuditLog.objects.create(
-                user=teacher,
-                action='Published AI Multi-Set Question Paper',
-                category='Teacher Examination',
-                target=f"{paper.paper_id} - {course} ({len(exam_sets)} Sets, {len(student_allocations)} Students Allocated)",
-                timestamp='Just now',
-                status='Success'
+            paper = AIQuestionPaper.objects.create(
+                paper_id=paper_id,
+                course=course,
+                teacher=teacher,
+                questions_count=total_q_count or 4,
+                difficulty=difficulty,
+                status='Approved',
+                sample_question=json.dumps(payload_to_store),
+                generated_on=datetime.now().strftime('%Y-%m-%d %I:%M %p')
             )
-        except Exception:
-            pass
 
-        return Response({
-            'success': True,
-            'message': f'Exam Paper {paper.paper_id} with {len(exam_sets)} sets successfully published and allocated to {len(student_allocations)} students!',
-            'paper_id': paper.paper_id,
-            'id': paper.id,
-            'sets_count': len(exam_sets),
-            'students_assigned_count': len(student_allocations)
-        }, status=status.HTTP_201_CREATED)
+            try:
+                AuditLog.objects.create(
+                    user=teacher,
+                    action='Published AI Multi-Set Question Paper',
+                    category='Teacher Examination',
+                    target=f"{paper.paper_id} - {course} ({len(exam_sets)} Sets, {len(student_allocations)} Students Allocated)",
+                    timestamp='Just now',
+                    status='Success'
+                )
+            except Exception:
+                pass
+
+            return Response({
+                'success': True,
+                'message': f'Exam Paper {paper.paper_id} with {len(exam_sets)} sets successfully published and allocated to {len(student_allocations)} students!',
+                'paper_id': paper.paper_id,
+                'id': paper.id,
+                'sets_count': len(exam_sets),
+                'students_assigned_count': len(student_allocations)
+            }, status=status.HTTP_201_CREATED)
         except Exception as e:
             print(f"Error in AIPublishExamView: {e}")
             return Response({'success': False, 'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
