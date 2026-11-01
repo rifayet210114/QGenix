@@ -25,6 +25,7 @@ import {
   downloadUniversitySubjectiveExamPDF, 
   downloadEntranceModelQuestionPDF 
 } from '../../utils/entranceModelQuestionPdf';
+import { API_BASE } from '../../config';
 
 // ----------------------------------------------------------------------------
 // 1. MOCK DATA: DETAILED EXAM ROUTINES DATABASE
@@ -105,7 +106,7 @@ export default function ExamCenter() {
     try {
       const token = localStorage.getItem('access') || localStorage.getItem('token');
       const studentId = localStorage.getItem('institutional_id') || localStorage.getItem('user_id') || localStorage.getItem('user_name') || '';
-      const url = `http://127.0.0.1:8000/api/auth/student-assigned-exam/?student_id=${encodeURIComponent(studentId)}`;
+      const url = `${API_BASE}/api/auth/student-assigned-exam/?student_id=${encodeURIComponent(studentId)}`;
       const res = await fetch(url, {
         headers: token ? { 'Authorization': `Bearer ${token}` } : {}
       });

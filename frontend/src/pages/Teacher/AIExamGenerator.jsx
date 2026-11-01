@@ -10,6 +10,7 @@ import {
   downloadEntranceModelQuestionPDF, 
   downloadUniversitySubjectiveExamPDF 
 } from '../../utils/entranceModelQuestionPdf';
+import { API_BASE } from '../../config';
 
 /**
  * ============================================================================
@@ -163,7 +164,7 @@ export default function AIExamGenerator() {
     setLoadingResources(true);
     try {
       const token = localStorage.getItem('access') || localStorage.getItem('token');
-      const res = await fetch('http://127.0.0.1:8000/api/auth/teacher-resources/', {
+      const res = await fetch(`${API_BASE}/api/auth/teacher-resources/`, {
         headers: token ? { 'Authorization': `Bearer ${token}` } : {}
       });
       if (res.ok) {
@@ -252,7 +253,7 @@ export default function AIExamGenerator() {
     setLoadingStudents(true);
     try {
       const token = localStorage.getItem('access') || localStorage.getItem('token');
-      const res = await fetch('http://127.0.0.1:8000/api/auth/users/?role=STUDENT', {
+      const res = await fetch(`${API_BASE}/api/auth/users/?role=STUDENT`, {
         headers: token ? { 'Authorization': `Bearer ${token}` } : {}
       });
       if (res.ok) {
@@ -355,7 +356,7 @@ export default function AIExamGenerator() {
         custom_prompt: customPrompt
       };
 
-      const res = await fetch('http://127.0.0.1:8000/api/auth/ai-generate-exam/', {
+      const res = await fetch(`${API_BASE}/api/auth/ai-generate-exam/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -365,7 +366,14 @@ export default function AIExamGenerator() {
       });
 
       if (!res.ok) {
-        throw new Error(`Server returned HTTP ${res.status}`);
+        let errMessage = `Server returned HTTP ${res.status}`;
+        try {
+          const errData = await res.json();
+          if (errData && (errData.error || errData.message)) {
+            errMessage = errData.error || errData.message;
+          }
+        } catch (_) {}
+        throw new Error(errMessage);
       }
 
       const data = await res.json();
@@ -797,7 +805,7 @@ export default function AIExamGenerator() {
         questions: generationType === 'descriptive' ? questionSets : questions
       };
 
-      const res = await fetch('http://127.0.0.1:8000/api/auth/ai-publish-exam/', {
+      const res = await fetch(`${API_BASE}/api/auth/ai-publish-exam/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
