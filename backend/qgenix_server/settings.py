@@ -9,13 +9,16 @@ Production + Local  environment   ।
 import os
 from pathlib import Path
 from datetime import timedelta
-from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Load environment variables from .env file (Highest Security)
-load_dotenv(BASE_DIR / '.env')
+try:
+    from dotenv import load_dotenv
+    load_dotenv(BASE_DIR / '.env')
+except ImportError:
+    pass
 
 # =========================================================================================
 # =========================================================================================
@@ -25,7 +28,7 @@ DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
 
-ALLOWED_HOSTS = ['*', '.railway.app', '.up.railway.app', 'localhost', '127.0.0.1']
+ALLOWED_HOSTS = ['*', '.railway.app', '.up.railway.app', '.onrender.com', 'localhost', '127.0.0.1']
 
 # Application definition
 INSTALLED_APPS = [
