@@ -149,7 +149,7 @@ export default function Attendance() {
     { month: 'Feb', rate: 88.0 },
     { month: 'Mar', rate: 90.5 },
     { month: 'Apr', rate: 92.0 },
-    { month: 'Current', rate: parseFloat(overallPct) }
+    { month: 'Current', rate: isNaN(parseFloat(overallPct)) ? 100 : parseFloat(overallPct) }
   ];
 
   // Breakdowns used inside the Progress Ring chart
@@ -794,9 +794,9 @@ export default function Attendance() {
                 </div>
               </div>
 
-              {/* Responsive Area Chart Filling Card Height */}
-              <div style={{ width: '100%', height: '240px', flex: 1, minHeight: '220px', marginTop: '4px' }}>
-                <ResponsiveContainer width="100%" height="100%">
+              {/* Responsive Area Chart with fixed rendered height */}
+              <div style={{ width: '100%', height: '240px', marginTop: '10px' }}>
+                <ResponsiveContainer width="100%" height={230}>
                   <AreaChart data={monthlyTrendData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isLightMode ? 'rgba(0,0,0,0.06)' : 'rgba(255, 255, 255, 0.03)'} />
                     <XAxis 
@@ -808,7 +808,7 @@ export default function Attendance() {
                       tick={{ fill: 'var(--text-muted)', fontWeight: 500 }}
                     />
                     <YAxis 
-                      domain={[60, 100]} 
+                      domain={[60, 102]} 
                       stroke={isLightMode ? 'rgba(0, 0, 0, 0.35)' : 'rgba(255, 255, 255, 0.25)'} 
                       fontSize={11} 
                       tickLine={false} 
@@ -841,94 +841,15 @@ export default function Attendance() {
       </motion.div>
 
       {/* =======================================================================
-         SECTION 4 — ROW 2: SUBJECT-WISE ATTENDANCE TABLE + RECENT ACTIVITY LOG
+         SECTION 4 — ROW 2: RECENT ACTIVITY LOG (LEFT) + SUBJECT-WISE TABLE (RIGHT)
          ======================================================================= */}
       <motion.div 
         variants={itemVariants}
-        className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch"
+        className="flex flex-col lg:flex-row gap-6 items-stretch"
+        style={{ width: '100%' }}
       >
-        {/* Left: Subject-wise Details Table (2 cols) */}
-        <div className="lg:col-span-2" style={{ height: '100%' }}>
-          <div 
-            className="glass-panel premium-card" 
-            style={{ 
-              padding: '24px', 
-              display: 'flex', 
-              flexDirection: 'column',
-              height: '100%',
-              boxSizing: 'border-box'
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>Subject-wise Attendance</h3>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Active Courses</span>
-            </div>
-
-            {/* Responsive Table Scroll Wrapper */}
-            <div style={{ overflowX: 'auto', flex: 1 }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '550px' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                    <th style={{ padding: '12px 16px', fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase' }}>Subject</th>
-                    <th style={{ padding: '12px 16px', fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase' }}>Teacher</th>
-                    <th style={{ padding: '12px 16px', fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase', textAlign: 'center' }}>Total</th>
-                    <th style={{ padding: '12px 16px', fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase', textAlign: 'center' }}>Present</th>
-                    <th style={{ padding: '12px 16px', fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase', textAlign: 'center' }}>Absent</th>
-                    <th style={{ padding: '12px 16px', fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase', textAlign: 'center' }}>Late</th>
-                    <th style={{ padding: '12px 16px', fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase', textAlign: 'right' }}>Pct</th>
-                    <th style={{ padding: '12px 16px', fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase', textAlign: 'right' }}>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {subjectAttendance.map((subj, index) => {
-                    const statusColorMap = {
-                      Good: { text: '#10B981', bg: 'rgba(16, 185, 129, 0.1)' },
-                      Warning: { text: '#F59E0B', bg: 'rgba(245, 158, 11, 0.1)' },
-                      Critical: { text: '#EF4444', bg: 'rgba(239, 68, 68, 0.1)' }
-                    };
-                    const color = statusColorMap[subj.status] || { text: '#fff', bg: 'rgba(255,255,255,0.05)' };
-
-                    return (
-                      <tr 
-                        key={index}
-                        style={{ 
-                          borderBottom: '1px solid rgba(255,255,255,0.04)',
-                          background: index % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent',
-                          transition: 'background 0.2s ease'
-                        }}
-                        className="hover:bg-white/[0.03] transition-colors"
-                      >
-                        <td style={{ padding: '14px 16px', fontSize: '0.88rem', fontWeight: '700', color: 'var(--text-primary)' }}>{subj.subject}</td>
-                        <td style={{ padding: '14px 16px', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{subj.teacher}</td>
-                        <td style={{ padding: '14px 16px', fontSize: '0.85rem', color: 'var(--text-primary)', textAlign: 'center', fontWeight: '600' }}>{subj.total}</td>
-                        <td style={{ padding: '14px 16px', fontSize: '0.85rem', color: '#10B981', textAlign: 'center', fontWeight: '600' }}>{subj.present}</td>
-                        <td style={{ padding: '14px 16px', fontSize: '0.85rem', color: '#EF4444', textAlign: 'center', fontWeight: '600' }}>{subj.absent}</td>
-                        <td style={{ padding: '14px 16px', fontSize: '0.85rem', color: '#F59E0B', textAlign: 'center', fontWeight: '600' }}>{subj.late}</td>
-                        <td style={{ padding: '14px 16px', fontSize: '0.88rem', fontWeight: '700', color: 'var(--text-primary)', textAlign: 'right' }}>{subj.pct.toFixed(1)}%</td>
-                        <td style={{ padding: '14px 16px', textAlign: 'right' }}>
-                          <span style={{
-                            fontSize: '0.72rem',
-                            fontWeight: '700',
-                            padding: '4px 10px',
-                            borderRadius: '20px',
-                            background: color.bg,
-                            color: color.text,
-                            border: `1px solid ${color.text}25`
-                          }}>
-                            {subj.status}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        {/* Right: Recent Activity Log (1 col) */}
-        <div className="lg:col-span-1" style={{ height: '100%' }}>
+        {/* Left: Recent Activity Log (fixed/compact width matching original layout) */}
+        <div className="w-full lg:w-[350px] shrink-0" style={{ display: 'flex', flexDirection: 'column' }}>
           <Card 
             title="Recent Activity Log" 
             action={
@@ -990,6 +911,86 @@ export default function Attendance() {
               ))}
             </div>
           </Card>
+        </div>
+
+        {/* Right: Subject-wise Details Table (occupies full remaining horizontal width) */}
+        <div className="w-full flex-1 min-w-0" style={{ display: 'flex', flexDirection: 'column' }}>
+          <div 
+            className="glass-panel premium-card" 
+            style={{ 
+              padding: '24px', 
+              display: 'flex', 
+              flexDirection: 'column',
+              height: '100%',
+              boxSizing: 'border-box'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>Subject-wise Attendance</h3>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Active Courses</span>
+            </div>
+
+            {/* Table Container: full width with zero horizontal scrolling required */}
+            <div style={{ overflowX: 'auto', flex: 1, width: '100%' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                    <th style={{ padding: '10px 12px', fontSize: '0.76rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase' }}>Subject</th>
+                    <th style={{ padding: '10px 12px', fontSize: '0.76rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase' }}>Teacher</th>
+                    <th style={{ padding: '10px 12px', fontSize: '0.76rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase', textAlign: 'center' }}>Total</th>
+                    <th style={{ padding: '10px 12px', fontSize: '0.76rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase', textAlign: 'center' }}>Present</th>
+                    <th style={{ padding: '10px 12px', fontSize: '0.76rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase', textAlign: 'center' }}>Absent</th>
+                    <th style={{ padding: '10px 12px', fontSize: '0.76rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase', textAlign: 'center' }}>Late</th>
+                    <th style={{ padding: '10px 12px', fontSize: '0.76rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase', textAlign: 'right' }}>Pct</th>
+                    <th style={{ padding: '10px 12px', fontSize: '0.76rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase', textAlign: 'right' }}>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {subjectAttendance.map((subj, index) => {
+                    const statusColorMap = {
+                      Good: { text: '#10B981', bg: 'rgba(16, 185, 129, 0.1)' },
+                      Warning: { text: '#F59E0B', bg: 'rgba(245, 158, 11, 0.1)' },
+                      Critical: { text: '#EF4444', bg: 'rgba(239, 68, 68, 0.1)' }
+                    };
+                    const color = statusColorMap[subj.status] || { text: '#fff', bg: 'rgba(255,255,255,0.05)' };
+
+                    return (
+                      <tr 
+                        key={index}
+                        style={{ 
+                          borderBottom: '1px solid rgba(255,255,255,0.04)',
+                          background: index % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent',
+                          transition: 'background 0.2s ease'
+                        }}
+                        className="hover:bg-white/[0.03] transition-colors"
+                      >
+                        <td style={{ padding: '12px 12px', fontSize: '0.86rem', fontWeight: '700', color: 'var(--text-primary)' }}>{subj.subject}</td>
+                        <td style={{ padding: '12px 12px', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{subj.teacher}</td>
+                        <td style={{ padding: '12px 12px', fontSize: '0.84rem', color: 'var(--text-primary)', textAlign: 'center', fontWeight: '600' }}>{subj.total}</td>
+                        <td style={{ padding: '12px 12px', fontSize: '0.84rem', color: '#10B981', textAlign: 'center', fontWeight: '600' }}>{subj.present}</td>
+                        <td style={{ padding: '12px 12px', fontSize: '0.84rem', color: '#EF4444', textAlign: 'center', fontWeight: '600' }}>{subj.absent}</td>
+                        <td style={{ padding: '12px 12px', fontSize: '0.84rem', color: '#F59E0B', textAlign: 'center', fontWeight: '600' }}>{subj.late}</td>
+                        <td style={{ padding: '12px 12px', fontSize: '0.86rem', fontWeight: '700', color: 'var(--text-primary)', textAlign: 'right', whiteSpace: 'nowrap' }}>{subj.pct.toFixed(1)}%</td>
+                        <td style={{ padding: '12px 12px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          <span style={{
+                            fontSize: '0.72rem',
+                            fontWeight: '700',
+                            padding: '4px 10px',
+                            borderRadius: '20px',
+                            background: color.bg,
+                            color: color.text,
+                            border: `1px solid ${color.text}25`
+                          }}>
+                            {subj.status}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </motion.div>
 
