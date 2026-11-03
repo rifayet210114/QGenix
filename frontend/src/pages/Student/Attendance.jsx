@@ -185,22 +185,36 @@ export default function Attendance() {
     pct: s.pct
   }));
 
+  // Active calendar year & month with navigation
+  const now = new Date();
+  const currentYr = activeViewDate?.year || liveAttendance?.calendar_year || now.getFullYear();
+  const currentMo = (activeViewDate && activeViewDate.month !== undefined)
+    ? activeViewDate.month
+    : (liveAttendance?.calendar_month_num ? liveAttendance.calendar_month_num - 1 : now.getMonth());
+
+  const currentMonthLabel = new Date(currentYr, currentMo, 1).toLocaleString('default', { month: 'long', year: 'numeric' });
+  const activeMonthPrefix = `${currentYr}-${String(currentMo + 1).padStart(2, '0')}`;
+
   // Dynamic filter for "Attendance Breakdown & Heatmap" card
+  // Strictly synchronizes the Donut Breakdown with the displayed Calendar Month and selected Course
   const allSemesterRecords = liveAttendance?.records || liveAttendance?.recent_logs || [];
-  const cardFilteredRecords = (selectedCourse === 'ALL')
+  const courseFilteredRecords = (selectedCourse === 'ALL')
     ? allSemesterRecords
     : allSemesterRecords.filter(r => (r.course_code === selectedCourse || r.course_title === selectedCourse));
 
-  const cardTotalClasses = cardFilteredRecords.length;
-  const cardPresentClasses = cardFilteredRecords.filter(r => r.status === 'present').length;
-  const cardLateClasses = cardFilteredRecords.filter(r => r.status === 'late').length;
-  const cardAbsentClasses = cardFilteredRecords.filter(r => r.status === 'absent').length;
+  // Records held specifically within the active month shown on the calendar
+  const cardMonthRecords = courseFilteredRecords.filter(r => String(r.date || '').startsWith(activeMonthPrefix));
+
+  const cardTotalClasses = cardMonthRecords.length;
+  const cardPresentClasses = cardMonthRecords.filter(r => r.status === 'present').length;
+  const cardLateClasses = cardMonthRecords.filter(r => r.status === 'late').length;
+  const cardAbsentClasses = cardMonthRecords.filter(r => r.status === 'absent').length;
   const cardAttendedClasses = cardPresentClasses + cardLateClasses;
   const cardPct = cardTotalClasses > 0
     ? ((cardAttendedClasses / cardTotalClasses) * 100).toFixed(1)
-    : (selectedCourse === 'ALL' ? overallPct : '100.0');
+    : '100.0';
 
-  // Donut Ring Chart Data: dynamically adapts to selected course or overall semester
+  // Donut Ring Chart Data: EXACT 1:1 match with the active month's calendar
   const ringChartData = (cardTotalClasses > 0)
     ? [
         { name: 'Present', value: cardPresentClasses, color: '#8B5CF6' },
@@ -208,14 +222,14 @@ export default function Attendance() {
         { name: 'Late', value: cardLateClasses, color: '#F59E0B' }
       ]
     : [
-        { name: 'Present', value: 1, color: '#8B5CF6' },
+        { name: 'Present', value: 0, color: '#8B5CF6' },
         { name: 'Absent', value: 0, color: '#EF4444' },
         { name: 'Late', value: 0, color: '#F59E0B' }
       ];
 
-  // Daily attendance status map for the selected course
+  // Daily attendance status map for the active month's calendar
   const cardDailyAttendance = {};
-  for (const r of cardFilteredRecords) {
+  for (const r of cardMonthRecords) {
     const d = String(r.date || '').trim();
     if (d) {
       const prev = cardDailyAttendance[d];
@@ -225,15 +239,6 @@ export default function Attendance() {
       }
     }
   }
-
-  // Active calendar year & month with navigation
-  const now = new Date();
-  const currentYr = activeViewDate?.year || liveAttendance?.calendar_year || now.getFullYear();
-  const currentMo = (activeViewDate && activeViewDate.month !== undefined)
-    ? activeViewDate.month
-    : (liveAttendance?.calendar_month_num ? liveAttendance.calendar_month_num - 1 : now.getMonth());
-
-  const currentMonthLabel = new Date(currentYr, currentMo, 1).toLocaleString('default', { month: 'long', year: 'numeric' });
 
   const handlePrevMonth = () => {
     setActiveViewDate(prev => {
@@ -793,10 +798,10 @@ export default function Attendance() {
                     pointerEvents: 'none'
                   }}>
                     <div style={{ fontSize: '1.4rem', fontWeight: '800', color: 'var(--text-primary)', fontFamily: 'var(--font-heading)' }}>
-                      {cardPct}%
+                      {cardTotalClasses > 0 ? `${cardPct}%` : '—'}
                     </div>
                     <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                      {selectedCourse === 'ALL' ? 'Checked In' : selectedCourse}
+                      {cardTotalClasses > 0 ? `${cardTotalClasses} Session${cardTotalClasses !== 1 ? 's' : ''}` : 'No Class'}
                     </div>
                   </div>
 
