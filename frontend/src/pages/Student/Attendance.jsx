@@ -556,22 +556,23 @@ export default function Attendance() {
       </motion.div>
 
             {/* =======================================================================
-         SECTION 3 — CALENDAR HEATMAP & RECENT ACTIVITY LOG
+         SECTION 3 — ROW 1: ATTENDANCE BREAKDOWN & HEATMAP + MONTHLY ATTENDANCE TREND
          ======================================================================= */}
       <motion.div 
         variants={itemVariants}
-        className="grid grid-cols-1 lg:grid-cols-3 gap-6"
+        className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch"
       >
-        {/* A. Attendance Breakdown & Heatmap Merged Card */}
-        <div className="lg:col-span-2">
+        {/* Card 1: Attendance Breakdown & Heatmap */}
+        <div style={{ height: '100%' }}>
           <Card 
             title="Attendance Breakdown & Heatmap" 
             action={
               <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>May 2026</span>
             }
             className="premium-card"
+            style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
           >
-            <div className="attendance-card-body" style={{ width: '100%' }}>
+            <div className="attendance-card-body" style={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
               <style>{`
                 .attendance-card-body {
                   container-type: inline-size;
@@ -583,22 +584,23 @@ export default function Attendance() {
                   flex-direction: column;
                   justify-content: center;
                   align-items: center;
-                  gap: 24px;
-                  margin-top: 16px;
+                  gap: 20px;
+                  margin-top: 8px;
                   width: 100%;
                 }
                 .attendance-divider {
                   display: none;
                 }
-                @container attendance-card (min-width: 620px) {
+                @container attendance-card (min-width: 580px) {
                   .attendance-flex-container {
                     flex-direction: row !important;
-                    gap: 56px !important;
+                    gap: 32px !important;
+                    justify-content: space-around !important;
                   }
                   .attendance-divider {
                     display: block !important;
                     width: 1px;
-                    height: 180px;
+                    height: 200px;
                     background: rgba(255, 255, 255, 0.06);
                     flex-shrink: 0;
                   }
@@ -611,15 +613,15 @@ export default function Attendance() {
               <div className="attendance-flex-container">
                 
                 {/* Left Column: Attendance Breakdown Donut Chart */}
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '220px', position: 'relative', width: '280px', flexShrink: 0 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '220px', position: 'relative', width: '250px', flexShrink: 0 }}>
                   <ResponsiveContainer width="100%" height={160}>
                     <PieChart>
                       <Pie
                         data={ringChartData}
                         cx="50%"
                         cy="42%"
-                        innerRadius={52}
-                        outerRadius={68}
+                        innerRadius={50}
+                        outerRadius={66}
                         paddingAngle={3}
                         dataKey="value"
                       >
@@ -639,18 +641,18 @@ export default function Attendance() {
                     textAlign: 'center',
                     pointerEvents: 'none'
                   }}>
-                    <div style={{ fontSize: '1.45rem', fontWeight: '800', color: 'var(--text-primary)', fontFamily: 'var(--font-heading)' }}>
+                    <div style={{ fontSize: '1.4rem', fontWeight: '800', color: 'var(--text-primary)', fontFamily: 'var(--font-heading)' }}>
                       85.0%
                     </div>
-                    <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                       Checked In
                     </div>
                   </div>
 
                   {/* Custom Legends row */}
-                  <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap', marginTop: '4px' }}>
+                  <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap', marginTop: '4px' }}>
                     {ringChartData.map((item, idx) => (
-                      <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem' }}>
+                      <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.75rem' }}>
                         <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: item.color }} />
                         <span style={{ color: 'var(--text-secondary)', fontWeight: '500' }}>
                           {item.name} ({item.value})
@@ -664,38 +666,36 @@ export default function Attendance() {
                 <div className="attendance-divider" />
 
                 {/* Right Column: Attendance Heatmap Calendar Grid */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '280px', flexShrink: 0 }}>
-                  <div style={{ maxWidth: '260px', width: '100%', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', width: '250px', flexShrink: 0 }}>
+                  <div style={{ maxWidth: '240px', width: '100%', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     {/* Heatmap weekday labels */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '6px', textAlign: 'center' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '5px', textAlign: 'center' }}>
                       {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, idx) => (
-                        <span key={idx} style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: '800' }}>{d}</span>
+                        <span key={idx} style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: '800' }}>{d}</span>
                       ))}
                     </div>
 
                     {/* Heatmap Blocks Grid */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                       {heatmapWeeks.map((week, wIdx) => (
-                        <div key={wIdx} style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '6px' }}>
+                        <div key={wIdx} style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '5px' }}>
                           {week.map((dayObj, dIdx) => (
                             <div 
                               key={dIdx}
                               style={{
-                                aspectRatio: '1', // Perfect square blocks
-                                borderRadius: '8px', // High-end rounded corners matching the dashboard design language
+                                aspectRatio: '1',
+                                borderRadius: '7px',
                                 background: heatmapColorMap[dayObj.state] || 'transparent',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                fontSize: '0.78rem', // Optimal size for numeric readability within square limits
+                                fontSize: '0.75rem',
                                 fontWeight: '700',
                                 color: getDayTextColor(dayObj.state),
-                                // Dashed borders only for weekends to show calendar structure cleanly
                                 border: dayObj.state === 'weekend' ? (isLightMode ? '1px dashed rgba(0, 0, 0, 0.15)' : '1px dashed rgba(255, 255, 255, 0.15)') : 'none',
                                 position: 'relative',
                                 cursor: dayObj.day ? 'pointer' : 'default',
-                                transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)', // Smooth hover lifts
-                                // Subtle drop shadows using matching colors to create a soft, glowing, futuristic neon overlay on the dark background
+                                transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
                                 boxShadow: dayObj.state === 'present' ? '0 2px 8px rgba(16, 185, 129, 0.25)' :
                                            dayObj.state === 'absent' ? '0 2px 8px rgba(239, 68, 68, 0.25)' :
                                            dayObj.state === 'late' ? '0 2px 8px rgba(245, 158, 11, 0.25)' :
@@ -713,21 +713,21 @@ export default function Attendance() {
                   </div>
 
                   {/* Colors legend */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', fontSize: '0.65rem', borderTop: isLightMode ? '1px solid rgba(0,0,0,0.06)' : '1px solid rgba(255,255,255,0.05)', paddingTop: '12px', marginTop: '4px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px', fontSize: '0.65rem', borderTop: isLightMode ? '1px solid rgba(0,0,0,0.06)' : '1px solid rgba(255,255,255,0.05)', paddingTop: '10px', marginTop: '2px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: heatmapColorMap.present }} />
+                      <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: heatmapColorMap.present }} />
                       <span style={{ color: 'var(--text-secondary)' }}>Present</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: heatmapColorMap.absent }} />
+                      <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: heatmapColorMap.absent }} />
                       <span style={{ color: 'var(--text-secondary)' }}>Absent</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: heatmapColorMap.late }} />
+                      <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: heatmapColorMap.late }} />
                       <span style={{ color: 'var(--text-secondary)' }}>Late</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: isLightMode ? '#6D28D9' : '#8B5CF6' }} />
+                      <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: isLightMode ? '#6D28D9' : '#8B5CF6' }} />
                       <span style={{ color: 'var(--text-secondary)' }}>Holiday</span>
                     </div>
                   </div>
@@ -738,12 +738,206 @@ export default function Attendance() {
           </Card>
         </div>
 
-        {/* B. Recent Activity Log */}
-        <div className="lg:col-span-1">
-          {/* Recent Check-in Logs Timeline */}
-          <Card title="Recent Activity Log" className="premium-card">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '4px' }}>
-              
+        {/* Card 2: Monthly Attendance Trend */}
+        <div style={{ height: '100%' }}>
+          <Card 
+            title="Monthly Attendance Trend" 
+            action={
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>Spring Sem 2026</span>
+            }
+            className="premium-card"
+            style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
+          >
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+              {/* Top Trend Quick Indicators */}
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '12px' }}>
+                <div style={{
+                  padding: '6px 12px',
+                  borderRadius: '10px',
+                  background: 'rgba(16, 185, 129, 0.1)',
+                  border: '1px solid rgba(16, 185, 129, 0.25)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}>
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10B981' }} />
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Current:</span>
+                  <strong style={{ fontSize: '0.78rem', color: '#10B981' }}>{overallPct}%</strong>
+                </div>
+
+                <div style={{
+                  padding: '6px 12px',
+                  borderRadius: '10px',
+                  background: 'rgba(139, 92, 246, 0.1)',
+                  border: '1px solid rgba(139, 92, 246, 0.25)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}>
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#8B5CF6' }} />
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Threshold:</span>
+                  <strong style={{ fontSize: '0.78rem', color: '#8B5CF6' }}>75.0% Target</strong>
+                </div>
+
+                <div style={{
+                  padding: '6px 12px',
+                  borderRadius: '10px',
+                  background: 'rgba(59, 130, 246, 0.1)',
+                  border: '1px solid rgba(59, 130, 246, 0.25)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}>
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#3B82F6' }} />
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Trajectory:</span>
+                  <strong style={{ fontSize: '0.78rem', color: '#3B82F6' }}>Optimal ↗</strong>
+                </div>
+              </div>
+
+              {/* Responsive Area Chart Filling Card Height */}
+              <div style={{ width: '100%', height: '240px', flex: 1, minHeight: '220px', marginTop: '4px' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={monthlyTrendData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isLightMode ? 'rgba(0,0,0,0.06)' : 'rgba(255, 255, 255, 0.03)'} />
+                    <XAxis 
+                      dataKey="month" 
+                      stroke={isLightMode ? 'rgba(0, 0, 0, 0.35)' : 'rgba(255, 255, 255, 0.25)'} 
+                      fontSize={11} 
+                      tickLine={false} 
+                      axisLine={false} 
+                      tick={{ fill: 'var(--text-muted)', fontWeight: 500 }}
+                    />
+                    <YAxis 
+                      domain={[60, 100]} 
+                      stroke={isLightMode ? 'rgba(0, 0, 0, 0.35)' : 'rgba(255, 255, 255, 0.25)'} 
+                      fontSize={11} 
+                      tickLine={false} 
+                      axisLine={false} 
+                      tick={{ fill: 'var(--text-muted)', fontWeight: 500 }}
+                    />
+                    <Tooltip content={<CustomAreaTooltip />} />
+                    <defs>
+                      <linearGradient id="attendanceAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.35}/>
+                        <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <Area 
+                      type="monotone" 
+                      dataKey="rate" 
+                      stroke="#8B5CF6" 
+                      strokeWidth={3} 
+                      fillOpacity={1}
+                      fill="url(#attendanceAreaGrad)" 
+                      dot={{ r: 4, strokeWidth: 1.5, fill: isLightMode ? '#ffffff' : '#0F172A', stroke: '#8B5CF6' }} 
+                      activeDot={{ r: 6, strokeWidth: 1.5, fill: '#8B5CF6', stroke: '#fff', style: { filter: 'drop-shadow(0 0 5px #8B5CF6)' } }}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </Card>
+        </div>
+      </motion.div>
+
+      {/* =======================================================================
+         SECTION 4 — ROW 2: SUBJECT-WISE ATTENDANCE TABLE + RECENT ACTIVITY LOG
+         ======================================================================= */}
+      <motion.div 
+        variants={itemVariants}
+        className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch"
+      >
+        {/* Left: Subject-wise Details Table (2 cols) */}
+        <div className="lg:col-span-2" style={{ height: '100%' }}>
+          <div 
+            className="glass-panel premium-card" 
+            style={{ 
+              padding: '24px', 
+              display: 'flex', 
+              flexDirection: 'column',
+              height: '100%',
+              boxSizing: 'border-box'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>Subject-wise Attendance</h3>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Active Courses</span>
+            </div>
+
+            {/* Responsive Table Scroll Wrapper */}
+            <div style={{ overflowX: 'auto', flex: 1 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '550px' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                    <th style={{ padding: '12px 16px', fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase' }}>Subject</th>
+                    <th style={{ padding: '12px 16px', fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase' }}>Teacher</th>
+                    <th style={{ padding: '12px 16px', fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase', textAlign: 'center' }}>Total</th>
+                    <th style={{ padding: '12px 16px', fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase', textAlign: 'center' }}>Present</th>
+                    <th style={{ padding: '12px 16px', fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase', textAlign: 'center' }}>Absent</th>
+                    <th style={{ padding: '12px 16px', fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase', textAlign: 'center' }}>Late</th>
+                    <th style={{ padding: '12px 16px', fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase', textAlign: 'right' }}>Pct</th>
+                    <th style={{ padding: '12px 16px', fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase', textAlign: 'right' }}>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {subjectAttendance.map((subj, index) => {
+                    const statusColorMap = {
+                      Good: { text: '#10B981', bg: 'rgba(16, 185, 129, 0.1)' },
+                      Warning: { text: '#F59E0B', bg: 'rgba(245, 158, 11, 0.1)' },
+                      Critical: { text: '#EF4444', bg: 'rgba(239, 68, 68, 0.1)' }
+                    };
+                    const color = statusColorMap[subj.status] || { text: '#fff', bg: 'rgba(255,255,255,0.05)' };
+
+                    return (
+                      <tr 
+                        key={index}
+                        style={{ 
+                          borderBottom: '1px solid rgba(255,255,255,0.04)',
+                          background: index % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent',
+                          transition: 'background 0.2s ease'
+                        }}
+                        className="hover:bg-white/[0.03] transition-colors"
+                      >
+                        <td style={{ padding: '14px 16px', fontSize: '0.88rem', fontWeight: '700', color: 'var(--text-primary)' }}>{subj.subject}</td>
+                        <td style={{ padding: '14px 16px', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{subj.teacher}</td>
+                        <td style={{ padding: '14px 16px', fontSize: '0.85rem', color: 'var(--text-primary)', textAlign: 'center', fontWeight: '600' }}>{subj.total}</td>
+                        <td style={{ padding: '14px 16px', fontSize: '0.85rem', color: '#10B981', textAlign: 'center', fontWeight: '600' }}>{subj.present}</td>
+                        <td style={{ padding: '14px 16px', fontSize: '0.85rem', color: '#EF4444', textAlign: 'center', fontWeight: '600' }}>{subj.absent}</td>
+                        <td style={{ padding: '14px 16px', fontSize: '0.85rem', color: '#F59E0B', textAlign: 'center', fontWeight: '600' }}>{subj.late}</td>
+                        <td style={{ padding: '14px 16px', fontSize: '0.88rem', fontWeight: '700', color: 'var(--text-primary)', textAlign: 'right' }}>{subj.pct.toFixed(1)}%</td>
+                        <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                          <span style={{
+                            fontSize: '0.72rem',
+                            fontWeight: '700',
+                            padding: '4px 10px',
+                            borderRadius: '20px',
+                            background: color.bg,
+                            color: color.text,
+                            border: `1px solid ${color.text}25`
+                          }}>
+                            {subj.status}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        {/* Right: Recent Activity Log (1 col) */}
+        <div className="lg:col-span-1" style={{ height: '100%' }}>
+          <Card 
+            title="Recent Activity Log" 
+            action={
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>Live Feed</span>
+            }
+            className="premium-card"
+            style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '4px', flex: 1 }}>
               {recentLogs.map((log, idx) => (
                 <div key={idx} style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
                   {/* Timeline bullet dot */}
@@ -794,142 +988,9 @@ export default function Attendance() {
 
                 </div>
               ))}
-
             </div>
           </Card>
         </div>
-      </motion.div>
-
-      {/* =======================================================================
-         SECTION 4 — MONTHLY ATTENDANCE TREND
-         ======================================================================= */}
-      <motion.div 
-        variants={itemVariants}
-      >
-        <Card 
-          title="Monthly Attendance Trend" 
-          action={
-            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>Spring Sem 2026</span>
-          }
-          className="premium-card"
-        >
-          <div style={{ height: '220px', width: '100%', marginTop: '8px' }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={monthlyTrendData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isLightMode ? 'rgba(0,0,0,0.06)' : 'rgba(255, 255, 255, 0.03)'} />
-                <XAxis 
-                  dataKey="month" 
-                  stroke={isLightMode ? 'rgba(0, 0, 0, 0.35)' : 'rgba(255, 255, 255, 0.25)'} 
-                  fontSize={11} 
-                  tickLine={false} 
-                  axisLine={false} 
-                  tick={{ fill: 'var(--text-muted)', fontWeight: 500 }}
-                />
-                <YAxis 
-                  domain={[60, 100]} 
-                  stroke={isLightMode ? 'rgba(0, 0, 0, 0.35)' : 'rgba(255, 255, 255, 0.25)'} 
-                  fontSize={11} 
-                  tickLine={false} 
-                  axisLine={false} 
-                  tick={{ fill: 'var(--text-muted)', fontWeight: 500 }}
-                />
-                <Tooltip content={<CustomAreaTooltip />} />
-                <defs>
-                  <linearGradient id="attendanceAreaGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.35}/>
-                    <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <Area 
-                  type="monotone" 
-                  dataKey="rate" 
-                  stroke="#8B5CF6" 
-                  strokeWidth={3} 
-                  fillOpacity={1}
-                  fill="url(#attendanceAreaGrad)" 
-                  dot={{ r: 4, strokeWidth: 1.5, fill: isLightMode ? '#ffffff' : '#0F172A', stroke: '#8B5CF6' }} 
-                  activeDot={{ r: 6, strokeWidth: 1.5, fill: '#8B5CF6', stroke: '#fff', style: { filter: 'drop-shadow(0 0 5px #8B5CF6)' } }}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-      </motion.div>
-
-      {/* =======================================================================
-         SECTION 5 — SUBJECT-WISE ATTENDANCE TABLE
-         ======================================================================= */}
-      <motion.div 
-        variants={itemVariants}
-      >
-        <div className="glass-panel premium-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>Subject-wise Attendance</h3>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Active Courses</span>
-            </div>
-
-            {/* Responsive Table Scroll Wrapper */}
-            <div style={{ overflowX: 'auto', flex: 1 }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '550px' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                    <th style={{ padding: '12px 16px', fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase' }}>Subject</th>
-                    <th style={{ padding: '12px 16px', fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase' }}>Teacher</th>
-                    <th style={{ padding: '12px 16px', fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase', textAlign: 'center' }}>Total</th>
-                    <th style={{ padding: '12px 16px', fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase', textAlign: 'center' }}>Present</th>
-                    <th style={{ padding: '12px 16px', fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase', textAlign: 'center' }}>Absent</th>
-                    <th style={{ padding: '12px 16px', fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase', textAlign: 'center' }}>Late</th>
-                    <th style={{ padding: '12px 16px', fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase', textAlign: 'right' }}>Pct</th>
-                    <th style={{ padding: '12px 16px', fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase', textAlign: 'right' }}>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {subjectAttendance.map((subj, index) => {
-                    // Status Badge color mapping
-                    const statusColorMap = {
-                      Good: { text: '#10B981', bg: 'rgba(16, 185, 129, 0.1)' },
-                      Warning: { text: '#F59E0B', bg: 'rgba(245, 158, 11, 0.1)' },
-                      Critical: { text: '#EF4444', bg: 'rgba(239, 68, 68, 0.1)' }
-                    };
-                    const color = statusColorMap[subj.status] || { text: '#fff', bg: 'rgba(255,255,255,0.05)' };
-
-                    return (
-                      <tr 
-                        key={index}
-                        style={{ 
-                          borderBottom: '1px solid rgba(255,255,255,0.04)',
-                          background: index % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent',
-                          transition: 'background 0.2s ease'
-                        }}
-                        className="hover:bg-white/[0.03] transition-colors"
-                      >
-                        <td style={{ padding: '14px 16px', fontSize: '0.88rem', fontWeight: '700', color: 'var(--text-primary)' }}>{subj.subject}</td>
-                        <td style={{ padding: '14px 16px', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{subj.teacher}</td>
-                        <td style={{ padding: '14px 16px', fontSize: '0.85rem', color: 'var(--text-primary)', textAlign: 'center', fontWeight: '600' }}>{subj.total}</td>
-                        <td style={{ padding: '14px 16px', fontSize: '0.85rem', color: '#10B981', textAlign: 'center', fontWeight: '600' }}>{subj.present}</td>
-                        <td style={{ padding: '14px 16px', fontSize: '0.85rem', color: '#EF4444', textAlign: 'center', fontWeight: '600' }}>{subj.absent}</td>
-                        <td style={{ padding: '14px 16px', fontSize: '0.85rem', color: '#F59E0B', textAlign: 'center', fontWeight: '600' }}>{subj.late}</td>
-                        <td style={{ padding: '14px 16px', fontSize: '0.88rem', fontWeight: '700', color: 'var(--text-primary)', textAlign: 'right' }}>{subj.pct.toFixed(1)}%</td>
-                        <td style={{ padding: '14px 16px', textAlign: 'right' }}>
-                          <span style={{
-                            fontSize: '0.72rem',
-                            fontWeight: '700',
-                            padding: '4px 10px',
-                            borderRadius: '20px',
-                            background: color.bg,
-                            color: color.text,
-                            border: `1px solid ${color.text}25`
-                          }}>
-                            {subj.status}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
       </motion.div>
 
     </motion.div>
