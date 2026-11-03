@@ -328,6 +328,7 @@ class SystemSetting(models.Model):
     academic_year = models.CharField(max_length=50, default='2026-2027')
     current_term = models.CharField(max_length=50, default='Spring 2026')
     maintenance_mode = models.BooleanField(default=False)
+    required_attendance_limit = models.FloatField(default=75.0)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):

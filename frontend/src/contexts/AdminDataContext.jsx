@@ -136,6 +136,14 @@ export function AdminDataProvider({ children }) {
     student: '@diit.edu.bd',
     teacher: '@diit.edu.bd'
   }));
+  const [requiredAttendanceLimit, setRequiredAttendanceLimit] = useState(() => {
+    try {
+      const saved = localStorage.getItem('qgenix_required_attendance_limit');
+      return saved ? parseFloat(saved) : 75.0;
+    } catch (_) {
+      return 75.0;
+    }
+  });
 
   // Live Sync with Django SQLite Database — Realtime Single Source of Truth
   const refreshFromDB = async () => {
@@ -155,6 +163,13 @@ export function AdminDataProvider({ children }) {
             }
             return { student: nextStudent, teacher: nextTeacher };
           });
+          if (data.system_settings.required_attendance_limit !== undefined) {
+            const nextLimit = parseFloat(data.system_settings.required_attendance_limit) || 75.0;
+            setRequiredAttendanceLimit(nextLimit);
+            try {
+              localStorage.setItem('qgenix_required_attendance_limit', nextLimit.toString());
+            } catch (_) {}
+          }
         }
 
         if (Array.isArray(data.students)) {
@@ -1436,6 +1451,35 @@ export function AdminDataProvider({ children }) {
     }
   };
 
+  const updateRequiredAttendanceLimit = async (limit) => {
+    const num = parseFloat(limit) || 75.0;
+    setRequiredAttendanceLimit(num);
+    try {
+      localStorage.setItem('qgenix_required_attendance_limit', num.toString());
+      localStorage.setItem('qgenix_last_attendance_sync', Date.now().toString());
+    } catch (_) {}
+    addAuditLog('Attendance Threshold Updated', 'Settings', `Minimum Required Limit: ${num}%`);
+
+    try {
+      await fetch(`${API_BASE}/api/auth/system-settings/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ required_attendance_limit: num })
+      });
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('qgenix_attendance_updated', { detail: { required_limit: num } }));
+        try {
+          const bc = new BroadcastChannel('qgenix_attendance_sync');
+          bc.postMessage({ type: 'threshold_updated', required_limit: num });
+          bc.close();
+        } catch (_) {}
+      }
+      await refreshFromDB();
+    } catch (e) {
+      console.warn('Error saving required attendance limit to DB:', e);
+    }
+  };
+
   const validateEmailFormat = (email, role = 'student') => {
     if (!email || !email.trim()) {
       return { isValid: false, error: 'Email address cannot be empty.' };
@@ -1631,8 +1675,11 @@ export function AdminDataProvider({ children }) {
       addAuditLog,
 
       // Email Format & System Settings Operations
+      emailFormats,
       updateEmailFormats,
       validateEmailFormat,
+      requiredAttendanceLimit,
+      updateRequiredAttendanceLimit,
 
       // Live DB Telemetry & Sync
       stats,

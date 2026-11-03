@@ -126,6 +126,11 @@ export default function Attendance() {
   }, [user]);
 
   // Total summary counts computed dynamically from DB
+  const requiredLimit = liveAttendance?.required_limit !== undefined 
+    ? parseFloat(liveAttendance.required_limit) 
+    : 75.0;
+  const currentTerm = liveAttendance?.current_term || 'Spring 2026';
+
   const overallPct = liveAttendance?.total_held > 0 
     ? liveAttendance.percentage.toFixed(1) 
     : '100.0';
@@ -135,45 +140,52 @@ export default function Attendance() {
   const lateClasses = liveAttendance?.total_late !== undefined ? liveAttendance.total_late : 0;
 
   const statsData = [
-    { label: 'Overall Attendance', value: `${overallPct}%`, desc: parseFloat(overallPct) >= 75 ? '✓ Above 75% limit' : '⚠️ Shortfall warning', icon: <TrendingUp size={15} />, color: parseFloat(overallPct) >= 75 ? '#10B981' : '#EF4444', bg: parseFloat(overallPct) >= 75 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)' },
+    { label: 'Overall Attendance', value: `${overallPct}%`, desc: parseFloat(overallPct) >= requiredLimit ? `✓ Above ${requiredLimit.toFixed(1)}% limit` : `⚠️ Shortfall warning (<${requiredLimit.toFixed(1)}%)`, icon: <TrendingUp size={15} />, color: parseFloat(overallPct) >= requiredLimit ? '#10B981' : '#EF4444', bg: parseFloat(overallPct) >= requiredLimit ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)' },
     { label: 'Total Classes', value: `${totalClasses}`, desc: 'Recorded sessions', icon: <Calendar size={15} />, color: '#3B82F6', bg: 'rgba(59, 130, 246, 0.1)' },
     { label: 'Present Classes', value: `${presentClasses}`, desc: 'Checked in by teacher', icon: <CheckCircle size={15} />, color: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.1)' },
     { label: 'Absent Classes', value: `${absentClasses}`, desc: 'Marked absent', icon: <X size={15} />, color: '#EF4444', bg: 'rgba(239, 68, 68, 0.1)' },
     { label: 'Late Attendance', value: `${lateClasses}`, desc: 'Grace period entries', icon: <Clock size={15} />, color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.1)' },
-    { label: 'Required Limit', value: '75.0%', desc: 'Academic threshold', icon: <Info size={15} />, color: '#94A3B8', bg: 'rgba(148, 163, 184, 0.1)' }
+    { label: 'Required Limit', value: `${requiredLimit.toFixed(1)}%`, desc: 'Academic threshold', icon: <Info size={15} />, color: '#94A3B8', bg: 'rgba(148, 163, 184, 0.1)' }
   ];
 
-  // Monthly historical percentage trend for chart visualization
-  const monthlyTrendData = [
-    { month: 'Jan', rate: 85.0 },
-    { month: 'Feb', rate: 88.0 },
-    { month: 'Mar', rate: 90.5 },
-    { month: 'Apr', rate: 92.0 },
-    { month: 'Current', rate: isNaN(parseFloat(overallPct)) ? 100 : parseFloat(overallPct) }
-  ];
+  // Monthly historical percentage trend for chart visualization (Real DB Progression)
+  const monthlyTrendData = (liveAttendance?.monthly_trend && liveAttendance.monthly_trend.length > 0)
+    ? liveAttendance.monthly_trend
+    : [
+        { month: 'Target', rate: requiredLimit },
+        { month: 'Current', rate: isNaN(parseFloat(overallPct)) ? 100 : parseFloat(overallPct) }
+      ];
 
-  // Breakdowns used inside the Progress Ring chart
-  const ringChartData = [
-    { name: 'Present', value: Math.max(0, presentClasses - lateClasses), color: '#8B5CF6' },
-    { name: 'Absent', value: absentClasses, color: '#EF4444' },
-    { name: 'Late', value: lateClasses, color: '#F59E0B' }
-  ];
+  // Breakdowns used inside the Progress Ring chart (Real DB Values)
+  const ringChartData = (totalClasses > 0)
+    ? [
+        { name: 'Present', value: Math.max(0, presentClasses - lateClasses), color: '#8B5CF6' },
+        { name: 'Absent', value: absentClasses, color: '#EF4444' },
+        { name: 'Late', value: lateClasses, color: '#F59E0B' }
+      ]
+    : [
+        { name: 'Present', value: 1, color: '#8B5CF6' },
+        { name: 'Absent', value: 0, color: '#EF4444' },
+        { name: 'Late', value: 0, color: '#F59E0B' }
+      ];
 
   // Subject-wise breakdowns from real database
   const subjectAttendance = (liveAttendance?.subject_wise && liveAttendance.subject_wise.length > 0)
-    ? liveAttendance.subject_wise.map(s => ({
-        subject: s.subject || s.code,
-        teacher: s.teacher || 'Faculty',
-        total: s.total,
-        present: s.present,
-        absent: s.absent,
-        late: s.late,
-        pct: s.pct,
-        status: s.status || (s.pct >= 85 ? 'Good' : s.pct >= 75 ? 'Warning' : 'Critical')
-      }))
-    : [
-        { subject: 'Database Management Systems', teacher: 'Dr. Asaduzzaman', total: 0, present: 0, absent: 0, late: 0, pct: 100.0, status: 'Good' }
-      ];
+    ? liveAttendance.subject_wise.map(s => {
+        const pct = parseFloat(s.pct) || 0.0;
+        const status = s.status || (pct >= (requiredLimit + 10) ? 'Good' : pct >= requiredLimit ? 'Warning' : 'Critical');
+        return {
+          subject: s.subject || s.code,
+          teacher: s.teacher || 'Faculty',
+          total: s.total,
+          present: s.present,
+          absent: s.absent,
+          late: s.late,
+          pct: pct,
+          status: status
+        };
+      })
+    : [];
 
   // Timeline check-in events log
   const recentLogs = (liveAttendance?.recent_logs && liveAttendance.recent_logs.length > 0)
@@ -184,59 +196,62 @@ export default function Attendance() {
         state: l.status ? (l.status.charAt(0).toUpperCase() + l.status.slice(1)) : 'Present',
         color: l.status === 'present' ? '#10B981' : l.status === 'late' ? '#F59E0B' : '#EF4444'
       }))
-    : [
-        { date: new Date().toISOString().split('T')[0], time: 'Today', subject: 'Enrolled Classes', state: 'Active', color: '#10B981' }
-      ];
+    : [];
 
-  // GitHub-style attendance calendar cells for May 2026 (W1 to W5 matrix)
-  // States: 'present' | 'absent' | 'late' | 'weekend' | 'holiday'
-  const heatmapWeeks = [
-    [
-      { day: 1, state: 'holiday', title: 'May Day' },
-      { day: 2, state: 'weekend' },
-      { day: 3, state: 'weekend' },
-      { day: 4, state: 'present' },
-      { day: 5, state: 'present' },
-      { day: 6, state: 'late' },
-      { day: 7, state: 'present' }
-    ],
-    [
-      { day: 8, state: 'present' },
-      { day: 9, state: 'weekend' },
-      { day: 10, state: 'weekend' },
-      { day: 11, state: 'absent' },
-      { day: 12, state: 'present' },
-      { day: 13, state: 'present' },
-      { day: 14, state: 'present' }
-    ],
-    [
-      { day: 15, state: 'late' },
-      { day: 16, state: 'weekend' },
-      { day: 17, state: 'weekend' },
-      { day: 18, state: 'present' },
-      { day: 19, state: 'present' },
-      { day: 20, state: 'absent' },
-      { day: 21, state: 'present' }
-    ],
-    [
-      { day: 22, state: 'present' },
-      { day: 23, state: 'weekend' },
-      { day: 24, state: 'weekend' },
-      { day: 25, state: 'present' },
-      { day: 26, state: 'holiday', title: 'College Holiday' },
-      { day: 27, state: 'present' },
-      { day: 28, state: 'present' }
-    ],
-    [
-      { day: 29, state: 'late' },
-      { day: 30, state: 'weekend' },
-      { day: 31, state: 'weekend' },
-      { day: null, state: 'empty' },
-      { day: null, state: 'empty' },
-      { day: null, state: 'empty' },
-      { day: null, state: 'empty' }
-    ]
-  ];
+  // Helper to generate dynamic GitHub-style attendance calendar matrix for the active month
+  const generateDynamicHeatmap = (yearNum, monthNum, dailyRecords) => {
+    const now = new Date();
+    const yr = yearNum || now.getFullYear();
+    const mo = monthNum ? monthNum - 1 : now.getMonth();
+    const totalDays = new Date(yr, mo + 1, 0).getDate();
+    const firstDayOfWeek = (new Date(yr, mo, 1).getDay() + 6) % 7; // Mon=0 .. Sun=6
+
+    const weeks = [];
+    let currentWeek = [];
+
+    // Leading empty days
+    for (let i = 0; i < firstDayOfWeek; i++) {
+      currentWeek.push({ day: null, state: 'empty' });
+    }
+
+    for (let d = 1; d <= totalDays; d++) {
+      const dateStr = `${yr}-${String(mo + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const dayOfWeek = (new Date(yr, mo, d).getDay() + 6) % 7;
+      const isWeekend = dayOfWeek === 4 || dayOfWeek === 5; // Friday & Saturday are weekends in BD
+
+      let state = isWeekend ? 'weekend' : 'empty';
+      let title = `Day ${d}: No attendance recorded`;
+
+      if (dailyRecords && dailyRecords[dateStr]) {
+        state = dailyRecords[dateStr]; // 'present', 'late', 'absent'
+        title = `Day ${d}: ${state.toUpperCase()} session recorded`;
+      } else if (isWeekend) {
+        title = `Day ${d}: Weekend`;
+      }
+
+      currentWeek.push({ day: d, state, title, date: dateStr });
+      if (currentWeek.length === 7) {
+        weeks.push(currentWeek);
+        currentWeek = [];
+      }
+    }
+
+    if (currentWeek.length > 0) {
+      while (currentWeek.length < 7) {
+        currentWeek.push({ day: null, state: 'empty' });
+      }
+      weeks.push(currentWeek);
+    }
+
+    return weeks;
+  };
+
+  const calendarMonth = liveAttendance?.calendar_month || new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
+  const heatmapWeeks = generateDynamicHeatmap(
+    liveAttendance?.calendar_year,
+    liveAttendance?.calendar_month_num,
+    liveAttendance?.daily_attendance
+  );
 
   // Helper mapping of heatmap states to styled colors.
   // We use theme-aware transparent colors for weekends and holidays to blend with the card background,
@@ -567,7 +582,7 @@ export default function Attendance() {
           <Card 
             title="Attendance Breakdown & Heatmap" 
             action={
-              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>May 2026</span>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>{calendarMonth}</span>
             }
             className="premium-card"
             style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
@@ -642,7 +657,7 @@ export default function Attendance() {
                     pointerEvents: 'none'
                   }}>
                     <div style={{ fontSize: '1.4rem', fontWeight: '800', color: 'var(--text-primary)', fontFamily: 'var(--font-heading)' }}>
-                      85.0%
+                      {overallPct}%
                     </div>
                     <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                       Checked In
@@ -743,7 +758,7 @@ export default function Attendance() {
           <Card 
             title="Monthly Attendance Trend" 
             action={
-              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>Spring Sem 2026</span>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>{currentTerm}</span>
             }
             className="premium-card"
             style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
@@ -754,15 +769,15 @@ export default function Attendance() {
                 <div style={{
                   padding: '6px 12px',
                   borderRadius: '10px',
-                  background: 'rgba(16, 185, 129, 0.1)',
-                  border: '1px solid rgba(16, 185, 129, 0.25)',
+                  background: parseFloat(overallPct) >= requiredLimit ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                  border: parseFloat(overallPct) >= requiredLimit ? '1px solid rgba(16, 185, 129, 0.25)' : '1px solid rgba(239, 68, 68, 0.25)',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px'
                 }}>
-                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10B981' }} />
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: parseFloat(overallPct) >= requiredLimit ? '#10B981' : '#EF4444' }} />
                   <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Current:</span>
-                  <strong style={{ fontSize: '0.78rem', color: '#10B981' }}>{overallPct}%</strong>
+                  <strong style={{ fontSize: '0.78rem', color: parseFloat(overallPct) >= requiredLimit ? '#10B981' : '#EF4444' }}>{overallPct}%</strong>
                 </div>
 
                 <div style={{
@@ -776,21 +791,23 @@ export default function Attendance() {
                 }}>
                   <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#8B5CF6' }} />
                   <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Threshold:</span>
-                  <strong style={{ fontSize: '0.78rem', color: '#8B5CF6' }}>75.0% Target</strong>
+                  <strong style={{ fontSize: '0.78rem', color: '#8B5CF6' }}>{requiredLimit.toFixed(1)}% Target</strong>
                 </div>
 
                 <div style={{
                   padding: '6px 12px',
                   borderRadius: '10px',
-                  background: 'rgba(59, 130, 246, 0.1)',
-                  border: '1px solid rgba(59, 130, 246, 0.25)',
+                  background: parseFloat(overallPct) >= requiredLimit ? 'rgba(59, 130, 246, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                  border: parseFloat(overallPct) >= requiredLimit ? '1px solid rgba(59, 130, 246, 0.25)' : '1px solid rgba(239, 68, 68, 0.25)',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px'
                 }}>
-                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#3B82F6' }} />
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: parseFloat(overallPct) >= requiredLimit ? '#3B82F6' : '#EF4444' }} />
                   <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Trajectory:</span>
-                  <strong style={{ fontSize: '0.78rem', color: '#3B82F6' }}>Optimal ↗</strong>
+                  <strong style={{ fontSize: '0.78rem', color: parseFloat(overallPct) >= requiredLimit ? '#3B82F6' : '#EF4444' }}>
+                    {parseFloat(overallPct) >= requiredLimit ? 'Optimal ↗' : 'Risk ↘'}
+                  </strong>
                 </div>
               </div>
 
@@ -859,56 +876,62 @@ export default function Attendance() {
             style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
           >
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '4px', flex: 1 }}>
-              {recentLogs.map((log, idx) => (
-                <div key={idx} style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                  {/* Timeline bullet dot */}
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', flexShrink: 0 }}>
-                    <div style={{
-                      width: '12px',
-                      height: '12px',
-                      borderRadius: '50%',
-                      background: log.color,
-                      border: '2px solid var(--bg-primary)',
-                      boxShadow: `0 0 6px ${log.color}`
-                    }} />
-                    {idx < recentLogs.length - 1 && (
-                      <div style={{
-                        width: '2px',
-                        flex: 1,
-                        background: 'rgba(255,255,255,0.06)',
-                        marginTop: '4px',
-                        minHeight: '26px'
-                      }} />
-                    )}
-                  </div>
-
-                  {/* Log contents */}
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <h4 style={{ fontSize: '0.82rem', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>
-                        {log.subject}
-                      </h4>
-                      <span style={{
-                        fontSize: '0.65rem',
-                        fontWeight: '700',
-                        padding: '2px 8px',
-                        borderRadius: '12px',
-                        background: `${log.color}15`,
-                        color: log.color,
-                        border: `1.5px solid ${log.color}25`
-                      }}>
-                        {log.state}
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', gap: '8px', fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                      <span>{log.date}</span>
-                      <span>•</span>
-                      <span>{log.time}</span>
-                    </div>
-                  </div>
-
+              {recentLogs.length === 0 ? (
+                <div style={{ padding: '28px 12px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                  No recent attendance check-in logs recorded.
                 </div>
-              ))}
+              ) : (
+                recentLogs.map((log, idx) => (
+                  <div key={idx} style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                    {/* Timeline bullet dot */}
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', flexShrink: 0 }}>
+                      <div style={{
+                        width: '12px',
+                        height: '12px',
+                        borderRadius: '50%',
+                        background: log.color,
+                        border: '2px solid var(--bg-primary)',
+                        boxShadow: `0 0 6px ${log.color}`
+                      }} />
+                      {idx < recentLogs.length - 1 && (
+                        <div style={{
+                          width: '2px',
+                          flex: 1,
+                          background: 'rgba(255,255,255,0.06)',
+                          marginTop: '4px',
+                          minHeight: '26px'
+                        }} />
+                      )}
+                    </div>
+
+                    {/* Log contents */}
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <h4 style={{ fontSize: '0.82rem', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>
+                          {log.subject}
+                        </h4>
+                        <span style={{
+                          fontSize: '0.65rem',
+                          fontWeight: '700',
+                          padding: '2px 8px',
+                          borderRadius: '12px',
+                          background: `${log.color}15`,
+                          color: log.color,
+                          border: `1.5px solid ${log.color}25`
+                        }}>
+                          {log.state}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px', fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                        <span>{log.date}</span>
+                        <span>•</span>
+                        <span>{log.time}</span>
+                      </div>
+                    </div>
+
+                  </div>
+                ))
+              )}
             </div>
           </Card>
         </div>
@@ -946,47 +969,55 @@ export default function Attendance() {
                   </tr>
                 </thead>
                 <tbody>
-                  {subjectAttendance.map((subj, index) => {
-                    const statusColorMap = {
-                      Good: { text: '#10B981', bg: 'rgba(16, 185, 129, 0.1)' },
-                      Warning: { text: '#F59E0B', bg: 'rgba(245, 158, 11, 0.1)' },
-                      Critical: { text: '#EF4444', bg: 'rgba(239, 68, 68, 0.1)' }
-                    };
-                    const color = statusColorMap[subj.status] || { text: '#fff', bg: 'rgba(255,255,255,0.05)' };
+                  {subjectAttendance.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} style={{ padding: '36px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                        No enrolled subject attendance records recorded yet by faculty.
+                      </td>
+                    </tr>
+                  ) : (
+                    subjectAttendance.map((subj, index) => {
+                      const statusColorMap = {
+                        Good: { text: '#10B981', bg: 'rgba(16, 185, 129, 0.1)' },
+                        Warning: { text: '#F59E0B', bg: 'rgba(245, 158, 11, 0.1)' },
+                        Critical: { text: '#EF4444', bg: 'rgba(239, 68, 68, 0.1)' }
+                      };
+                      const color = statusColorMap[subj.status] || { text: '#fff', bg: 'rgba(255,255,255,0.05)' };
 
-                    return (
-                      <tr 
-                        key={index}
-                        style={{ 
-                          borderBottom: '1px solid rgba(255,255,255,0.04)',
-                          background: index % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent',
-                          transition: 'background 0.2s ease'
-                        }}
-                        className="hover:bg-white/[0.03] transition-colors"
-                      >
-                        <td style={{ padding: '12px 12px', fontSize: '0.86rem', fontWeight: '700', color: 'var(--text-primary)' }}>{subj.subject}</td>
-                        <td style={{ padding: '12px 12px', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{subj.teacher}</td>
-                        <td style={{ padding: '12px 12px', fontSize: '0.84rem', color: 'var(--text-primary)', textAlign: 'center', fontWeight: '600' }}>{subj.total}</td>
-                        <td style={{ padding: '12px 12px', fontSize: '0.84rem', color: '#10B981', textAlign: 'center', fontWeight: '600' }}>{subj.present}</td>
-                        <td style={{ padding: '12px 12px', fontSize: '0.84rem', color: '#EF4444', textAlign: 'center', fontWeight: '600' }}>{subj.absent}</td>
-                        <td style={{ padding: '12px 12px', fontSize: '0.84rem', color: '#F59E0B', textAlign: 'center', fontWeight: '600' }}>{subj.late}</td>
-                        <td style={{ padding: '12px 12px', fontSize: '0.86rem', fontWeight: '700', color: 'var(--text-primary)', textAlign: 'right', whiteSpace: 'nowrap' }}>{subj.pct.toFixed(1)}%</td>
-                        <td style={{ padding: '12px 12px', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                          <span style={{
-                            fontSize: '0.72rem',
-                            fontWeight: '700',
-                            padding: '4px 10px',
-                            borderRadius: '20px',
-                            background: color.bg,
-                            color: color.text,
-                            border: `1px solid ${color.text}25`
-                          }}>
-                            {subj.status}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                      return (
+                        <tr 
+                          key={index}
+                          style={{ 
+                            borderBottom: '1px solid rgba(255,255,255,0.04)',
+                            background: index % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent',
+                            transition: 'background 0.2s ease'
+                          }}
+                          className="hover:bg-white/[0.03] transition-colors"
+                        >
+                          <td style={{ padding: '12px 12px', fontSize: '0.86rem', fontWeight: '700', color: 'var(--text-primary)' }}>{subj.subject}</td>
+                          <td style={{ padding: '12px 12px', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{subj.teacher}</td>
+                          <td style={{ padding: '12px 12px', fontSize: '0.84rem', color: 'var(--text-primary)', textAlign: 'center', fontWeight: '600' }}>{subj.total}</td>
+                          <td style={{ padding: '12px 12px', fontSize: '0.84rem', color: '#10B981', textAlign: 'center', fontWeight: '600' }}>{subj.present}</td>
+                          <td style={{ padding: '12px 12px', fontSize: '0.84rem', color: '#EF4444', textAlign: 'center', fontWeight: '600' }}>{subj.absent}</td>
+                          <td style={{ padding: '12px 12px', fontSize: '0.84rem', color: '#F59E0B', textAlign: 'center', fontWeight: '600' }}>{subj.late}</td>
+                          <td style={{ padding: '12px 12px', fontSize: '0.86rem', fontWeight: '700', color: 'var(--text-primary)', textAlign: 'right', whiteSpace: 'nowrap' }}>{subj.pct.toFixed(1)}%</td>
+                          <td style={{ padding: '12px 12px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                            <span style={{
+                              fontSize: '0.72rem',
+                              fontWeight: '700',
+                              padding: '4px 10px',
+                              borderRadius: '20px',
+                              background: color.bg,
+                              color: color.text,
+                              border: `1px solid ${color.text}25`
+                            }}>
+                              {subj.status}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
             </div>

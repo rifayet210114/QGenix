@@ -1661,6 +1661,9 @@ class ClassAttendanceViewSet(viewsets.ModelViewSet):
         elif request.user.is_authenticated and request.user.role == 'STUDENT':
             student = request.user
 
+        setting, _ = SystemSetting.objects.get_or_create(id=1)
+        required_limit = float(setting.required_attendance_limit) if setting and hasattr(setting, 'required_attendance_limit') else 75.0
+
         if not student:
             return Response({
                 'student': None,
@@ -1669,8 +1672,16 @@ class ClassAttendanceViewSet(viewsets.ModelViewSet):
                 'total_absent': 0,
                 'total_late': 0,
                 'percentage': 0.0,
+                'required_limit': required_limit,
+                'current_term': setting.current_term if setting else 'Spring 2026',
                 'subject_wise': [],
-                'recent_logs': []
+                'recent_logs': [],
+                'monthly_trend': [
+                    {'month': 'Target', 'rate': required_limit},
+                    {'month': 'Current', 'rate': 100.0}
+                ],
+                'daily_attendance': {},
+                'calendar_month': datetime.now().strftime('%B %Y')
             }, status=status.HTTP_200_OK)
 
         # Inspect all ClassAttendance records in the database
@@ -1747,7 +1758,7 @@ class ClassAttendanceViewSet(viewsets.ModelViewSet):
         for c in course_map.values():
             attended = c['present'] + c['late']
             pct = round((attended / c['total'] * 100), 1) if c['total'] > 0 else 0.0
-            stat = 'Good' if pct >= 85 else ('Warning' if pct >= 75 else 'Critical')
+            stat = 'Good' if pct >= (required_limit + 10) else ('Warning' if pct >= required_limit else 'Critical')
             subject_wise.append({
                 'subject': c['subject'],
                 'code': c['code'],
@@ -1759,6 +1770,61 @@ class ClassAttendanceViewSet(viewsets.ModelViewSet):
                 'pct': pct,
                 'status': stat
             })
+
+        # Dynamic daily attendance heatmap for student's active attendance month
+        active_dt = datetime.now()
+        if matched_records:
+            latest_d = matched_records[0].get('date', '')
+            try:
+                if '-' in latest_d:
+                    parts = [int(p) for p in latest_d.split('-')]
+                    active_dt = datetime(parts[0], parts[1], parts[2] if len(parts) > 2 else 1)
+            except Exception:
+                pass
+
+        daily_attendance = {}
+        for r in matched_records:
+            d = str(r.get('date', '')).strip()
+            if d:
+                prev_st = daily_attendance.get(d)
+                curr_st = r.get('status', 'present')
+                if not prev_st or curr_st in ['absent', 'late']:
+                    daily_attendance[d] = curr_st
+
+        # Dynamic monthly trend progression calculated from genuine DB records
+        monthly_map = {}
+        for r in matched_records:
+            d = str(r.get('date', '')).strip()
+            m_label = ''
+            try:
+                if '-' in d:
+                    parts = d.split('-')
+                    y = int(parts[0])
+                    m_int = int(parts[1])
+                    m_label = datetime(y, m_int, 1).strftime('%b')
+            except Exception:
+                pass
+            if not m_label:
+                m_label = 'Term'
+            if m_label not in monthly_map:
+                monthly_map[m_label] = {'total': 0, 'attended': 0}
+            monthly_map[m_label]['total'] += 1
+            if r.get('status') in ['present', 'late']:
+                monthly_map[m_label]['attended'] += 1
+
+        monthly_trend = []
+        if monthly_map:
+            # Sort months chronologically if possible
+            for m_name, vals in monthly_map.items():
+                m_pct = round((vals['attended'] / vals['total'] * 100), 1) if vals['total'] > 0 else 0.0
+                monthly_trend.append({'month': m_name, 'rate': m_pct})
+            if not any(entry['month'] == 'Current' for entry in monthly_trend):
+                monthly_trend.append({'month': 'Current', 'rate': overall_pct})
+        else:
+            monthly_trend = [
+                {'month': 'Target', 'rate': required_limit},
+                {'month': 'Current', 'rate': overall_pct}
+            ]
 
         return Response({
             'student': {
@@ -1774,8 +1840,15 @@ class ClassAttendanceViewSet(viewsets.ModelViewSet):
             'total_absent': absent_cnt,
             'total_late': late_cnt,
             'percentage': overall_pct,
+            'required_limit': required_limit,
+            'current_term': setting.current_term if setting else 'Spring 2026',
             'subject_wise': subject_wise,
-            'recent_logs': matched_records[:10]
+            'recent_logs': matched_records[:10],
+            'monthly_trend': monthly_trend,
+            'daily_attendance': daily_attendance,
+            'calendar_month': active_dt.strftime('%B %Y'),
+            'calendar_year': active_dt.year,
+            'calendar_month_num': active_dt.month
         }, status=status.HTTP_200_OK)
 
 
@@ -2143,6 +2216,11 @@ class SystemSettingView(APIView):
             setting.current_term = data['current_term']
         if 'maintenance_mode' in data:
             setting.maintenance_mode = bool(data['maintenance_mode'])
+        if 'required_attendance_limit' in data:
+            try:
+                setting.required_attendance_limit = float(data['required_attendance_limit'])
+            except (ValueError, TypeError):
+                pass
         setting.save()
 
         try:

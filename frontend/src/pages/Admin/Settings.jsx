@@ -23,7 +23,12 @@ import {
 import { API_BASE } from '../../config';
 
 export default function Settings() {
-  const { emailFormats, updateEmailFormats } = useAdminData();
+  const { 
+    emailFormats, 
+    updateEmailFormats, 
+    requiredAttendanceLimit, 
+    updateRequiredAttendanceLimit 
+  } = useAdminData();
   const [toastMessage, setToastMessage] = useState('');
   
   // Institutional Settings State
@@ -34,6 +39,16 @@ export default function Settings() {
   const [currentTerm, setCurrentTerm] = useState('Spring 2026');
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [emailAlertsEnabled, setEmailAlertsEnabled] = useState(true);
+
+  // Student Attendance Policy State (100% Real-Time DB Synchronized)
+  const [attendanceLimitInput, setAttendanceLimitInput] = useState(requiredAttendanceLimit || 75.0);
+  const [isSavingAttendanceLimit, setIsSavingAttendanceLimit] = useState(false);
+
+  useEffect(() => {
+    if (requiredAttendanceLimit !== undefined) {
+      setAttendanceLimitInput(requiredAttendanceLimit);
+    }
+  }, [requiredAttendanceLimit]);
 
   // Email Format State (100% Admin Configurable & Modifiable)
   const [studentEmailFormat, setStudentEmailFormat] = useState(emailFormats?.student || '@diit.edu.bd');
@@ -69,8 +84,32 @@ export default function Settings() {
     }
   };
 
+  // Load system settings from Django DB
+  const loadSystemSettings = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/system-settings/`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.university_name) setUniName(data.university_name);
+        if (data.short_code) setUniShortCode(data.short_code);
+        if (data.contact_email) setContactEmail(data.contact_email);
+        if (data.academic_year) setAcademicYear(data.academic_year);
+        if (data.current_term) setCurrentTerm(data.current_term);
+        if (data.maintenance_mode !== undefined) setMaintenanceMode(data.maintenance_mode);
+        if (data.student_email_format) setStudentEmailFormat(data.student_email_format);
+        if (data.teacher_email_format) setTeacherEmailFormat(data.teacher_email_format);
+        if (data.required_attendance_limit !== undefined) {
+          setAttendanceLimitInput(parseFloat(data.required_attendance_limit) || 75.0);
+        }
+      }
+    } catch (e) {
+      console.warn('Could not load system settings:', e);
+    }
+  };
+
   useEffect(() => {
     loadShiftPolicy();
+    loadSystemSettings();
   }, []);
 
   // Save Biometric Shift Policy to DB
@@ -135,15 +174,63 @@ export default function Settings() {
     showToast('✓ Email Formate successfully saved and updated across the whole system!');
   };
 
+  // Dedicated Save for Attendance Limit
+  const handleSaveAttendanceLimit = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    const limitNum = parseFloat(attendanceLimitInput);
+    if (isNaN(limitNum) || limitNum < 1 || limitNum > 100) {
+      showToast('❌ Please enter a valid percentage between 1% and 100%');
+      return;
+    }
+    setIsSavingAttendanceLimit(true);
+    try {
+      if (updateRequiredAttendanceLimit) {
+        await updateRequiredAttendanceLimit(limitNum);
+      }
+      showToast(`✓ Required Attendance Limit set to ${limitNum}% and synchronized live across all student dashboards!`);
+    } catch (err) {
+      showToast('❌ Failed to update attendance limit');
+    } finally {
+      setIsSavingAttendanceLimit(false);
+    }
+  };
+
   const handleSave = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
+    const cleanStudent = (studentEmailFormat || '').trim();
+    const cleanTeacher = (teacherEmailFormat || '').trim();
+    const limitNum = parseFloat(attendanceLimitInput) || 75.0;
+
     if (updateEmailFormats) {
       await updateEmailFormats({
-        student: (studentEmailFormat || '').trim(),
-        teacher: (teacherEmailFormat || '').trim()
+        student: cleanStudent,
+        teacher: cleanTeacher
       });
     }
-    showToast('Platform & Email Formate settings successfully updated!');
+
+    if (updateRequiredAttendanceLimit) {
+      await updateRequiredAttendanceLimit(limitNum);
+    }
+
+    try {
+      await fetch(`${API_BASE}/api/auth/system-settings/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          university_name: uniName,
+          short_code: uniShortCode,
+          contact_email: contactEmail,
+          academic_year: academicYear,
+          current_term: currentTerm,
+          maintenance_mode: maintenanceMode,
+          student_email_format: cleanStudent,
+          teacher_email_format: cleanTeacher,
+          required_attendance_limit: limitNum
+        })
+      });
+    } catch (_) {}
+
+    showToast(`✓ Platform Settings & Required Attendance Limit (${limitNum}%) successfully updated!`);
   };
 
   return (
@@ -324,6 +411,53 @@ export default function Settings() {
                 </label>
                 <input type="date" className="input-field" defaultValue="2026-05-30" style={{ width: '100%' }} />
               </div>
+            </div>
+
+            {/* University Minimum Attendance Policy Threshold */}
+            <div style={{ 
+              marginTop: '6px', 
+              padding: '14px', 
+              background: 'var(--bg-secondary)', 
+              borderRadius: '10px', 
+              border: '1px solid var(--border-color)' 
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <label style={{ fontSize: '0.84rem', color: 'var(--text-primary)', fontWeight: 700 }}>
+                  Required Attendance Limit (%)
+                </label>
+                <span className="badge badge-primary" style={{ fontSize: '0.7rem', padding: '2px 8px' }}>
+                  Live Student Sync
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <div style={{ position: 'relative', flex: 1 }}>
+                  <input 
+                    type="number" 
+                    step="0.5"
+                    min="1"
+                    max="100"
+                    className="input-field" 
+                    value={attendanceLimitInput}
+                    onChange={(e) => setAttendanceLimitInput(e.target.value)}
+                    style={{ width: '100%', fontWeight: 700, paddingRight: '40px', fontSize: '0.95rem' }} 
+                    required
+                  />
+                  <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontWeight: 700 }}>%</span>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={handleSaveAttendanceLimit}
+                  disabled={isSavingAttendanceLimit}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 14px', fontSize: '0.82rem', whiteSpace: 'nowrap' }}
+                >
+                  <Save size={14} />
+                  <span>{isSavingAttendanceLimit ? 'Saving...' : 'Set Limit'}</span>
+                </button>
+              </div>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '6px', display: 'block' }}>
+                Official required percentage. Reflected dynamically in real-time across every student's attendance overview and risk evaluation.
+              </span>
             </div>
           </form>
         </Card>
