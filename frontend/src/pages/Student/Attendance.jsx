@@ -147,7 +147,7 @@ export default function Attendance() {
     ? parseFloat(liveAttendance.required_limit) 
     : 75.0;
   const currentTerm = liveAttendance?.current_term || 'Spring 2026';
-  const activeSemester = liveAttendance?.current_semester || user?.semester || '2nd Semester';
+  const activeSemester = liveAttendance?.current_semester || user?.semester || '';
 
   const overallPct = liveAttendance?.total_held > 0 
     ? liveAttendance.percentage.toFixed(1) 
@@ -159,7 +159,7 @@ export default function Attendance() {
 
   const statsData = [
     { label: 'Overall Attendance', value: `${overallPct}%`, desc: parseFloat(overallPct) >= requiredLimit ? `✓ Above ${requiredLimit.toFixed(1)}% limit` : `⚠️ Shortfall warning (<${requiredLimit.toFixed(1)}%)`, icon: <TrendingUp size={15} />, color: parseFloat(overallPct) >= requiredLimit ? '#10B981' : '#EF4444', bg: parseFloat(overallPct) >= requiredLimit ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)' },
-    { label: 'Total Classes', value: `${totalClasses}`, desc: `${activeSemester} total`, icon: <Calendar size={15} />, color: '#3B82F6', bg: 'rgba(59, 130, 246, 0.1)' },
+    { label: 'Total Classes', value: `${totalClasses}`, desc: activeSemester ? `${activeSemester} total` : 'Recorded sessions', icon: <Calendar size={15} />, color: '#3B82F6', bg: 'rgba(59, 130, 246, 0.1)' },
     { label: 'Present Classes', value: `${presentClasses}`, desc: 'Checked in by teacher', icon: <CheckCircle size={15} />, color: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.1)' },
     { label: 'Absent Classes', value: `${absentClasses}`, desc: 'Marked absent', icon: <X size={15} />, color: '#EF4444', bg: 'rgba(239, 68, 68, 0.1)' },
     { label: 'Late Attendance', value: `${lateClasses}`, desc: 'Grace period entries', icon: <Clock size={15} />, color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.1)' },
@@ -431,23 +431,25 @@ export default function Attendance() {
             <h1 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '2.1rem', fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.2 }}>
               Attendance Overview
             </h1>
-            <div 
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '4px 14px',
-                borderRadius: '20px',
-                background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(59, 130, 246, 0.15) 100%)',
-                border: '1.5px solid rgba(139, 92, 246, 0.4)',
-                boxShadow: '0 2px 10px rgba(139, 92, 246, 0.15)'
-              }}
-            >
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10B981', display: 'inline-block', boxShadow: '0 0 8px #10B981' }}></span>
-              <span style={{ color: '#E2E8F0', fontSize: '0.85rem', fontWeight: '700', letterSpacing: '0.02em' }}>
-                {activeSemester}
-              </span>
-            </div>
+            {activeSemester && (
+              <div 
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '4px 14px',
+                  borderRadius: '20px',
+                  background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(59, 130, 246, 0.15) 100%)',
+                  border: '1.5px solid rgba(139, 92, 246, 0.4)',
+                  boxShadow: '0 2px 10px rgba(139, 92, 246, 0.15)'
+                }}
+              >
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10B981', display: 'inline-block', boxShadow: '0 0 8px #10B981' }}></span>
+                <span style={{ color: '#E2E8F0', fontSize: '0.85rem', fontWeight: '700', letterSpacing: '0.02em' }}>
+                  {activeSemester}
+                </span>
+              </div>
+            )}
           </div>
           <p style={{ color: 'var(--text-secondary)', margin: '4px 0 0 0', fontSize: '0.95rem', fontWeight: '500' }}>
             Real-time semester attendance across all courses up to today
@@ -952,7 +954,9 @@ export default function Attendance() {
           <Card 
             title="Monthly Attendance Trend" 
             action={
-              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>{currentTerm} • {activeSemester}</span>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                {currentTerm}{activeSemester ? ` • ${activeSemester}` : ''}
+              </span>
             }
             className="premium-card"
             style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
@@ -1144,7 +1148,7 @@ export default function Attendance() {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>Subject-wise Attendance</h3>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>{activeSemester}</span>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>{activeSemester || 'Active Courses'}</span>
             </div>
 
             {/* Table Container: full width with zero horizontal scrolling required */}

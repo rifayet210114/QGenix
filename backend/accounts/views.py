@@ -1668,8 +1668,8 @@ class ClassAttendanceViewSet(viewsets.ModelViewSet):
         if not student:
             return Response({
                 'student': None,
-                'current_semester': '2nd Semester',
-                'available_semesters': ['2nd Semester'],
+                'current_semester': '',
+                'available_semesters': [],
                 'total_held': 0,
                 'total_attended': 0,
                 'total_absent': 0,
@@ -1687,7 +1687,7 @@ class ClassAttendanceViewSet(viewsets.ModelViewSet):
                 'calendar_month': datetime.now().strftime('%B %Y')
             }, status=status.HTTP_200_OK)
 
-        # Determine student's active enrolled semester (e.g. '2nd Semester')
+        # Determine student's active enrolled semester dynamically from profile, batch, or query param
         requested_sem = (request.query_params.get('semester') or '').strip()
         student_current_sem = requested_sem
         if not student_current_sem and student:
@@ -1700,16 +1700,11 @@ class ClassAttendanceViewSet(viewsets.ModelViewSet):
                 if matched_batch and matched_batch.semester:
                     student_current_sem = matched_batch.semester.strip()
 
-        if not student_current_sem:
-            student_current_sem = '2nd Semester'
-
         def normalize_sem(val):
             if not val:
                 return ''
             digits = re.findall(r'\d+', str(val).strip().lower())
             return digits[0] if digits else str(val).strip().lower()
-
-        target_norm = normalize_sem(student_current_sem)
 
         # Inspect all ClassAttendance records in the database
         all_attendances = ClassAttendance.objects.all().order_by('-date', '-created_at')
@@ -1718,8 +1713,9 @@ class ClassAttendanceViewSet(viewsets.ModelViewSet):
         student_email = (student.email or '').lower().strip()
         student_name = f"{student.first_name} {student.last_name}".lower().strip()
 
+        student_sessions = []
         available_semesters_set = set()
-        matched_records = []
+
         for att in all_attendances:
             found_in_session = False
             status_in_session = 'present'
@@ -1741,22 +1737,31 @@ class ClassAttendanceViewSet(viewsets.ModelViewSet):
             
             # If student records array matched
             if found_in_session:
-                att_sem = att.semester or 'Current Semester'
-                available_semesters_set.add(att_sem)
+                att_sem = (att.semester or '').strip()
+                if att_sem:
+                    available_semesters_set.add(att_sem)
+                student_sessions.append({
+                    'attendance_id': att.id,
+                    'course_code': att.course_code,
+                    'course_title': att.course_title,
+                    'teacher': att.teacher,
+                    'batch': att.batch,
+                    'section': att.section,
+                    'semester': att.semester,
+                    'date': att.date,
+                    'status': status_in_session
+                })
 
-                # STRICT SEMESTER ISOLATION: Only include sessions from the student's active semester!
-                if normalize_sem(att_sem) == target_norm:
-                    matched_records.append({
-                        'attendance_id': att.id,
-                        'course_code': att.course_code,
-                        'course_title': att.course_title,
-                        'teacher': att.teacher,
-                        'batch': att.batch,
-                        'section': att.section,
-                        'semester': att.semester,
-                        'date': att.date,
-                        'status': status_in_session
-                    })
+        # If student has no semester set on profile/batch, resolve dynamically from their latest attendance
+        if not student_current_sem and student_sessions:
+            student_current_sem = student_sessions[0].get('semester', '')
+
+        target_norm = normalize_sem(student_current_sem)
+
+        matched_records = []
+        for sess in student_sessions:
+            if not target_norm or normalize_sem(sess.get('semester', '')) == target_norm:
+                matched_records.append(sess)
 
         total_held = len(matched_records)
         present_cnt = sum(1 for r in matched_records if r['status'] == 'present')
