@@ -5,6 +5,7 @@
 # =========================================================================================
 
 import os
+import re
 import json
 import random
 from datetime import datetime
@@ -1667,6 +1668,8 @@ class ClassAttendanceViewSet(viewsets.ModelViewSet):
         if not student:
             return Response({
                 'student': None,
+                'current_semester': '2nd Semester',
+                'available_semesters': ['2nd Semester'],
                 'total_held': 0,
                 'total_attended': 0,
                 'total_absent': 0,
@@ -1684,6 +1687,30 @@ class ClassAttendanceViewSet(viewsets.ModelViewSet):
                 'calendar_month': datetime.now().strftime('%B %Y')
             }, status=status.HTTP_200_OK)
 
+        # Determine student's active enrolled semester (e.g. '2nd Semester')
+        requested_sem = (request.query_params.get('semester') or '').strip()
+        student_current_sem = requested_sem
+        if not student_current_sem and student:
+            if getattr(student, 'semester', None) and str(student.semester).strip():
+                student_current_sem = str(student.semester).strip()
+            elif student.batch:
+                matched_batch = Batch.objects.filter(name__iexact=student.batch.strip()).first()
+                if not matched_batch:
+                    matched_batch = Batch.objects.filter(name__icontains=student.batch.strip()).first()
+                if matched_batch and matched_batch.semester:
+                    student_current_sem = matched_batch.semester.strip()
+
+        if not student_current_sem:
+            student_current_sem = '2nd Semester'
+
+        def normalize_sem(val):
+            if not val:
+                return ''
+            digits = re.findall(r'\d+', str(val).strip().lower())
+            return digits[0] if digits else str(val).strip().lower()
+
+        target_norm = normalize_sem(student_current_sem)
+
         # Inspect all ClassAttendance records in the database
         all_attendances = ClassAttendance.objects.all().order_by('-date', '-created_at')
         student_id_str = str(student.id)
@@ -1691,6 +1718,7 @@ class ClassAttendanceViewSet(viewsets.ModelViewSet):
         student_email = (student.email or '').lower().strip()
         student_name = f"{student.first_name} {student.last_name}".lower().strip()
 
+        available_semesters_set = set()
         matched_records = []
         for att in all_attendances:
             found_in_session = False
@@ -1713,16 +1741,22 @@ class ClassAttendanceViewSet(viewsets.ModelViewSet):
             
             # If student records array matched
             if found_in_session:
-                matched_records.append({
-                    'attendance_id': att.id,
-                    'course_code': att.course_code,
-                    'course_title': att.course_title,
-                    'teacher': att.teacher,
-                    'batch': att.batch,
-                    'section': att.section,
-                    'date': att.date,
-                    'status': status_in_session
-                })
+                att_sem = att.semester or 'Current Semester'
+                available_semesters_set.add(att_sem)
+
+                # STRICT SEMESTER ISOLATION: Only include sessions from the student's active semester!
+                if normalize_sem(att_sem) == target_norm:
+                    matched_records.append({
+                        'attendance_id': att.id,
+                        'course_code': att.course_code,
+                        'course_title': att.course_title,
+                        'teacher': att.teacher,
+                        'batch': att.batch,
+                        'section': att.section,
+                        'semester': att.semester,
+                        'date': att.date,
+                        'status': status_in_session
+                    })
 
         total_held = len(matched_records)
         present_cnt = sum(1 for r in matched_records if r['status'] == 'present')
@@ -1833,8 +1867,11 @@ class ClassAttendanceViewSet(viewsets.ModelViewSet):
                 'student_id': student.institutional_id,
                 'batch': student.batch,
                 'section': student.section,
-                'department': student.department
+                'department': student.department,
+                'semester': student_current_sem
             },
+            'current_semester': student_current_sem,
+            'available_semesters': sorted(list(available_semesters_set)) if available_semesters_set else [student_current_sem],
             'total_held': total_held,
             'total_attended': total_attended,
             'total_absent': absent_cnt,

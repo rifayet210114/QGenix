@@ -143,7 +143,7 @@ class UserSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'username', 'email', 'first_name', 'last_name', 
             'role', 'department', 'phone_number', 'institutional_id', 
-            'registration_no', 'batch', 'section', 'cgpa', 'dynamic_cgpa', 
+            'registration_no', 'batch', 'section', 'semester', 'cgpa', 'dynamic_cgpa', 
             'designation', 'profile_picture', 'is_active', 'date_joined'
         ]
         read_only_fields = ['id', 'date_joined']
@@ -159,7 +159,7 @@ class UserCreateUpdateSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'username', 'email', 'password', 'first_name', 'last_name', 
             'role', 'department', 'phone_number', 'institutional_id', 
-            'registration_no', 'batch', 'section', 'cgpa', 'designation', 
+            'registration_no', 'batch', 'section', 'semester', 'cgpa', 'designation', 
             'profile_picture', 'is_active'
         ]
 

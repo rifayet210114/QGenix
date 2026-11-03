@@ -38,6 +38,7 @@ class CustomUser(AbstractUser):
 
     batch = models.CharField(max_length=50, blank=True, null=True)
     section = models.CharField(max_length=20, blank=True, default='A', help_text="e.g. A, B, C")
+    semester = models.CharField(max_length=50, blank=True, null=True, default='', help_text="Current Enrolled Semester, e.g. '2nd Semester'")
     registration_no = models.CharField(
         max_length=50, 
         blank=True, 
