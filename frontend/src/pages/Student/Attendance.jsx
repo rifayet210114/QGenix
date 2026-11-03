@@ -24,9 +24,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion'; // Smooth animation library
 import { 
-  CalendarCheck, Users, AlertTriangle, TrendingUp, CheckCircle, 
-  Clock, ArrowUpRight, FileDown, Printer, BrainCircuit, 
-  Sparkles, Calendar, Award, Info, RefreshCw, X, ChevronRight 
+  Users, AlertTriangle, TrendingUp, CheckCircle, 
+  Clock, ArrowUpRight, FileDown, Printer, 
+  Calendar, Award, Info, RefreshCw, X, ChevronRight 
 } from 'lucide-react'; // Elegant modern icons
 import { 
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, 
@@ -481,95 +481,8 @@ export default function Attendance() {
         ))}
       </motion.div>
 
-      {/* =======================================================================
-         SECTION 3 — ATTENDANCE HEALTH BANNER
-         ======================================================================= */}
-      <motion.div variants={itemVariants}>
-        <div 
-          className="glass-panel premium-card" 
-          style={{ 
-            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(99, 102, 241, 0.03) 100%)',
-            border: '1.5px solid rgba(16, 185, 129, 0.25)', 
-            borderRadius: '24px', 
-            padding: '24px 32px',
-            boxShadow: '0 8px 32px 0 rgba(16, 185, 129, 0.05)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '16px'
-          }}
-        >
-          {/* Header Row: Title, Status Badge, Indicator */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div className="flex items-center gap-3">
-              <div style={{
-                width: '42px',
-                height: '42px',
-                borderRadius: '50%',
-                background: 'rgba(16, 185, 129, 0.15)',
-                color: '#10B981',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 0 15px rgba(16, 185, 129, 0.2)'
-              }}>
-                <CalendarCheck size={22} />
-              </div>
-              <div>
-                <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800', color: 'var(--text-primary)' }}>
-                  Attendance Health Standing
-                </h3>
-                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Updated real-time for Spring 2026</span>
-              </div>
-            </div>
-
-            {/* Glowing standing badge */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span className="relative flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-              </span>
-              <span style={{
-                fontSize: '0.82rem',
-                fontWeight: '700',
-                padding: '6px 14px',
-                borderRadius: '30px',
-                background: 'rgba(16, 185, 129, 0.12)',
-                color: '#10B981',
-                border: '1.5px solid rgba(16, 185, 129, 0.25)'
-              }}>
-                Good Standing
-              </span>
-            </div>
-          </div>
-
-          {/* Description Text */}
-          <p style={{ margin: 0, fontSize: '0.95rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-            Excellent work, Rafiul! Your overall attendance is at <strong style={{ color: 'var(--text-primary)' }}>85.0%</strong>, which is <strong>10.0%</strong> above the college's mandatory <strong>75.0%</strong> requirement. You have missed only 18 out of 120 total classes, keeping you fully eligible for all upcoming final semester examinations. Keep maintaining this regularity!
-          </p>
-
-          {/* Horizontal Progress Bar representing Overall Attendance */}
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', marginBottom: '8px' }}>
-              <span style={{ color: 'var(--text-secondary)', fontWeight: '600' }}>Overall Progress</span>
-              <span style={{ color: '#10B981', fontWeight: '700' }}>85.0% (Goal: 75.0%)</span>
-            </div>
-            <div style={{ width: '100%', height: '10px', background: isLightMode ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.04)', borderRadius: '12px', overflow: 'hidden' }}>
-              <div 
-                style={{ 
-                  width: '85%', 
-                  height: '100%', 
-                  background: 'linear-gradient(to right, #10B981, #3B82F6)', 
-                  borderRadius: '12px',
-                  boxShadow: '0 0 10px rgba(16, 185, 129, 0.3)'
-                }} 
-              />
-            </div>
-          </div>
-        </div>
-      </motion.div>
-
-      {/* =======================================================================
-         SECTION 4 — BOTTOM MATRIX (CALENDAR HEATMAP & BREAKDOWN, TIMELINE, RISK ALERTS)
+            {/* =======================================================================
+         SECTION 3 — CALENDAR HEATMAP & RECENT ACTIVITY LOG
          ======================================================================= */}
       <motion.div 
         variants={itemVariants}
@@ -751,79 +664,131 @@ export default function Attendance() {
           </Card>
         </div>
 
-      {/* =======================================================================
-         SECTION 5 — ANALYTICS BLOCK (MONTHLY CHART & BREAKDOWN PROGRESS RING)
-         ======================================================================= */}
-      {/* =======================================================================
-         SECTION 5 — ANALYTICS BLOCK (MONTHLY CHART)
-         ======================================================================= */}
-      <motion.div 
-        variants={itemVariants}
-        className="grid grid-cols-1 lg:grid-cols-3 gap-6"
-      >
-        {/* Full-width Card: Monthly Attendance Area Chart */}
-        <div className="lg:col-span-3">
-          <Card 
-            title="Monthly Attendance Trend" 
-            action={
-              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>Spring Sem 2026</span>
-            }
-            className="premium-card"
-          >
-            <div style={{ height: '220px', width: '100%', marginTop: '8px' }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={monthlyTrendData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isLightMode ? 'rgba(0,0,0,0.06)' : 'rgba(255, 255, 255, 0.03)'} />
-                  <XAxis 
-                    dataKey="month" 
-                    stroke={isLightMode ? 'rgba(0, 0, 0, 0.35)' : 'rgba(255, 255, 255, 0.25)'} 
-                    fontSize={11} 
-                    tickLine={false} 
-                    axisLine={false} 
-                    tick={{ fill: 'var(--text-muted)', fontWeight: 500 }}
-                  />
-                  <YAxis 
-                    domain={[60, 100]} 
-                    stroke={isLightMode ? 'rgba(0, 0, 0, 0.35)' : 'rgba(255, 255, 255, 0.25)'} 
-                    fontSize={11} 
-                    tickLine={false} 
-                    axisLine={false} 
-                    tick={{ fill: 'var(--text-muted)', fontWeight: 500 }}
-                  />
-                  <Tooltip content={<CustomAreaTooltip />} />
-                  <defs>
-                    <linearGradient id="attendanceAreaGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.35}/>
-                      <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <Area 
-                    type="monotone" 
-                    dataKey="rate" 
-                    stroke="#8B5CF6" 
-                    strokeWidth={3} 
-                    fillOpacity={1}
-                    fill="url(#attendanceAreaGrad)" 
-                    dot={{ r: 4, strokeWidth: 1.5, fill: isLightMode ? '#ffffff' : '#0F172A', stroke: '#8B5CF6' }} 
-                    activeDot={{ r: 6, strokeWidth: 1.5, fill: '#8B5CF6', stroke: '#fff', style: { filter: 'drop-shadow(0 0 5px #8B5CF6)' } }}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+        {/* B. Recent Activity Log */}
+        <div className="lg:col-span-1">
+          {/* Recent Check-in Logs Timeline */}
+          <Card title="Recent Activity Log" className="premium-card">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '4px' }}>
+              
+              {recentLogs.map((log, idx) => (
+                <div key={idx} style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                  {/* Timeline bullet dot */}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', flexShrink: 0 }}>
+                    <div style={{
+                      width: '12px',
+                      height: '12px',
+                      borderRadius: '50%',
+                      background: log.color,
+                      border: '2px solid var(--bg-primary)',
+                      boxShadow: `0 0 6px ${log.color}`
+                    }} />
+                    {idx < recentLogs.length - 1 && (
+                      <div style={{
+                        width: '2px',
+                        flex: 1,
+                        background: 'rgba(255,255,255,0.06)',
+                        marginTop: '4px',
+                        minHeight: '26px'
+                      }} />
+                    )}
+                  </div>
+
+                  {/* Log contents */}
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <h4 style={{ fontSize: '0.82rem', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>
+                        {log.subject}
+                      </h4>
+                      <span style={{
+                        fontSize: '0.65rem',
+                        fontWeight: '700',
+                        padding: '2px 8px',
+                        borderRadius: '12px',
+                        background: `${log.color}15`,
+                        color: log.color,
+                        border: `1.5px solid ${log.color}25`
+                      }}>
+                        {log.state}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                      <span>{log.date}</span>
+                      <span>•</span>
+                      <span>{log.time}</span>
+                    </div>
+                  </div>
+
+                </div>
+              ))}
+
             </div>
           </Card>
         </div>
       </motion.div>
 
       {/* =======================================================================
-         SECTION 6 — SUBJECT-WISE GLASS TABLE & SMART AI INSIGHTS
+         SECTION 4 — MONTHLY ATTENDANCE TREND
          ======================================================================= */}
       <motion.div 
         variants={itemVariants}
-        className="grid grid-cols-1 lg:grid-cols-3 gap-6"
       >
-        {/* Left: Large glass details table */}
-        <div className="lg:col-span-2">
-          <div className="glass-panel premium-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
+        <Card 
+          title="Monthly Attendance Trend" 
+          action={
+            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>Spring Sem 2026</span>
+          }
+          className="premium-card"
+        >
+          <div style={{ height: '220px', width: '100%', marginTop: '8px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={monthlyTrendData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isLightMode ? 'rgba(0,0,0,0.06)' : 'rgba(255, 255, 255, 0.03)'} />
+                <XAxis 
+                  dataKey="month" 
+                  stroke={isLightMode ? 'rgba(0, 0, 0, 0.35)' : 'rgba(255, 255, 255, 0.25)'} 
+                  fontSize={11} 
+                  tickLine={false} 
+                  axisLine={false} 
+                  tick={{ fill: 'var(--text-muted)', fontWeight: 500 }}
+                />
+                <YAxis 
+                  domain={[60, 100]} 
+                  stroke={isLightMode ? 'rgba(0, 0, 0, 0.35)' : 'rgba(255, 255, 255, 0.25)'} 
+                  fontSize={11} 
+                  tickLine={false} 
+                  axisLine={false} 
+                  tick={{ fill: 'var(--text-muted)', fontWeight: 500 }}
+                />
+                <Tooltip content={<CustomAreaTooltip />} />
+                <defs>
+                  <linearGradient id="attendanceAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.35}/>
+                    <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <Area 
+                  type="monotone" 
+                  dataKey="rate" 
+                  stroke="#8B5CF6" 
+                  strokeWidth={3} 
+                  fillOpacity={1}
+                  fill="url(#attendanceAreaGrad)" 
+                  dot={{ r: 4, strokeWidth: 1.5, fill: isLightMode ? '#ffffff' : '#0F172A', stroke: '#8B5CF6' }} 
+                  activeDot={{ r: 6, strokeWidth: 1.5, fill: '#8B5CF6', stroke: '#fff', style: { filter: 'drop-shadow(0 0 5px #8B5CF6)' } }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+      </motion.div>
+
+      {/* =======================================================================
+         SECTION 5 — SUBJECT-WISE ATTENDANCE TABLE
+         ======================================================================= */}
+      <motion.div 
+        variants={itemVariants}
+      >
+        <div className="glass-panel premium-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>Subject-wise Attendance</h3>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Active Courses</span>
@@ -891,269 +856,6 @@ export default function Attendance() {
               </table>
             </div>
           </div>
-        </div>
-
-        {/* Right: AI Insights and Calculations */}
-        <div>
-          <Card title="AI Academic Insights" className="premium-card">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '4px' }}>
-              {/* Profile header row */}
-              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                <div style={{
-                  width: '38px',
-                  height: '38px',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(99, 102, 241, 0.2))',
-                  border: '1.5px solid rgba(139, 92, 246, 0.4)',
-                  color: '#8B5CF6',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: '0 0 10px rgba(139, 92, 246, 0.15)'
-                }}>
-                  <BrainCircuit size={18} />
-                </div>
-                <div>
-                  <div style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-primary)' }}>QGenix AI Assistant</div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Standing & recovery diagnostics</div>
-                </div>
-              </div>
-
-              {/* Speech bubble bubble layout */}
-              <div style={{
-                background: isLightMode ? 'rgba(0,0,0,0.02)' : 'rgba(255, 255, 255, 0.01)',
-                border: '1px solid rgba(255,255,255,0.05)',
-                borderRadius: '16px',
-                padding: '14px',
-                position: 'relative'
-              }}>
-                <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                  Here are your attendance insights:
-                </p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' }}>
-                  
-                  {/* Insight 1: Best Attendance */}
-                  <div style={{ display: 'flex', items: 'flex-start', gap: '8px' }}>
-                    <Sparkles size={14} style={{ color: '#10B981', flexShrink: 0, marginTop: '2px' }} />
-                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                      Best Attendance: <strong style={{ color: 'var(--text-primary)' }}>Academic Writing (95.2%)</strong>.
-                    </span>
-                  </div>
-
-                  {/* Insight 2: Weakest Attendance */}
-                  <div style={{ display: 'flex', items: 'flex-start', gap: '8px' }}>
-                    <AlertTriangle size={14} style={{ color: '#EF4444', flexShrink: 0, marginTop: '2px' }} />
-                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                      Weakest Course: <strong style={{ color: 'var(--text-primary)' }}>Software Engineering (70.0%)</strong> which falls below threshold.
-                    </span>
-                  </div>
-
-                  {/* Insight 3: Monthly Progress */}
-                  <div style={{ display: 'flex', items: 'flex-start', gap: '8px' }}>
-                    <TrendingUp size={14} style={{ color: '#8B5CF6', flexShrink: 0, marginTop: '2px' }} />
-                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                      Monthly Trend: Overall rate increased by <strong style={{ color: '#10B981' }}>+1.8%</strong> compared to April.
-                    </span>
-                  </div>
-
-                  {/* Insight 4: Dynamic target calculation */}
-                  <div style={{ 
-                    marginTop: '8px', 
-                    padding: '8px 12px', 
-                    borderRadius: '10px', 
-                    background: 'rgba(139, 92, 246, 0.06)',
-                    border: '1px solid rgba(139, 92, 246, 0.15)',
-                    fontSize: '0.75rem',
-                    color: '#8B5CF6',
-                    fontWeight: 600
-                  }}>
-                    💡 Action Item: You must attend the next <strong>4 consecutive classes</strong> in Software Engineering to restore it to the 75% target!
-                  </div>
-
-                </div>
-              </div>
-            </div>
-          </Card>
-        </div>
-      </motion.div>
-
-      
-
-        {/* B. Activity Log & Risk Alerts Column */}
-        <div className="flex flex-col gap-6 lg:col-span-1">
-          {/* Recent Check-in Logs Timeline */}
-          <Card title="Recent Activity Log" className="premium-card">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '4px' }}>
-              
-              {recentLogs.map((log, idx) => (
-                <div key={idx} style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                  {/* Timeline bullet dot */}
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', flexShrink: 0 }}>
-                    <div style={{
-                      width: '12px',
-                      height: '12px',
-                      borderRadius: '50%',
-                      background: log.color,
-                      border: '2px solid var(--bg-primary)',
-                      boxShadow: `0 0 6px ${log.color}`
-                    }} />
-                    {idx < recentLogs.length - 1 && (
-                      <div style={{
-                        width: '2px',
-                        flex: 1,
-                        background: 'rgba(255,255,255,0.06)',
-                        marginTop: '4px',
-                        minHeight: '26px'
-                      }} />
-                    )}
-                  </div>
-
-                  {/* Log contents */}
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <h4 style={{ fontSize: '0.82rem', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>
-                        {log.subject}
-                      </h4>
-                      <span style={{
-                        fontSize: '0.65rem',
-                        fontWeight: '700',
-                        padding: '2px 8px',
-                        borderRadius: '12px',
-                        background: `${log.color}15`,
-                        color: log.color,
-                        border: `1.5px solid ${log.color}25`
-                      }}>
-                        {log.state}
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', gap: '8px', fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                      <span>{log.date}</span>
-                      <span>•</span>
-                      <span>{log.time}</span>
-                    </div>
-                  </div>
-
-                </div>
-              ))}
-
-            </div>
-          </Card>
-
-          {/* Threshold Risk Alerts */}
-          <Card title="Threshold Risk Alerts" className="premium-card">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '4px' }}>
-              
-              {/* Highlight card for below-limit courses */}
-              {subjectAttendance.filter(s => s.pct < 75).map((subj, idx) => {
-                const consecutiveNeeded = calculateRecovery(subj);
-                return (
-                  <div 
-                    key={idx}
-                    style={{
-                      background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(255, 255, 255, 0.01) 100%)',
-                      border: '1.5px solid rgba(239, 68, 68, 0.25)',
-                      borderRadius: '16px',
-                      padding: '16px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '10px',
-                      boxShadow: '0 4px 20px rgba(239, 68, 68, 0.05)'
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <AlertTriangle size={16} style={{ color: '#EF4444' }} />
-                        <span style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-primary)' }}>{subj.subject}</span>
-                      </div>
-                      <span style={{
-                        fontSize: '0.72rem',
-                        fontWeight: '700',
-                        padding: '2px 8px',
-                        borderRadius: '20px',
-                        background: 'rgba(239, 68, 68, 0.1)',
-                        color: '#EF4444'
-                      }}>
-                        {subj.pct.toFixed(1)}%
-                      </span>
-                    </div>
-
-                    <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                      Your attendance in this course is below the mandatory <strong style={{ color: 'var(--text-primary)' }}>75%</strong> requirement. Action is required immediately.
-                    </p>
-
-                    <div style={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      gap: '6px', 
-                      fontSize: '0.75rem', 
-                      color: '#EF4444', 
-                      fontWeight: 600,
-                      background: 'rgba(239, 68, 68, 0.05)',
-                      padding: '8px',
-                      borderRadius: '8px',
-                      marginTop: '2px'
-                    }}>
-                      <Info size={12} />
-                      <span>Attend next {consecutiveNeeded} classes consecutively.</span>
-                    </div>
-                  </div>
-                );
-              })}
-
-              {/* Warning warning indicator card */}
-              {subjectAttendance.filter(s => s.pct === 75).map((subj, idx) => (
-                <div 
-                  key={idx}
-                  style={{
-                    background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(255, 255, 255, 0.01) 100%)',
-                    border: '1.5px solid rgba(245, 158, 11, 0.25)',
-                    borderRadius: '16px',
-                    padding: '16px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '10px',
-                    boxShadow: '0 4px 20px rgba(245, 158, 11, 0.05)'
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <AlertTriangle size={16} style={{ color: '#F59E0B' }} />
-                      <span style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-primary)' }}>{subj.subject}</span>
-                    </div>
-                    <span style={{
-                      fontSize: '0.72rem',
-                      fontWeight: '700',
-                      padding: '2px 8px',
-                      borderRadius: '20px',
-                      background: 'rgba(245, 158, 11, 0.1)',
-                      color: '#F59E0B'
-                    }}>
-                      75.0%
-                    </span>
-                  </div>
-
-                  <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                    Your attendance is exactly at the borderline of the requirement. Missing any more classes will push you into the risk zone.
-                  </p>
-                </div>
-              ))}
-
-              {/* Overall risk summary */}
-              <div style={{
-                background: 'rgba(255,255,255,0.01)',
-                border: '1.5px dashed rgba(255,255,255,0.06)',
-                borderRadius: '16px',
-                padding: '14px',
-                textAlign: 'center'
-              }}>
-                <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block' }}>
-                  1 Course below threshold • 1 Course at borderline
-                </span>
-              </div>
-
-            </div>
-          </Card>
-        </div>
       </motion.div>
 
     </motion.div>
