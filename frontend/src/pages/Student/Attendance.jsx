@@ -26,7 +26,8 @@ import { motion, AnimatePresence } from 'framer-motion'; // Smooth animation lib
 import { 
   Users, AlertTriangle, TrendingUp, CheckCircle, 
   Clock, ArrowUpRight, FileDown, Printer, 
-  Calendar, Award, Info, RefreshCw, X, ChevronRight 
+  Calendar, Award, Info, RefreshCw, X, ChevronRight,
+  ChevronLeft, ChevronDown, Filter 
 } from 'lucide-react'; // Elegant modern icons
 import { 
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, 
@@ -41,6 +42,16 @@ export default function Attendance() {
   const [liveAttendance, setLiveAttendance] = useState(null);
   const [isLoadingLive, setIsLoadingLive] = useState(true);
   const [selectedSemester, setSelectedSemester] = useState('');
+  const [selectedCourse, setSelectedCourse] = useState('ALL');
+  const [activeViewDate, setActiveViewDate] = useState(null); // { year, month }
+
+  useEffect(() => {
+    if (liveAttendance && !activeViewDate) {
+      const yr = liveAttendance.calendar_year || new Date().getFullYear();
+      const mo = liveAttendance.calendar_month_num ? (liveAttendance.calendar_month_num - 1) : new Date().getMonth();
+      setActiveViewDate({ year: yr, month: mo });
+    }
+  }, [liveAttendance]);
 
   // --------------------------------------------------------------------------
   // THEME DETECTION & INITIAL STATES
@@ -163,18 +174,141 @@ export default function Attendance() {
         { month: 'Current', rate: isNaN(parseFloat(overallPct)) ? 100 : parseFloat(overallPct) }
       ];
 
-  // Breakdowns used inside the Progress Ring chart (Real DB Values)
-  const ringChartData = (totalClasses > 0)
+  // Available course options for the course-wise filter
+  const courseOptions = (liveAttendance?.subject_wise || []).map(s => ({
+    code: s.code || s.subject,
+    subject: s.subject || s.code,
+    present: s.present,
+    absent: s.absent,
+    late: s.late,
+    total: s.total,
+    pct: s.pct
+  }));
+
+  // Dynamic filter for "Attendance Breakdown & Heatmap" card
+  const allSemesterRecords = liveAttendance?.records || liveAttendance?.recent_logs || [];
+  const cardFilteredRecords = (selectedCourse === 'ALL')
+    ? allSemesterRecords
+    : allSemesterRecords.filter(r => (r.course_code === selectedCourse || r.course_title === selectedCourse));
+
+  const cardTotalClasses = cardFilteredRecords.length;
+  const cardPresentClasses = cardFilteredRecords.filter(r => r.status === 'present').length;
+  const cardLateClasses = cardFilteredRecords.filter(r => r.status === 'late').length;
+  const cardAbsentClasses = cardFilteredRecords.filter(r => r.status === 'absent').length;
+  const cardAttendedClasses = cardPresentClasses + cardLateClasses;
+  const cardPct = cardTotalClasses > 0
+    ? ((cardAttendedClasses / cardTotalClasses) * 100).toFixed(1)
+    : (selectedCourse === 'ALL' ? overallPct : '100.0');
+
+  // Donut Ring Chart Data: dynamically adapts to selected course or overall semester
+  const ringChartData = (cardTotalClasses > 0)
     ? [
-        { name: 'Present', value: Math.max(0, presentClasses - lateClasses), color: '#8B5CF6' },
-        { name: 'Absent', value: absentClasses, color: '#EF4444' },
-        { name: 'Late', value: lateClasses, color: '#F59E0B' }
+        { name: 'Present', value: cardPresentClasses, color: '#8B5CF6' },
+        { name: 'Absent', value: cardAbsentClasses, color: '#EF4444' },
+        { name: 'Late', value: cardLateClasses, color: '#F59E0B' }
       ]
     : [
         { name: 'Present', value: 1, color: '#8B5CF6' },
         { name: 'Absent', value: 0, color: '#EF4444' },
         { name: 'Late', value: 0, color: '#F59E0B' }
       ];
+
+  // Daily attendance status map for the selected course
+  const cardDailyAttendance = {};
+  for (const r of cardFilteredRecords) {
+    const d = String(r.date || '').trim();
+    if (d) {
+      const prev = cardDailyAttendance[d];
+      const curr = r.status || 'present';
+      if (!prev || curr === 'absent' || (curr === 'late' && prev !== 'absent')) {
+        cardDailyAttendance[d] = curr;
+      }
+    }
+  }
+
+  // Active calendar year & month with navigation
+  const now = new Date();
+  const currentYr = activeViewDate?.year || liveAttendance?.calendar_year || now.getFullYear();
+  const currentMo = (activeViewDate && activeViewDate.month !== undefined)
+    ? activeViewDate.month
+    : (liveAttendance?.calendar_month_num ? liveAttendance.calendar_month_num - 1 : now.getMonth());
+
+  const currentMonthLabel = new Date(currentYr, currentMo, 1).toLocaleString('default', { month: 'long', year: 'numeric' });
+
+  const handlePrevMonth = () => {
+    setActiveViewDate(prev => {
+      const p = prev || { year: currentYr, month: currentMo };
+      let m = p.month - 1;
+      let y = p.year;
+      if (m < 0) {
+        m = 11;
+        y -= 1;
+      }
+      return { year: y, month: m };
+    });
+  };
+
+  const handleNextMonth = () => {
+    setActiveViewDate(prev => {
+      const p = prev || { year: currentYr, month: currentMo };
+      let m = p.month + 1;
+      let y = p.year;
+      if (m > 11) {
+        m = 0;
+        y += 1;
+      }
+      return { year: y, month: m };
+    });
+  };
+
+  // Helper to generate full GitHub-style monthly calendar matrix (Every day 1..totalDays clearly visible)
+  const generateDynamicHeatmap = (yr, mo, dailyRecords) => {
+    const totalDays = new Date(yr, mo + 1, 0).getDate();
+    const firstDayOfWeek = (new Date(yr, mo, 1).getDay() + 6) % 7; // Mon=0 .. Sun=6
+
+    const weeks = [];
+    let currentWeek = [];
+
+    // Leading empty padding days (days from previous month)
+    for (let i = 0; i < firstDayOfWeek; i++) {
+      currentWeek.push({ day: null, state: 'empty-pad' });
+    }
+
+    for (let d = 1; d <= totalDays; d++) {
+      const dateStr = `${yr}-${String(mo + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const dayOfWeek = (new Date(yr, mo, d).getDay() + 6) % 7;
+      const isWeekend = dayOfWeek === 4 || dayOfWeek === 5; // Friday & Saturday in BD
+
+      let state = 'normal';
+      let title = `Day ${d}: No class recorded`;
+
+      if (dailyRecords && dailyRecords[dateStr]) {
+        state = dailyRecords[dateStr]; // 'present', 'late', 'absent'
+        const cLabel = selectedCourse === 'ALL' ? 'Class' : selectedCourse;
+        title = `${dateStr} [${cLabel}]: ${state.toUpperCase()}`;
+      } else if (isWeekend) {
+        state = 'weekend';
+        title = `${dateStr}: Weekend`;
+      }
+
+      currentWeek.push({ day: d, state, title, date: dateStr });
+      if (currentWeek.length === 7) {
+        weeks.push(currentWeek);
+        currentWeek = [];
+      }
+    }
+
+    if (currentWeek.length > 0) {
+      while (currentWeek.length < 7) {
+        currentWeek.push({ day: null, state: 'empty-pad' });
+      }
+      weeks.push(currentWeek);
+    }
+
+    return weeks;
+  };
+
+  const heatmapWeeks = generateDynamicHeatmap(currentYr, currentMo, cardDailyAttendance);
 
   // Subject-wise breakdowns from real database
   const subjectAttendance = (liveAttendance?.subject_wise && liveAttendance.subject_wise.length > 0)
@@ -204,83 +338,6 @@ export default function Attendance() {
         color: l.status === 'present' ? '#10B981' : l.status === 'late' ? '#F59E0B' : '#EF4444'
       }))
     : [];
-
-  // Helper to generate dynamic GitHub-style attendance calendar matrix for the active month
-  const generateDynamicHeatmap = (yearNum, monthNum, dailyRecords) => {
-    const now = new Date();
-    const yr = yearNum || now.getFullYear();
-    const mo = monthNum ? monthNum - 1 : now.getMonth();
-    const totalDays = new Date(yr, mo + 1, 0).getDate();
-    const firstDayOfWeek = (new Date(yr, mo, 1).getDay() + 6) % 7; // Mon=0 .. Sun=6
-
-    const weeks = [];
-    let currentWeek = [];
-
-    // Leading empty days
-    for (let i = 0; i < firstDayOfWeek; i++) {
-      currentWeek.push({ day: null, state: 'empty' });
-    }
-
-    for (let d = 1; d <= totalDays; d++) {
-      const dateStr = `${yr}-${String(mo + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-      const dayOfWeek = (new Date(yr, mo, d).getDay() + 6) % 7;
-      const isWeekend = dayOfWeek === 4 || dayOfWeek === 5; // Friday & Saturday are weekends in BD
-
-      let state = isWeekend ? 'weekend' : 'empty';
-      let title = `Day ${d}: No attendance recorded`;
-
-      if (dailyRecords && dailyRecords[dateStr]) {
-        state = dailyRecords[dateStr]; // 'present', 'late', 'absent'
-        title = `Day ${d}: ${state.toUpperCase()} session recorded`;
-      } else if (isWeekend) {
-        title = `Day ${d}: Weekend`;
-      }
-
-      currentWeek.push({ day: d, state, title, date: dateStr });
-      if (currentWeek.length === 7) {
-        weeks.push(currentWeek);
-        currentWeek = [];
-      }
-    }
-
-    if (currentWeek.length > 0) {
-      while (currentWeek.length < 7) {
-        currentWeek.push({ day: null, state: 'empty' });
-      }
-      weeks.push(currentWeek);
-    }
-
-    return weeks;
-  };
-
-  const calendarMonth = liveAttendance?.calendar_month || new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
-  const heatmapWeeks = generateDynamicHeatmap(
-    liveAttendance?.calendar_year,
-    liveAttendance?.calendar_month_num,
-    liveAttendance?.daily_attendance
-  );
-
-  // Helper mapping of heatmap states to styled colors.
-  // We use theme-aware transparent colors for weekends and holidays to blend with the card background,
-  // while utilizing solid vibrant colors for present, absent, and late check-in states.
-  const heatmapColorMap = {
-    present: '#10B981', // Emerald green indicating presence
-    absent: '#EF4444',  // Crimson red indicating absence
-    late: '#F59E0B',    // Amber yellow indicating late arrivals
-    weekend: isLightMode ? 'rgba(0, 0, 0, 0.03)' : 'rgba(255, 255, 255, 0.02)', // Soft border outline for weekends
-    holiday: isLightMode ? 'rgba(139, 92, 246, 0.15)' : 'rgba(139, 92, 246, 0.25)', // Translucent violet glow for institutional holidays
-    empty: 'transparent' // Transparent placeholder for leading/trailing days of adjacent months
-  };
-
-  // Helper to determine the text color of a day block to ensure contrast compliance and high readability.
-  // Solid green/red/orange blocks get bright white text. Holidays receive theme-aware violet tones.
-  // Weekend boxes use muted theme secondary colors.
-  const getDayTextColor = (state) => {
-    if (state === 'empty') return 'transparent';
-    if (state === 'weekend') return 'var(--text-muted)';
-    if (state === 'holiday') return isLightMode ? '#6D28D9' : '#C084FC';
-    return '#ffffff'; // high-contrast white text for solid backgrounds (present, absent, late)
-  };
 
   // --------------------------------------------------------------------------
   // AI IMPROVEMENT CALCULATOR LOGIC
@@ -608,7 +665,60 @@ export default function Attendance() {
           <Card 
             title="Attendance Breakdown & Heatmap" 
             action={
-              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>{calendarMonth}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                {/* Course Filter Dropdown */}
+                <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+                  <select
+                    value={selectedCourse}
+                    onChange={(e) => setSelectedCourse(e.target.value)}
+                    aria-label="Filter attendance by course"
+                    style={{
+                      background: isLightMode ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.07)',
+                      border: '1px solid rgba(139, 92, 246, 0.4)',
+                      borderRadius: '8px',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.74rem',
+                      fontWeight: '600',
+                      padding: '4px 22px 4px 8px',
+                      appearance: 'none',
+                      cursor: 'pointer',
+                      outline: 'none',
+                      maxWidth: '140px'
+                    }}
+                  >
+                    <option value="ALL" style={{ background: '#13151f', color: '#fff' }}>All Courses</option>
+                    {courseOptions.map((c) => (
+                      <option key={c.code} value={c.code} style={{ background: '#13151f', color: '#fff' }}>
+                        {c.code}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown size={13} style={{ position: 'absolute', right: '6px', pointerEvents: 'none', color: '#8B5CF6' }} />
+                </div>
+
+                {/* Month Navigator */}
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', background: isLightMode ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.04)', border: isLightMode ? '1px solid rgba(0,0,0,0.08)' : '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '2px 4px' }}>
+                  <button 
+                    type="button" 
+                    onClick={handlePrevMonth}
+                    style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}
+                    title="Previous month"
+                  >
+                    <ChevronLeft size={13} />
+                  </button>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-primary)', fontWeight: '700', minWidth: '82px', textAlign: 'center' }}>
+                    {currentMonthLabel}
+                  </span>
+                  <button 
+                    type="button" 
+                    onClick={handleNextMonth}
+                    style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}
+                    title="Next month"
+                  >
+                    <ChevronRight size={13} />
+                  </button>
+                </div>
+              </div>
             }
             className="premium-card"
             style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
@@ -683,23 +793,33 @@ export default function Attendance() {
                     pointerEvents: 'none'
                   }}>
                     <div style={{ fontSize: '1.4rem', fontWeight: '800', color: 'var(--text-primary)', fontFamily: 'var(--font-heading)' }}>
-                      {overallPct}%
+                      {cardPct}%
                     </div>
                     <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                      Checked In
+                      {selectedCourse === 'ALL' ? 'Checked In' : selectedCourse}
                     </div>
                   </div>
 
                   {/* Custom Legends row */}
                   <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap', marginTop: '4px' }}>
-                    {ringChartData.map((item, idx) => (
-                      <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.75rem' }}>
-                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: item.color }} />
-                        <span style={{ color: 'var(--text-secondary)', fontWeight: '500' }}>
-                          {item.name} ({item.value})
-                        </span>
-                      </div>
-                    ))}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.75rem' }}>
+                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#8B5CF6' }} />
+                      <span style={{ color: 'var(--text-secondary)', fontWeight: '500' }}>
+                        Present ({cardPresentClasses})
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.75rem' }}>
+                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#EF4444' }} />
+                      <span style={{ color: 'var(--text-secondary)', fontWeight: '500' }}>
+                        Absent ({cardAbsentClasses})
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.75rem' }}>
+                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#F59E0B' }} />
+                      <span style={{ color: 'var(--text-secondary)', fontWeight: '500' }}>
+                        Late ({cardLateClasses})
+                      </span>
+                    </div>
                   </div>
                 </div>
 
@@ -720,34 +840,77 @@ export default function Attendance() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                       {heatmapWeeks.map((week, wIdx) => (
                         <div key={wIdx} style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '5px' }}>
-                          {week.map((dayObj, dIdx) => (
-                            <div 
-                              key={dIdx}
-                              style={{
-                                aspectRatio: '1',
-                                borderRadius: '7px',
-                                background: heatmapColorMap[dayObj.state] || 'transparent',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: '0.75rem',
-                                fontWeight: '700',
-                                color: getDayTextColor(dayObj.state),
-                                border: dayObj.state === 'weekend' ? (isLightMode ? '1px dashed rgba(0, 0, 0, 0.15)' : '1px dashed rgba(255, 255, 255, 0.15)') : 'none',
-                                position: 'relative',
-                                cursor: dayObj.day ? 'pointer' : 'default',
-                                transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-                                boxShadow: dayObj.state === 'present' ? '0 2px 8px rgba(16, 185, 129, 0.25)' :
-                                           dayObj.state === 'absent' ? '0 2px 8px rgba(239, 68, 68, 0.25)' :
-                                           dayObj.state === 'late' ? '0 2px 8px rgba(245, 158, 11, 0.25)' :
-                                           dayObj.state === 'holiday' ? '0 2px 8px rgba(139, 92, 246, 0.25)' : 'none'
-                              }}
-                              title={dayObj.title || (dayObj.day ? `Day ${dayObj.day}: ${dayObj.state}` : '')}
-                              className="hover:scale-110 hover:brightness-110"
-                            >
-                              {dayObj.day}
-                            </div>
-                          ))}
+                          {week.map((dayObj, dIdx) => {
+                            if (!dayObj.day) {
+                              return (
+                                <div 
+                                  key={dIdx}
+                                  style={{
+                                    aspectRatio: '1',
+                                    borderRadius: '7px',
+                                    background: 'transparent'
+                                  }}
+                                />
+                              );
+                            }
+
+                            const isPresent = dayObj.state === 'present';
+                            const isAbsent = dayObj.state === 'absent';
+                            const isLate = dayObj.state === 'late';
+                            const isWeekend = dayObj.state === 'weekend';
+
+                            let bg = isLightMode ? 'rgba(0,0,0,0.03)' : 'rgba(255,255,255,0.03)';
+                            let color = isLightMode ? '#64748B' : '#94A3B8';
+                            let border = isLightMode ? '1px solid rgba(0,0,0,0.06)' : '1px solid rgba(255,255,255,0.06)';
+                            let shadow = 'none';
+
+                            if (isPresent) {
+                              bg = '#10B981';
+                              color = '#ffffff';
+                              border = 'none';
+                              shadow = '0 2px 10px rgba(16, 185, 129, 0.4)';
+                            } else if (isAbsent) {
+                              bg = '#EF4444';
+                              color = '#ffffff';
+                              border = 'none';
+                              shadow = '0 2px 10px rgba(239, 68, 68, 0.4)';
+                            } else if (isLate) {
+                              bg = '#F59E0B';
+                              color = '#ffffff';
+                              border = 'none';
+                              shadow = '0 2px 10px rgba(245, 158, 11, 0.4)';
+                            } else if (isWeekend) {
+                              bg = isLightMode ? 'rgba(0,0,0,0.02)' : 'rgba(255,255,255,0.02)';
+                              border = isLightMode ? '1px dashed rgba(0,0,0,0.15)' : '1px dashed rgba(255,255,255,0.14)';
+                              color = 'var(--text-muted)';
+                            }
+
+                            return (
+                              <div 
+                                key={dIdx}
+                                style={{
+                                  aspectRatio: '1',
+                                  borderRadius: '7px',
+                                  background: bg,
+                                  color: color,
+                                  border: border,
+                                  boxShadow: shadow,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '0.74rem',
+                                  fontWeight: (isPresent || isAbsent || isLate) ? '800' : '600',
+                                  cursor: 'pointer',
+                                  position: 'relative',
+                                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                                }}
+                                title={dayObj.title}
+                                className="hover:scale-110 hover:brightness-110"
+                              >
+                                {dayObj.day}
+                              </div>
+                            );
+                          })}
                         </div>
                       ))}
                     </div>
@@ -756,20 +919,20 @@ export default function Attendance() {
                   {/* Colors legend */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px', fontSize: '0.65rem', borderTop: isLightMode ? '1px solid rgba(0,0,0,0.06)' : '1px solid rgba(255,255,255,0.05)', paddingTop: '10px', marginTop: '2px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: heatmapColorMap.present }} />
+                      <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#10B981' }} />
                       <span style={{ color: 'var(--text-secondary)' }}>Present</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: heatmapColorMap.absent }} />
+                      <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#EF4444' }} />
                       <span style={{ color: 'var(--text-secondary)' }}>Absent</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: heatmapColorMap.late }} />
+                      <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#F59E0B' }} />
                       <span style={{ color: 'var(--text-secondary)' }}>Late</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: isLightMode ? '#6D28D9' : '#8B5CF6' }} />
-                      <span style={{ color: 'var(--text-secondary)' }}>Holiday</span>
+                      <span style={{ width: '7px', height: '7px', borderRadius: '50%', border: '1px dashed rgba(255,255,255,0.3)', background: 'transparent' }} />
+                      <span style={{ color: 'var(--text-secondary)' }}>Weekend</span>
                     </div>
                   </div>
 

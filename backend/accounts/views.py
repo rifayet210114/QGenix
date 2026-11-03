@@ -1881,6 +1881,7 @@ class ClassAttendanceViewSet(viewsets.ModelViewSet):
             'current_term': setting.current_term if setting else 'Spring 2026',
             'subject_wise': subject_wise,
             'recent_logs': matched_records[:10],
+            'records': matched_records,
             'monthly_trend': monthly_trend,
             'daily_attendance': daily_attendance,
             'calendar_month': active_dt.strftime('%B %Y'),
