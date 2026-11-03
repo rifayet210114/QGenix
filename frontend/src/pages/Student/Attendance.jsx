@@ -135,12 +135,12 @@ export default function Attendance() {
   const lateClasses = liveAttendance?.total_late !== undefined ? liveAttendance.total_late : 0;
 
   const statsData = [
-    { label: 'Overall Attendance', value: `${overallPct}%`, desc: parseFloat(overallPct) >= 75 ? '✓ Above 75% limit' : '⚠️ Shortfall warning', icon: <TrendingUp size={18} />, color: parseFloat(overallPct) >= 75 ? '#10B981' : '#EF4444', bg: parseFloat(overallPct) >= 75 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)' },
-    { label: 'Total Classes', value: `${totalClasses}`, desc: 'Recorded sessions', icon: <Calendar size={18} />, color: '#3B82F6', bg: 'rgba(59, 130, 246, 0.1)' },
-    { label: 'Present Classes', value: `${presentClasses}`, desc: 'Checked in by teacher', icon: <CheckCircle size={18} />, color: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.1)' },
-    { label: 'Absent Classes', value: `${absentClasses}`, desc: 'Marked absent', icon: <X size={18} />, color: '#EF4444', bg: 'rgba(239, 68, 68, 0.1)' },
-    { label: 'Late Attendance', value: `${lateClasses}`, desc: 'Grace period entries', icon: <Clock size={18} />, color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.1)' },
-    { label: 'Required Limit', value: '75.0%', desc: 'Academic threshold', icon: <Info size={18} />, color: '#94A3B8', bg: 'rgba(148, 163, 184, 0.1)' }
+    { label: 'Overall Attendance', value: `${overallPct}%`, desc: parseFloat(overallPct) >= 75 ? '✓ Above 75% limit' : '⚠️ Shortfall warning', icon: <TrendingUp size={15} />, color: parseFloat(overallPct) >= 75 ? '#10B981' : '#EF4444', bg: parseFloat(overallPct) >= 75 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)' },
+    { label: 'Total Classes', value: `${totalClasses}`, desc: 'Recorded sessions', icon: <Calendar size={15} />, color: '#3B82F6', bg: 'rgba(59, 130, 246, 0.1)' },
+    { label: 'Present Classes', value: `${presentClasses}`, desc: 'Checked in by teacher', icon: <CheckCircle size={15} />, color: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.1)' },
+    { label: 'Absent Classes', value: `${absentClasses}`, desc: 'Marked absent', icon: <X size={15} />, color: '#EF4444', bg: 'rgba(239, 68, 68, 0.1)' },
+    { label: 'Late Attendance', value: `${lateClasses}`, desc: 'Grace period entries', icon: <Clock size={15} />, color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.1)' },
+    { label: 'Required Limit', value: '75.0%', desc: 'Academic threshold', icon: <Info size={15} />, color: '#94A3B8', bg: 'rgba(148, 163, 184, 0.1)' }
   ];
 
   // Monthly historical percentage trend for chart visualization
@@ -447,33 +447,107 @@ export default function Attendance() {
       </AnimatePresence>
 
       {/* =======================================================================
-         SECTION 2 — 6x QUICK STATS GRID CARDS
+         SECTION 2 — 6x QUICK STATS COMPACT GRID (1 or 2 rows max)
          ======================================================================= */}
       <motion.div 
         variants={itemVariants}
-        className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4"
+        className="attendance-stats-grid"
       >
+        <style>{`
+          .attendance-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(6, minmax(0, 1fr));
+            gap: 12px;
+            width: 100%;
+          }
+          @media (max-width: 1240px) {
+            .attendance-stats-grid {
+              grid-template-columns: repeat(3, minmax(0, 1fr));
+              gap: 12px;
+            }
+          }
+          @media (max-width: 640px) {
+            .attendance-stats-grid {
+              grid-template-columns: repeat(2, minmax(0, 1fr));
+              gap: 10px;
+            }
+          }
+          .attendance-stat-card {
+            padding: 12px 14px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 76px;
+            border-radius: 14px;
+            transition: all 0.25s cubic-bezier(0.25, 1, 0.5, 1);
+            position: relative;
+            overflow: hidden;
+          }
+          .attendance-stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+          }
+        `}</style>
+
         {statsData.map((stat, idx) => (
           <div 
             key={idx}
-            className="glass-panel premium-card" 
+            className="glass-panel premium-card attendance-stat-card" 
             style={{ 
-              padding: '20px', 
-              display: 'flex', 
-              flexDirection: 'column', 
-              gap: '12px', 
-              transition: 'all 0.45s cubic-bezier(0.25, 1, 0.5, 1)' 
+              border: '1px solid var(--border-color)',
+              background: isLightMode 
+                ? 'rgba(255, 255, 255, 0.9)' 
+                : 'linear-gradient(135deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0.01) 100%)'
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>{stat.label}</span>
-              <div style={{ padding: '6px', borderRadius: '10px', background: stat.bg, color: stat.color }}>
+            {/* Top row: Label + Compact Icon */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
+              <span style={{ 
+                fontSize: '0.72rem', 
+                color: 'var(--text-muted)', 
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.02em',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              }}>
+                {stat.label}
+              </span>
+              <div style={{ 
+                width: '26px', 
+                height: '26px', 
+                borderRadius: '7px', 
+                background: stat.bg, 
+                color: stat.color,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0
+              }}>
                 {stat.icon}
               </div>
             </div>
-            <div>
-              <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--text-primary)' }}>{stat.value}</div>
-              <div style={{ fontSize: '0.75rem', color: stat.color, fontWeight: 600, marginTop: '4px' }}>
+
+            {/* Bottom: Value + Micro Desc */}
+            <div style={{ marginTop: '4px' }}>
+              <div style={{ 
+                fontSize: '1.42rem', 
+                fontWeight: 800, 
+                color: 'var(--text-primary)', 
+                lineHeight: 1.1 
+              }}>
+                {stat.value}
+              </div>
+              <div style={{ 
+                fontSize: '0.68rem', 
+                color: stat.color, 
+                fontWeight: 600, 
+                marginTop: '2px',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              }}>
                 {stat.desc}
               </div>
             </div>
