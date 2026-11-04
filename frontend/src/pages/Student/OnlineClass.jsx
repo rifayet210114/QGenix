@@ -100,7 +100,18 @@ export default function StudentOnlineClass() {
         })
       }).catch(e => console.warn('Join logging error:', e));
 
-      setJoinedSession(session);
+      const isExternal = session.meeting_link && (
+        session.meeting_link.includes('meet.google.com') ||
+        session.meeting_link.includes('zoom.us') ||
+        session.meeting_link.includes('teams.microsoft.com')
+      );
+
+      if (isExternal) {
+        window.open(session.meeting_link, '_blank');
+        fetchClasses();
+      } else {
+        setJoinedSession(session);
+      }
     } catch (err) {
       console.error('Error joining session:', err);
     } finally {

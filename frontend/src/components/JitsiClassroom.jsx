@@ -3,7 +3,7 @@ import { Maximize2, Minimize2, PhoneOff, ExternalLink, Video } from 'lucide-reac
 
 /**
  * JitsiClassroom Component
- * High-performance embedded WebRTC interactive video classroom for QGenix
+ * High-performance embedded WebRTC SFU interactive video classroom for QGenix
  * Runs 100% in-app with camera, microphone, screen sharing, chat, whiteboard & no login requirements
  */
 export default function JitsiClassroom({
@@ -37,7 +37,12 @@ export default function JitsiClassroom({
     .replace(/[^a-zA-Z0-9-_]/g, '')
     .slice(0, 50);
 
-  const embedUrl = `https://p2p.mirotalk.com/join?room=${cleanRoom}&name=${encodeURIComponent(userDisplayName)}&audio=1&video=1&chat=1&screen=1`;
+  // MiroTalk SFU cluster:
+  // screen=0 -> NEVER prompt for screen share on entry!
+  // audio=0  -> start muted to avoid microphone feedback howl
+  // video=1  -> camera enabled
+  // notify=0 -> disable chime sound on join
+  const embedUrl = `https://sfu.mirotalk.com/join?room=${cleanRoom}&name=${encodeURIComponent(userDisplayName)}&audio=0&video=1&screen=0&notify=0`;
 
   const toggleFullscreen = () => {
     const elem = document.getElementById('qgenix-classroom-wrapper');

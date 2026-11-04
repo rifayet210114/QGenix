@@ -35,7 +35,9 @@ export default function TeacherOnlineClass() {
     batch: 'Batch 2023 - 2024',
     semester: '5th Semester',
     section: 'A',
-    title: ''
+    title: '',
+    meeting_type: 'in_app', // 'in_app' or 'external'
+    custom_meeting_link: ''
   });
 
   const semestersList = [
@@ -134,6 +136,9 @@ export default function TeacherOnlineClass() {
         batch: formData.batch,
         semester: formData.semester,
         section: formData.section,
+        meeting_link: formData.meeting_type === 'external' && formData.custom_meeting_link.trim() 
+          ? formData.custom_meeting_link.trim() 
+          : '',
         scheduled_time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         status: 'LIVE',
         is_active: true
@@ -827,6 +832,75 @@ export default function TeacherOnlineClass() {
                     </select>
                   </div>
                 </div>
+
+                {/* Meeting Platform Selector */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#d1d5db', marginBottom: '6px' }}>
+                    Classroom Platform
+                  </label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, meeting_type: 'in_app' }))}
+                      style={{
+                        padding: '10px',
+                        borderRadius: '10px',
+                        background: formData.meeting_type === 'in_app' ? 'rgba(139, 92, 246, 0.25)' : 'rgba(255, 255, 255, 0.04)',
+                        border: formData.meeting_type === 'in_app' ? '1px solid #8b5cf6' : '1px solid rgba(255, 255, 255, 0.1)',
+                        color: formData.meeting_type === 'in_app' ? '#c084fc' : '#9ca3af',
+                        fontWeight: '700',
+                        fontSize: '0.82rem',
+                        cursor: 'pointer',
+                        textAlign: 'center'
+                      }}
+                    >
+                      ⚡ In-App Live Studio (Auto)
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, meeting_type: 'external' }))}
+                      style={{
+                        padding: '10px',
+                        borderRadius: '10px',
+                        background: formData.meeting_type === 'external' ? 'rgba(59, 130, 246, 0.25)' : 'rgba(255, 255, 255, 0.04)',
+                        border: formData.meeting_type === 'external' ? '1px solid #3b82f6' : '1px solid rgba(255, 255, 255, 0.1)',
+                        color: formData.meeting_type === 'external' ? '#93c5fd' : '#9ca3af',
+                        fontWeight: '700',
+                        fontSize: '0.82rem',
+                        cursor: 'pointer',
+                        textAlign: 'center'
+                      }}
+                    >
+                      🔗 Google Meet / Zoom URL
+                    </button>
+                  </div>
+                </div>
+
+                {formData.meeting_type === 'external' && (
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#d1d5db', marginBottom: '6px' }}>
+                      Meeting URL (Google Meet / Zoom) *
+                    </label>
+                    <input
+                      type="url"
+                      required
+                      placeholder="https://meet.google.com/abc-defg-hij"
+                      value={formData.custom_meeting_link}
+                      onChange={(e) => setFormData(prev => ({ ...prev, custom_meeting_link: e.target.value }))}
+                      style={{
+                        width: '100%',
+                        padding: '12px 14px',
+                        borderRadius: '10px',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        border: '1px solid rgba(255, 255, 255, 0.15)',
+                        color: '#ffffff',
+                        fontSize: '0.9rem',
+                        outline: 'none'
+                      }}
+                    />
+                  </div>
+                )}
 
                 {/* Class Topic / Title */}
                 <div>
