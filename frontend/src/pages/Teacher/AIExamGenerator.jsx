@@ -1002,9 +1002,6 @@ export default function AIExamGenerator() {
                   Specify the textbook/PDF, exact page or volume, question difficulty, and paper heading.
                 </p>
               </div>
-              <span className="badge badge-primary" style={{ padding: '6px 12px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                <Sparkles size={14} /> AI Powered
-              </span>
             </div>
 
             {generationError && (
