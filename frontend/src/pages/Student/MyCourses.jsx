@@ -4,15 +4,17 @@
 // 100% Real Database Synced: Loads dynamically allocated courses for the 
 // currently logged-in student's Batch and Semester from SQLite.
 // Strictly ZERO hardcoded mock or demo data.
+// Features: Centered Resources Card Modal + In-Window Fullscreen Document Viewer
 // ============================================================================
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   BookOpen, Calendar, Clock, Award, CheckCircle, Clock3, 
-  Search, SlidersHorizontal, ArrowUpDown, Play, Download, 
+  Search, SlidersHorizontal, ArrowUpDown, Download, 
   Video, FileText, AlertCircle, GraduationCap, X, 
-  TrendingUp, FolderOpen, Maximize2, ExternalLink, Loader2
+  FolderOpen, Maximize2, ExternalLink, Loader2, ArrowLeft, Eye
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_BASE } from '../../config';
@@ -50,8 +52,8 @@ export default function MyCourses() {
   const [resourcesList, setResourcesList] = useState([]);
   const [loadingResources, setLoadingResources] = useState(false);
 
-  // Full Screen Document Viewer state
-  const [fullScreenDoc, setFullScreenDoc] = useState(null);
+  // Active Document Viewer state (file currently viewed inside screen)
+  const [activeDoc, setActiveDoc] = useState(null);
 
   // Theme listener
   const [isLightMode, setIsLightMode] = useState(document.body.classList.contains('light-mode'));
@@ -116,6 +118,7 @@ export default function MyCourses() {
   // Handle opening resources modal for a specific course
   const handleOpenResources = async (course) => {
     setSelectedCourseResources(course);
+    setActiveDoc(null);
     setLoadingResources(true);
     setResourcesList([]);
     try {
@@ -129,6 +132,12 @@ export default function MyCourses() {
     } finally {
       setLoadingResources(false);
     }
+  };
+
+  // Close resources modal and reset active document
+  const handleCloseResources = () => {
+    setSelectedCourseResources(null);
+    setActiveDoc(null);
   };
 
   // Filter & Sort core logic
@@ -247,15 +256,15 @@ export default function MyCourses() {
         }
 
         .hover-resource-card {
-          background: rgba(255, 255, 255, 0.02) !important;
-          border: 1px solid rgba(255, 255, 255, 0.06) !important;
+          background: rgba(255, 255, 255, 0.03) !important;
+          border: 1px solid rgba(255, 255, 255, 0.08) !important;
           transition: all 0.25s ease !important;
         }
         .hover-resource-card:hover {
-          background: rgba(255, 255, 255, 0.05) !important;
-          border-color: rgba(139, 92, 246, 0.35) !important;
+          background: rgba(255, 255, 255, 0.07) !important;
+          border-color: rgba(139, 92, 246, 0.4) !important;
           transform: translateY(-2px) !important;
-          box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5) !important;
+          box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 0 15px rgba(139, 92, 246, 0.15) !important;
         }
       `}</style>
 
@@ -502,7 +511,7 @@ export default function MyCourses() {
 
                     <button
                       onClick={() => handleOpenResources(course)}
-                      className="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 text-xs font-bold rounded-xl active:scale-95 transition-all"
+                      className="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 text-xs font-bold rounded-xl active:scale-95 transition-all cursor-pointer"
                       style={{
                         background: course.gradient,
                         border: `1px solid ${course.borderGlow}`,
@@ -522,276 +531,303 @@ export default function MyCourses() {
       )}
 
       {/* =======================================================================
-         COURSE OUTLINE MODAL
+         COURSE OUTLINE MODAL (Portaled to document.body)
          ======================================================================= */}
-      <AnimatePresence>
-        {selectedCourseOutline && (
-          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md">
-            <motion.div
-              initial={{ scale: 0.92, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.92, opacity: 0 }}
-              className="w-full max-w-2xl bg-[#0d1426]/95 border border-white/10 rounded-2xl p-6 shadow-2xl flex flex-col gap-4 max-h-[85vh] overflow-y-auto"
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {selectedCourseOutline && (
+            <div 
+              className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
+              onClick={() => setSelectedCourseOutline(null)}
             >
-              <div className="flex justify-between items-start gap-4 border-b border-white/10 pb-4">
-                <div className="flex items-center gap-3">
-                  <div 
-                    className="w-11 h-11 rounded-xl flex items-center justify-center text-white flex-shrink-0"
-                    style={{ background: selectedCourseOutline.gradient }}
+              <motion.div
+                initial={{ scale: 0.94, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.94, opacity: 0 }}
+                onClick={(e) => e.stopPropagation()}
+                className="w-full max-w-2xl bg-[#0d1426] border border-white/15 rounded-2xl p-6 shadow-2xl flex flex-col gap-4 max-h-[85vh] overflow-y-auto"
+              >
+                <div className="flex justify-between items-start gap-4 border-b border-white/10 pb-4">
+                  <div className="flex items-center gap-3">
+                    <div 
+                      className="w-11 h-11 rounded-xl flex items-center justify-center text-white flex-shrink-0"
+                      style={{ background: selectedCourseOutline.gradient }}
+                    >
+                      <GraduationCap size={22} />
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-slate-400">{selectedCourseOutline.code} • {selectedCourseOutline.credits} Credits</span>
+                      <h3 className="text-lg font-extrabold text-white">{selectedCourseOutline.name}</h3>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setSelectedCourseOutline(null)}
+                    className="btn-close-modal"
                   >
-                    <GraduationCap size={22} />
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <div className="space-y-4 text-sm text-slate-300">
+                  <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 space-y-2">
+                    <p className="text-slate-300 leading-relaxed">{selectedCourseOutline.description}</p>
+                    <div className="grid grid-cols-2 gap-3 pt-3 border-t border-white/5 text-xs">
+                      <div>
+                        <span className="text-slate-500 block">Instructor Desk:</span>
+                        <strong className="text-white text-sm">{selectedCourseOutline.instructor}</strong>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 block">Target Batch:</span>
+                        <strong className="text-white text-sm">{selectedCourseOutline.batch} (Sec: {selectedCourseOutline.section})</strong>
+                      </div>
+                    </div>
                   </div>
+
                   <div>
-                    <span className="text-xs font-bold text-slate-400">{selectedCourseOutline.code} • {selectedCourseOutline.credits} Credits</span>
-                    <h3 className="text-lg font-extrabold text-white">{selectedCourseOutline.name}</h3>
+                    <h4 className="font-bold text-white mb-2 flex items-center gap-2">
+                      <BookOpen size={16} className="text-violet-400" />
+                      Syllabus Modules & Curriculum Units
+                    </h4>
+                    {selectedCourseOutline.modules && selectedCourseOutline.modules.length > 0 ? (
+                      <div className="space-y-2">
+                        {selectedCourseOutline.modules.map((m, idx) => (
+                          <div key={idx} className="p-3 rounded-xl bg-white/[0.02] border border-white/5 flex items-center justify-between text-xs">
+                            <span className="font-semibold text-slate-200">{typeof m === 'string' ? m : m.name}</span>
+                            <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-bold border border-emerald-500/20">
+                              Unit {idx + 1}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 text-xs text-slate-400">
+                        Standard syllabus curriculum module tracking active for {selectedCourseOutline.hours_per_week} hours/week.
+                      </div>
+                    )}
                   </div>
                 </div>
-                <button 
-                  onClick={() => setSelectedCourseOutline(null)}
-                  className="btn-close-modal"
-                >
-                  <X size={18} />
-                </button>
-              </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
 
-              <div className="space-y-4 text-sm text-slate-300">
-                <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 space-y-2">
-                  <p className="text-slate-300 leading-relaxed">{selectedCourseOutline.description}</p>
-                  <div className="grid grid-cols-2 gap-3 pt-3 border-t border-white/5 text-xs">
-                    <div>
-                      <span className="text-slate-500 block">Instructor Desk:</span>
-                      <strong className="text-white text-sm">{selectedCourseOutline.instructor}</strong>
-                    </div>
-                    <div>
-                      <span className="text-slate-500 block">Target Batch:</span>
-                      <strong className="text-white text-sm">{selectedCourseOutline.batch} (Sec: {selectedCourseOutline.section})</strong>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <h4 className="font-bold text-white mb-2 flex items-center gap-2">
-                    <BookOpen size={16} className="text-violet-400" />
-                    Syllabus Modules & Curriculum Units
-                  </h4>
-                  {selectedCourseOutline.modules && selectedCourseOutline.modules.length > 0 ? (
-                    <div className="space-y-2">
-                      {selectedCourseOutline.modules.map((m, idx) => (
-                        <div key={idx} className="p-3 rounded-xl bg-white/[0.02] border border-white/5 flex items-center justify-between text-xs">
-                          <span className="font-semibold text-slate-200">{typeof m === 'string' ? m : m.name}</span>
-                          <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-bold border border-emerald-500/20">
-                            Unit {idx + 1}
+      {/* =======================================================================
+         RESOURCES CARD WINDOW MODAL & SCREEN VIEWER (Portaled to document.body)
+         ======================================================================= */}
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {selectedCourseResources && (
+            <div 
+              className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md"
+              onClick={handleCloseResources}
+            >
+              <motion.div
+                initial={{ scale: 0.94, opacity: 0, y: 15 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.94, opacity: 0, y: 15 }}
+                transition={{ duration: 0.25, ease: 'easeOut' }}
+                onClick={(e) => e.stopPropagation()}
+                className={`w-full bg-[#0d1426] border border-white/20 rounded-2xl shadow-2xl flex flex-col overflow-hidden transition-all duration-300 ${
+                  activeDoc ? 'max-w-7xl h-[94vh]' : 'max-w-2xl max-h-[85vh]'
+                }`}
+              >
+                {/* ---------------- VIEW 1: DOCUMENT SCREEN VIEWER ---------------- */}
+                {activeDoc ? (
+                  <div className="flex flex-col h-full w-full">
+                    {/* Top Control Bar */}
+                    <div className="h-16 px-4 sm:px-6 bg-[#080d1a] border-b border-white/10 flex items-center justify-between gap-4 flex-shrink-0">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <button
+                          onClick={() => setActiveDoc(null)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/15 text-slate-200 text-xs font-bold transition-all border border-white/10"
+                        >
+                          <ArrowLeft size={16} />
+                          <span>Back to Files</span>
+                        </button>
+                        <div className="min-w-0">
+                          <h4 className="text-sm sm:text-base font-extrabold text-white truncate max-w-lg" title={activeDoc.title}>
+                            {activeDoc.title}
+                          </h4>
+                          <span className="text-xs text-slate-400 hidden sm:inline">
+                            {selectedCourseResources.code} • {activeDoc.file_name} ({activeDoc.file_size})
                           </span>
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 text-xs text-slate-400">
-                      Standard syllabus curriculum module tracking active for {selectedCourseOutline.hours_per_week} hours/week.
-                    </div>
-                  )}
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+                      </div>
 
-      {/* =======================================================================
-         RESOURCES LIST MODAL (Teacher Uploaded Books, PDFs, Slides, Docs)
-         ======================================================================= */}
-      <AnimatePresence>
-        {selectedCourseResources && (
-          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md">
-            <motion.div
-              initial={{ scale: 0.92, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.92, opacity: 0 }}
-              className="w-full max-w-2xl bg-[#0d1426]/95 border border-white/10 rounded-2xl p-6 shadow-2xl flex flex-col gap-4 max-h-[85vh] overflow-y-auto"
-            >
-              <div className="flex justify-between items-start gap-4 border-b border-white/10 pb-4">
-                <div className="flex items-center gap-3">
-                  <div 
-                    className="w-11 h-11 rounded-xl flex items-center justify-center text-white flex-shrink-0"
-                    style={{ background: selectedCourseResources.gradient }}
-                  >
-                    <FolderOpen size={22} />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-violet-400 uppercase tracking-wider">{selectedCourseResources.code}</span>
-                      <span className="text-xs text-slate-500">•</span>
-                      <span className="text-xs text-slate-400 font-semibold">{selectedCourseResources.batch}</span>
-                    </div>
-                    <h3 className="text-lg font-extrabold text-white mt-0.5">Study Resources & Materials</h3>
-                  </div>
-                </div>
-                <button 
-                  onClick={() => setSelectedCourseResources(null)}
-                  className="btn-close-modal"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              {loadingResources ? (
-                <div className="py-12 flex flex-col items-center justify-center gap-2 text-slate-400">
-                  <Loader2 className="animate-spin text-violet-500" size={32} />
-                  <p className="text-sm font-semibold">Loading materials from database...</p>
-                </div>
-              ) : resourcesList.length === 0 ? (
-                <div className="p-8 rounded-xl bg-white/[0.02] border border-white/5 text-center text-slate-400">
-                  <FileText className="mx-auto mb-2 text-slate-600" size={36} />
-                  <h4 className="font-bold text-slate-300">No Documents Uploaded Yet</h4>
-                  <p className="text-xs mt-1 text-slate-400">
-                    The course instructor ({selectedCourseResources.instructor}) has not uploaded any study books or slides for {selectedCourseResources.code} yet.
-                  </p>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-3">
-                  <span className="text-xs font-semibold text-slate-400">
-                    Click any document below to read in full screen:
-                  </span>
-                  {resourcesList.map((res) => {
-                    const isPdf = (res.file_type || '').toUpperCase().includes('PDF') || (res.file_name || '').toLowerCase().endsWith('.pdf');
-                    const isPpt = (res.file_type || '').toUpperCase().includes('PPT') || (res.file_name || '').toLowerCase().endsWith('.pptx');
-
-                    return (
-                      <div
-                        key={res.id}
-                        onClick={() => handleOpenFileFullScreen(res)}
-                        className="hover-resource-card p-4 rounded-xl flex items-center justify-between gap-4 cursor-pointer"
-                      >
-                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                            isPdf ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 
-                            isPpt ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 
-                            'bg-blue-500/10 text-blue-400 border border-blue-500/20'
-                          }`}>
-                            <FileText size={20} />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <h5 className="font-bold text-sm text-slate-100 truncate" title={res.title}>
-                              {res.title}
-                            </h5>
-                            <div className="flex items-center gap-2 mt-1 text-xs text-slate-400">
-                              <span className="px-1.5 py-0.2 rounded bg-white/5 text-slate-300 font-mono text-[10px]">
-                                {res.file_type || 'PDF'}
-                              </span>
-                              <span>•</span>
-                              <span>{res.file_size || 'Document'}</span>
-                              {res.teacher_name && (
-                                <>
-                                  <span>•</span>
-                                  <span className="truncate">By {res.teacher_name}</span>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleOpenFileFullScreen(res);
-                            }}
-                            className="p-2 rounded-lg bg-violet-600/20 text-violet-300 hover:bg-violet-600/40 hover:text-white transition-all flex items-center gap-1.5 text-xs font-semibold"
-                            title="View Fullscreen"
+                      <div className="flex items-center gap-2">
+                        {(activeDoc.file_data || activeDoc.file_url) && (
+                          <a
+                            href={activeDoc.file_data || activeDoc.file_url}
+                            download={activeDoc.file_name || 'document.pdf'}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold transition-all shadow-lg shadow-violet-600/30"
                           >
-                            <Maximize2 size={14} />
-                            <span className="hidden sm:inline">View</span>
-                          </button>
-                          {(res.file_data || res.file_url) && (
-                            <a
-                              href={res.file_data || res.file_url}
-                              download={res.file_name || 'document.pdf'}
-                              onClick={(e) => e.stopPropagation()}
-                              className="p-2 rounded-lg bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white transition-all"
-                              title="Download"
-                            >
-                              <Download size={14} />
-                            </a>
-                          )}
+                            <Download size={14} />
+                            <span className="hidden sm:inline">Download</span>
+                          </a>
+                        )}
+                        <button
+                          onClick={handleCloseResources}
+                          className="btn-close-modal"
+                          title="Close"
+                        >
+                          <X size={18} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Main Screen Document Display Canvas */}
+                    <div className="flex-1 w-full h-[calc(100%-64px)] relative bg-slate-950 flex items-center justify-center overflow-hidden">
+                      {(activeDoc.file_data || activeDoc.file_url) ? (
+                        <iframe
+                          src={activeDoc.file_data || activeDoc.file_url}
+                          className="w-full h-full border-0 bg-slate-900"
+                          title={activeDoc.title}
+                        />
+                      ) : (
+                        <div className="text-center p-8 text-slate-400 space-y-3">
+                          <AlertCircle className="mx-auto text-amber-400" size={48} />
+                          <h4 className="text-lg font-bold text-white">Preview Not Available Directly</h4>
+                          <p className="text-sm max-w-md text-slate-400">
+                            This document cannot be previewed in the frame. Please click Download to view it locally.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  /* ---------------- VIEW 2: RESOURCES LIST CARD ---------------- */
+                  <div className="p-6 flex flex-col gap-5 overflow-y-auto max-h-[85vh]">
+                    {/* Card Header */}
+                    <div className="flex justify-between items-start gap-4 border-b border-white/10 pb-4">
+                      <div className="flex items-center gap-3">
+                        <div 
+                          className="w-12 h-12 rounded-xl flex items-center justify-center text-white flex-shrink-0 shadow-lg"
+                          style={{ background: selectedCourseResources.gradient }}
+                        >
+                          <FolderOpen size={24} />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 rounded-md bg-violet-500/20 text-violet-300 font-extrabold text-xs tracking-wider border border-violet-500/30">
+                              {selectedCourseResources.code}
+                            </span>
+                            <span className="text-xs text-slate-400 font-semibold">{selectedCourseResources.batch}</span>
+                          </div>
+                          <h3 className="text-lg font-extrabold text-white mt-1">
+                            {selectedCourseResources.name}
+                          </h3>
+                          <span className="text-xs text-slate-400">
+                            Uploaded Course Study Resources & Materials
+                          </span>
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+                      <button 
+                        onClick={handleCloseResources}
+                        className="btn-close-modal"
+                        title="Close"
+                      >
+                        <X size={18} />
+                      </button>
+                    </div>
 
-      {/* =======================================================================
-         FULL SCREEN DOCUMENT VIEWER MODAL
-         ======================================================================= */}
-      <AnimatePresence>
-        {fullScreenDoc && (
-          <div className="fixed inset-0 z-[9999] bg-[#070b14] flex flex-col">
-            {/* Top Bar Navigation */}
-            <div className="h-16 px-6 bg-[#0c1222] border-b border-white/10 flex items-center justify-between gap-4 flex-shrink-0 z-20">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-9 h-9 rounded-xl bg-violet-600/20 border border-violet-500/30 flex items-center justify-center text-violet-300 flex-shrink-0">
-                  <FileText size={18} />
-                </div>
-                <div className="min-w-0">
-                  <h3 className="text-sm sm:text-base font-extrabold text-white truncate max-w-lg" title={fullScreenDoc.title}>
-                    {fullScreenDoc.title}
-                  </h3>
-                  <div className="flex items-center gap-2 text-xs text-slate-400">
-                    <span className="font-semibold text-violet-400">{fullScreenDoc.course_code}</span>
-                    <span>•</span>
-                    <span>{fullScreenDoc.file_name}</span>
-                    <span>•</span>
-                    <span>{fullScreenDoc.file_size}</span>
+                    {/* Card Content List */}
+                    {loadingResources ? (
+                      <div className="py-16 flex flex-col items-center justify-center gap-2 text-slate-400">
+                        <Loader2 className="animate-spin text-violet-500" size={32} />
+                        <p className="text-sm font-semibold">Loading uploaded materials from database...</p>
+                      </div>
+                    ) : resourcesList.length === 0 ? (
+                      <div className="p-8 rounded-xl bg-white/[0.02] border border-white/5 text-center text-slate-400">
+                        <FileText className="mx-auto mb-2 text-slate-600" size={40} />
+                        <h4 className="font-bold text-slate-200">No Documents Uploaded Yet</h4>
+                        <p className="text-xs mt-1 text-slate-400">
+                          Course instructor ({selectedCourseResources.instructor}) has not uploaded any study books or slides for {selectedCourseResources.code} yet.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-3">
+                        <div className="flex items-center justify-between text-xs text-slate-400 font-semibold px-1">
+                          <span>Available Course Files ({resourcesList.length})</span>
+                          <span>Click to open and view on screen</span>
+                        </div>
+
+                        {resourcesList.map((res) => {
+                          const isPdf = (res.file_type || '').toUpperCase().includes('PDF') || (res.file_name || '').toLowerCase().endsWith('.pdf');
+                          const isPpt = (res.file_type || '').toUpperCase().includes('PPT') || (res.file_name || '').toLowerCase().endsWith('.pptx');
+
+                          return (
+                            <div
+                              key={res.id}
+                              onClick={() => setActiveDoc(res)}
+                              className="hover-resource-card p-4 rounded-xl flex items-center justify-between gap-4 cursor-pointer group"
+                            >
+                              <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                                <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-105 ${
+                                  isPdf ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30' : 
+                                  isPpt ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30' : 
+                                  'bg-blue-500/15 text-blue-400 border border-blue-500/30'
+                                }`}>
+                                  <FileText size={22} />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <h5 className="font-bold text-sm text-slate-100 group-hover:text-violet-300 transition-colors truncate" title={res.title}>
+                                    {res.title}
+                                  </h5>
+                                  <div className="flex items-center gap-2 mt-1 text-xs text-slate-400">
+                                    <span className="px-1.5 py-0.2 rounded bg-white/10 text-slate-300 font-mono text-[10px] font-bold">
+                                      {res.file_type || 'PDF'}
+                                    </span>
+                                    <span>•</span>
+                                    <span className="text-slate-300 font-medium">{res.file_size || 'Document'}</span>
+                                    {res.teacher_name && (
+                                      <>
+                                        <span>•</span>
+                                        <span className="text-slate-400 truncate">By {res.teacher_name}</span>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActiveDoc(res);
+                                  }}
+                                  className="px-3.5 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-violet-600/30 transition-all cursor-pointer"
+                                  title="View on Screen"
+                                >
+                                  <Eye size={14} />
+                                  <span>View</span>
+                                </button>
+                                {(res.file_data || res.file_url) && (
+                                  <a
+                                    href={res.file_data || res.file_url}
+                                    download={res.file_name || 'document.pdf'}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="p-2 rounded-xl bg-white/5 text-slate-300 hover:bg-white/15 hover:text-white transition-all border border-white/5"
+                                    title="Download File"
+                                  >
+                                    <Download size={15} />
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                {(fullScreenDoc.file_data || fullScreenDoc.file_url) && (
-                  <a
-                    href={fullScreenDoc.file_data || fullScreenDoc.file_url}
-                    download={fullScreenDoc.file_name || 'document.pdf'}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold transition-all shadow-lg shadow-violet-600/30"
-                  >
-                    <Download size={14} />
-                    <span className="hidden sm:inline">Download</span>
-                  </a>
                 )}
-                <button
-                  onClick={() => setFullScreenDoc(null)}
-                  className="btn-close-modal"
-                  title="Close Full Screen"
-                >
-                  <X size={18} />
-                </button>
-              </div>
+              </motion.div>
             </div>
-
-            {/* Document Render Canvas */}
-            <div className="flex-1 w-full h-[calc(100vh-64px)] relative bg-slate-950 flex items-center justify-center overflow-hidden">
-              {(fullScreenDoc.file_data || fullScreenDoc.file_url) ? (
-                <iframe
-                  src={fullScreenDoc.file_data || fullScreenDoc.file_url}
-                  className="w-full h-full border-0 bg-slate-900"
-                  title={fullScreenDoc.title}
-                />
-              ) : (
-                <div className="text-center p-8 text-slate-400 space-y-3">
-                  <AlertCircle className="mx-auto text-amber-400" size={48} />
-                  <h4 className="text-lg font-bold text-white">Preview Not Available Directly</h4>
-                  <p className="text-sm max-w-md text-slate-400">
-                    This file format cannot be directly rendered inside the browser frame. Please download the file to view locally.
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </AnimatePresence>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
 
     </div>
   );
