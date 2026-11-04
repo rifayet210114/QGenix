@@ -590,6 +590,8 @@ class DashboardStatsView(APIView):
                     'submitted_by': r.submitted_by,
                     'submitted_at': r.submitted_at.strftime('%Y-%m-%d %H:%M') if r.submitted_at else '',
                     'published_at': r.published_at.strftime('%Y-%m-%d %H:%M') if r.published_at else ''
+                ,
+                    'breakdown': r.breakdown
                 }
                 for r in StudentExamResult.objects.all().order_by('-submitted_at')
             ],
@@ -4089,7 +4091,7 @@ class StudentAssignedExamView(APIView):
     GET /api/auth/student-assigned-exam/
     Retrieves the university examination paper assigned to the requesting student.
     Matches student's institutional_id or username against the published student_allocations.
-    Returns strictly that student's assigned set (e.g. SET: B).
+    Returns strictly that student's assigned set (e.g. SET: B) and submission status.
     """
     permission_classes = [permissions.AllowAny]
 
@@ -4098,11 +4100,41 @@ class StudentAssignedExamView(APIView):
         if not user_identifier and request.user.is_authenticated:
             user_identifier = getattr(request.user, 'institutional_id', '') or request.user.username
 
-        papers = AIQuestionPaper.objects.filter(status='Approved').order_by('-created_at')
-        if not papers.exists():
+        requested_paper_id = request.query_params.get('paper_id')
+
+        papers_qs = AIQuestionPaper.objects.filter(status='Approved').order_by('-created_at')
+        if not papers_qs.exists():
             return Response({'has_exam': False, 'message': 'No approved examination papers published yet.'}, status=status.HTTP_200_OK)
 
-        target_paper = papers.first()
+        target_paper = None
+        matched_student_set = None
+
+        clean_id = str(user_identifier).strip().lower() if user_identifier else ''
+
+        # 1. If explicit paper_id specified
+        if requested_paper_id:
+            target_paper = papers_qs.filter(paper_id=requested_paper_id).first() or papers_qs.filter(id=requested_paper_id).first()
+
+        # 2. Look for the paper where this student is specifically allocated
+        if not target_paper and clean_id:
+            for p in papers_qs:
+                try:
+                    pay = json.loads(p.sample_question)
+                    allocs = pay.get('student_allocations', {})
+                    for k, s_name in allocs.items():
+                        if str(k).strip().lower() == clean_id:
+                            target_paper = p
+                            matched_student_set = s_name
+                            break
+                    if target_paper:
+                        break
+                except Exception:
+                    continue
+
+        # 3. Fallback to latest paper
+        if not target_paper:
+            target_paper = papers_qs.first()
+
         try:
             payload = json.loads(target_paper.sample_question)
         except Exception:
@@ -4112,16 +4144,25 @@ class StudentAssignedExamView(APIView):
         allocations = payload.get('student_allocations', {})
         
         # Match student ID or username
-        assigned_set_name = None
-        if user_identifier:
-            assigned_set_name = allocations.get(str(user_identifier)) or allocations.get(str(user_identifier).lower())
+        assigned_set_name = matched_student_set
+        if not assigned_set_name and clean_id:
+            for k, v in allocations.items():
+                if str(k).strip().lower() == clean_id:
+                    assigned_set_name = v
+                    break
             if not assigned_set_name:
                 u = CustomUser.objects.filter(
                     models.Q(institutional_id__iexact=user_identifier) | 
                     models.Q(username__iexact=user_identifier)
                 ).first()
                 if u:
-                    assigned_set_name = allocations.get(str(u.institutional_id)) or allocations.get(str(u.username))
+                    u_inst = str(u.institutional_id).strip().lower() if u.institutional_id else ''
+                    u_user = str(u.username).strip().lower()
+                    for k, v in allocations.items():
+                        clean_k = str(k).strip().lower()
+                        if clean_k and (clean_k == u_inst or clean_k == u_user):
+                            assigned_set_name = v
+                            break
 
         if not assigned_set_name and exam_sets:
             assigned_set_name = exam_sets[0].get('set_name', 'SET: A')
@@ -4134,16 +4175,69 @@ class StudentAssignedExamView(APIView):
         if not matched_set and exam_sets:
             matched_set = exam_sets[0]
 
+        course_code = payload.get('course_code') or target_paper.course
+        course_title = payload.get('course_title') or target_paper.course
+        exam_title = payload.get('exam_title', target_paper.course)
+
+        # Check if student has already submitted an exam for this paper
+        submission = None
+        if user_identifier:
+            sub_qs = StudentExamResult.objects.filter(
+                models.Q(student_uid__iexact=user_identifier) |
+                models.Q(student__username__iexact=user_identifier)
+            ).filter(
+                models.Q(course_code__iexact=course_code) |
+                models.Q(exam_name__iexact=exam_title)
+            )
+            submission = sub_qs.order_by('-submitted_at').first()
+
+        submission_data = None
+        if submission:
+            parsed_breakdown = None
+            if submission.breakdown:
+                try:
+                    parsed_breakdown = json.loads(submission.breakdown)
+                except Exception:
+                    pass
+            submission_data = {
+                'id': submission.id,
+                'obtained_marks': submission.obtained_marks,
+                'max_marks': submission.max_marks,
+                'percentage': submission.percentage,
+                'grade': submission.grade,
+                'gpa': submission.gpa,
+                'submitted_at': submission.submitted_at.strftime('%Y-%m-%d %I:%M %p') if submission.submitted_at else '',
+                'breakdown': parsed_breakdown
+            }
+
+        # Available approved papers summary list
+        available_papers = []
+        for p in papers_qs[:10]:
+            try:
+                p_pay = json.loads(p.sample_question)
+                available_papers.append({
+                    'paper_id': p.paper_id,
+                    'course_code': p_pay.get('course_code', ''),
+                    'course_title': p_pay.get('course_title', p.course),
+                    'exam_title': p_pay.get('exam_title', p.course),
+                    'generation_type': p_pay.get('generation_type', 'mcq'),
+                    'teacher': p.teacher,
+                    'created_at': p.generated_on or str(p.created_at)
+                })
+            except Exception:
+                pass
+
         return Response({
             'has_exam': True,
             'paper_id': target_paper.paper_id,
+            'paper_db_id': target_paper.id,
             'course': target_paper.course,
             'teacher': target_paper.teacher,
-            'exam_title': payload.get('exam_title', target_paper.course),
+            'exam_title': exam_title,
             'degree_program': payload.get('degree_program', 'B.Sc (Hons) in Computer Science & Engineering'),
             'semester_exam': payload.get('semester_exam', 'Midterm Examination'),
-            'course_code': payload.get('course_code', ''),
-            'course_title': payload.get('course_title', ''),
+            'course_code': course_code,
+            'course_title': course_title,
             'time_allowed': payload.get('time_allowed', '1 hour 20 minutes'),
             'full_marks': payload.get('full_marks', 40),
             'instructions': payload.get('instructions', ''),
@@ -4152,16 +4246,235 @@ class StudentAssignedExamView(APIView):
             'question_sets': matched_set.get('question_sets', []) if matched_set else [],
             'questions': matched_set.get('questions', []) if matched_set else (payload.get('questions', [])),
             'all_set_names': [es.get('set_name') for es in exam_sets],
-            'generation_type': payload.get('generation_type', 'descriptive')
+            'generation_type': payload.get('generation_type', 'descriptive'),
+            'has_submitted': bool(submission),
+            'submission_result': submission_data,
+            'available_papers': available_papers
         }, status=status.HTTP_200_OK)
 
 
+class StudentSubmitExamView(APIView):
+    """
+    POST /api/auth/student-submit-exam/
+    Receives student's exam answers, evaluates them against the correct answers for their assigned set,
+    calculates obtained marks, percentage, grade, and GPA using GradingScaleRule,
+    and saves the verified result into StudentExamResult with is_published=True.
+    """
+    permission_classes = [permissions.AllowAny]
 
+    def post(self, request):
+        from django.utils import timezone
+        try:
+            data = request.data
+            paper_id = data.get('paper_id')
+            paper_db_id = data.get('paper_db_id')
+            student_uid = str(data.get('student_uid') or data.get('student_id') or '').strip()
+            assigned_set_name = data.get('assigned_set_name', 'SET: A')
+            answers = data.get('answers', {})
+            time_spent = data.get('time_spent', '')
 
+            # Resolve Student CustomUser
+            student_user = None
+            if request.user.is_authenticated:
+                student_user = request.user
+                if not student_uid:
+                    student_uid = getattr(request.user, 'institutional_id', '') or request.user.username
+            elif student_uid:
+                student_user = CustomUser.objects.filter(
+                    models.Q(institutional_id__iexact=student_uid) |
+                    models.Q(username__iexact=student_uid)
+                ).first()
 
+            # Locate Question Paper
+            paper = None
+            if paper_db_id:
+                paper = AIQuestionPaper.objects.filter(id=paper_db_id).first()
+            if not paper and paper_id:
+                paper = AIQuestionPaper.objects.filter(paper_id=paper_id).first() or AIQuestionPaper.objects.filter(id=paper_id).first()
+            if not paper:
+                paper = AIQuestionPaper.objects.filter(status='Approved').order_by('-created_at').first()
 
+            if not paper:
+                return Response({'success': False, 'error': 'No matching question paper found.'}, status=status.HTTP_404_NOT_FOUND)
 
+            try:
+                payload = json.loads(paper.sample_question)
+            except Exception:
+                payload = {}
 
+            exam_sets = payload.get('exam_sets', [])
+            generation_type = payload.get('generation_type', 'mcq')
+            course_code = payload.get('course_code') or paper.course
+            course_title = payload.get('course_title') or paper.course
+            exam_name = payload.get('exam_title', paper.course)
+            full_marks = float(payload.get('full_marks') or 40)
+
+            # Match student set
+            matched_set = None
+            for es in exam_sets:
+                if es.get('set_name', '').strip().upper() == str(assigned_set_name).strip().upper():
+                    matched_set = es
+                    break
+            if not matched_set and exam_sets:
+                matched_set = exam_sets[0]
+
+            questions_list = matched_set.get('questions', []) if matched_set else (payload.get('questions', []))
+            if not questions_list and matched_set:
+                questions_list = matched_set.get('question_sets', [])
+
+            # Automatic evaluation logic
+            breakdown = []
+            correct_count = 0
+            wrong_count = 0
+            unattempted_count = 0
+            total_questions = len(questions_list)
+            marks_per_q = full_marks / max(1, total_questions)
+
+            for idx, q in enumerate(questions_list):
+                q_id = str(q.get('id') or (idx + 1))
+                student_ans = answers.get(q_id)
+                if student_ans is None:
+                    student_ans = answers.get(str(idx + 1)) or answers.get(idx + 1)
+
+                correct_ans = str(q.get('correct_answer') or q.get('answer') or 'a').strip()
+                explanation = q.get('explanation') or ''
+                q_marks = float(q.get('marks') or marks_per_q)
+
+                clean_student_ans = str(student_ans).strip().lower() if student_ans is not None else ''
+                clean_correct_ans = correct_ans.strip().lower()
+
+                if not clean_student_ans:
+                    unattempted_count += 1
+                    is_correct = False
+                    awarded = 0.0
+                elif clean_student_ans == clean_correct_ans or clean_student_ans in [clean_correct_ans, f"({clean_correct_ans})"]:
+                    correct_count += 1
+                    is_correct = True
+                    awarded = q_marks
+                else:
+                    wrong_count += 1
+                    is_correct = False
+                    awarded = 0.0
+
+                breakdown.append({
+                    'id': q.get('id') or (idx + 1),
+                    'question': q.get('question') or f"Question {idx+1}",
+                    'options': q.get('options', {}),
+                    'student_answer': student_ans or '',
+                    'correct_answer': correct_ans,
+                    'is_correct': is_correct,
+                    'marks': q_marks,
+                    'awarded_marks': awarded,
+                    'explanation': explanation
+                })
+
+            obtained_marks = round(sum(item['awarded_marks'] for item in breakdown), 2)
+            percentage = round((obtained_marks / full_marks) * 100, 2) if full_marks > 0 else 0.0
+
+            # Compute Grade & GPA using GradingScaleRule
+            rules = GradingScaleRule.objects.all().order_by('-min_marks')
+            assigned_grade = None
+            assigned_gpa = None
+            for r in rules:
+                if percentage >= r.min_marks:
+                    assigned_grade = r.grade
+                    assigned_gpa = r.gpa
+                    break
+
+            if assigned_grade is None:
+                if percentage >= 80: assigned_grade, assigned_gpa = 'A+', 4.00
+                elif percentage >= 75: assigned_grade, assigned_gpa = 'A', 3.75
+                elif percentage >= 70: assigned_grade, assigned_gpa = 'A-', 3.50
+                elif percentage >= 65: assigned_grade, assigned_gpa = 'B+', 3.25
+                elif percentage >= 60: assigned_grade, assigned_gpa = 'B', 3.00
+                elif percentage >= 55: assigned_grade, assigned_gpa = 'B-', 2.75
+                elif percentage >= 50: assigned_grade, assigned_gpa = 'C+', 2.50
+                elif percentage >= 45: assigned_grade, assigned_gpa = 'C', 2.25
+                elif percentage >= 40: assigned_grade, assigned_gpa = 'D', 2.00
+                else: assigned_grade, assigned_gpa = 'F', 0.00
+
+            student_name = ''
+            batch_name = ''
+            semester_name = ''
+
+            if student_user:
+                student_name = f"{student_user.first_name} {student_user.last_name}".strip() or student_user.username
+                batch_name = str(student_user.batch or '')
+                semester_name = str(student_user.semester or '')
+            else:
+                student_name = str(student_uid)
+                batch_name = 'Batch 2023 - 2024'
+                semester_name = '5th Semester'
+
+            breakdown_payload = {
+                'total_questions': total_questions,
+                'correct_count': correct_count,
+                'wrong_count': wrong_count,
+                'unattempted_count': unattempted_count,
+                'time_spent': time_spent,
+                'assigned_set_name': assigned_set_name,
+                'questions': breakdown
+            }
+
+            exam_result, _ = StudentExamResult.objects.update_or_create(
+                student_uid=str(student_uid),
+                course_code=course_code,
+                exam_name=exam_name,
+                defaults={
+                    'student': student_user,
+                    'student_name': student_name,
+                    'batch': batch_name or 'Batch 2023 - 2024',
+                    'semester': semester_name or '5th Semester',
+                    'course_title': course_title,
+                    'obtained_marks': obtained_marks,
+                    'max_marks': full_marks,
+                    'percentage': percentage,
+                    'grade': assigned_grade,
+                    'gpa': assigned_gpa,
+                    'is_published': True,
+                    'submitted_by': student_name,
+                    'published_at': timezone.now(),
+                    'breakdown': json.dumps(breakdown_payload)
+                }
+            )
+
+            try:
+                AuditLog.objects.create(
+                    user=student_name,
+                    action='Completed Online Examination Submission',
+                    category='Student Examination',
+                    target=f"{course_code} - {exam_name} ({assigned_set_name}): {obtained_marks}/{full_marks} ({assigned_grade}, GPA: {assigned_gpa})",
+                    timestamp='Just now',
+                    status='Success'
+                )
+            except Exception:
+                pass
+
+            return Response({
+                'success': True,
+                'message': 'Exam answers submitted and automatically graded successfully!',
+                'result': {
+                    'id': exam_result.id,
+                    'student_uid': exam_result.student_uid,
+                    'student_name': exam_result.student_name,
+                    'course_code': exam_result.course_code,
+                    'course_title': exam_result.course_title,
+                    'exam_name': exam_result.exam_name,
+                    'obtained_marks': exam_result.obtained_marks,
+                    'max_marks': exam_result.max_marks,
+                    'percentage': exam_result.percentage,
+                    'grade': exam_result.grade,
+                    'gpa': exam_result.gpa,
+                    'assigned_set_name': assigned_set_name,
+                    'is_published': exam_result.is_published,
+                    'submitted_at': exam_result.submitted_at.strftime('%Y-%m-%d %I:%M %p')
+                },
+                'breakdown': breakdown_payload
+            }, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return Response({'success': False, 'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class StudentExamResultViewSet(viewsets.ModelViewSet):

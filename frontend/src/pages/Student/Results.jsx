@@ -31,6 +31,7 @@ import {
 import Card from '../../components/Card'; // QGenix custom glass card wrapper
 import { useAuth } from '../../contexts/AuthContext';
 import { useAdminData } from '../../contexts/AdminDataContext';
+import { API_BASE } from '../../config';
 
 // ----------------------------------------------------------------------------
 // 1. MOCK DATA: STUDENT COMPREHENSIVE EXAMS & RESULTS DATA
@@ -318,20 +319,53 @@ export default function Results() {
 
   const { user } = useAuth();
   const { submittedExamResults = [] } = useAdminData();
+  const [directDbResults, setDirectDbResults] = useState([]);
+
+  // Direct fetch from /api/auth/student-exam-results/
+  useEffect(() => {
+    const fetchDirectResults = async () => {
+      try {
+        const token = localStorage.getItem('access') || localStorage.getItem('token');
+        const uid = user?.institutional_id || user?.username || localStorage.getItem('institutional_id') || '';
+        const url = `${API_BASE}/api/auth/student-exam-results/${uid ? `?student_uid=${encodeURIComponent(uid)}` : ''}`;
+        const res = await fetch(url, {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const resultsList = Array.isArray(data) ? data : (data.results || []);
+          setDirectDbResults(resultsList);
+        }
+      } catch (err) {
+        console.warn('Could not fetch direct student exam results:', err);
+      }
+    };
+    fetchDirectResults();
+  }, [user]);
 
   // Match published exam results for current logged in student
   const studentPublishedResults = useMemo(() => {
-    if (!user) return [];
+    if (!user) return directDbResults;
     const myUid = (user.institutional_id || user.username || '').toLowerCase();
     const myName = (user.name || `${user.first_name || ''} ${user.last_name || ''}`).toLowerCase().trim();
 
-    return submittedExamResults.filter(r => {
+    const fromContext = submittedExamResults.filter(r => {
       const rUid = (r.student_uid || '').toLowerCase();
       const rName = (r.student_name || '').toLowerCase();
       const isMe = (myUid && rUid === myUid) || (myName && (rName === myName || rName.includes(myName)));
       return isMe && r.is_published;
     });
-  }, [user, submittedExamResults]);
+
+    const combined = [...directDbResults, ...fromContext];
+    // Deduplicate by id or course_code + exam_name
+    const seen = new Set();
+    return combined.filter(item => {
+      const key = `${item.id || item.course_code}_${item.exam_name}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return item.is_published !== false;
+    });
+  }, [user, submittedExamResults, directDbResults]);
 
   // Check if exams were submitted for this student's batch & semester but not published yet
   const studentPendingResults = useMemo(() => {
@@ -360,42 +394,65 @@ export default function Results() {
 
   useEffect(() => {
     if (studentPublishedResults.length > 0) {
-      const mapped = studentPublishedResults.map(r => ({
-        id: r.id,
-        name: r.exam_name || 'Semester Examination',
-        subject: r.course_title || r.course_code,
-        code: r.course_code,
-        date: r.published_at?.split(' ')[0] || r.submitted_at?.split(' ')[0] || '2026-10-30',
-        score: `${r.obtained_marks}/${r.max_marks}`,
-        percentage: Math.round(r.percentage),
-        grade: r.grade,
-        status: r.percentage >= 40 ? 'Pass' : 'Fail',
-        duration: '2 Hours',
-        attempt: 1,
-        analysis: {
-          totalQuestions: 50,
-          correct: Math.round((r.percentage / 100) * 45),
-          wrong: Math.round(((100 - r.percentage) / 100) * 45),
-          unanswered: 5,
-          timeTaken: '1h 45m',
-          rank: 'Verified'
-        },
-        proctoring: {
-          faceDetection: 'Optimal (100% Match)',
-          tabSwitches: 0,
-          multiPerson: 0,
-          voiceEvents: 0,
-          suspicionScore: 0,
-          riskLevel: 'Clear / Verified'
-        },
-        insights: {
-          strong: 'Consistent conceptual accuracy in core subjects',
-          weak: 'Review specific descriptive questions',
-          suggestions: 'Maintain academic momentum for upcoming semester.',
-          prediction: `${r.grade} in final university transcript`
-        },
-        questions: []
-      }));
+      const mapped = studentPublishedResults.map(r => {
+        let parsedBreakdown = null;
+        if (r.breakdown) {
+          try {
+            parsedBreakdown = typeof r.breakdown === 'string' ? JSON.parse(r.breakdown) : r.breakdown;
+          } catch (e) {}
+        }
+        const totalQ = parsedBreakdown?.total_questions || 15;
+        const correctQ = parsedBreakdown?.correct_count ?? Math.round((r.percentage / 100) * totalQ);
+        const wrongQ = parsedBreakdown?.wrong_count ?? Math.round(((100 - r.percentage) / 100) * totalQ);
+        const unansweredQ = parsedBreakdown?.unattempted_count ?? 0;
+
+        const mappedQuestions = (parsedBreakdown?.questions || []).map((q, qIdx) => ({
+          q: q.question || `Question ${qIdx + 1}`,
+          options: q.options ? Object.entries(q.options).map(([k, v]) => `(${k}) ${v}`) : [],
+          submitted: q.student_answer ? `(${q.student_answer}) ${q.options?.[q.student_answer] || ''}` : 'Unanswered',
+          correct: `(${q.correct_answer}) ${q.options?.[q.correct_answer] || ''}`,
+          isCorrect: q.is_correct,
+          explanation: q.explanation || 'Verified answer against course faculty exam key.',
+          classStats: q.is_correct ? 'Correctly answered' : 'Incorrect choice'
+        }));
+
+        return {
+          id: r.id,
+          name: r.exam_name || 'Semester Examination',
+          subject: r.course_title || r.course_code,
+          code: r.course_code,
+          date: r.published_at?.split(' ')[0] || r.submitted_at?.split(' ')[0] || '2026-10-30',
+          score: `${r.obtained_marks}/${r.max_marks}`,
+          percentage: Math.round(r.percentage),
+          grade: r.grade,
+          status: r.percentage >= 40 ? 'Pass' : 'Fail',
+          duration: parsedBreakdown?.time_spent || '1 Hour',
+          attempt: 1,
+          analysis: {
+            totalQuestions: totalQ,
+            correct: correctQ,
+            wrong: wrongQ,
+            unanswered: unansweredQ,
+            timeTaken: parsedBreakdown?.time_spent || '45m',
+            rank: 'Verified'
+          },
+          proctoring: {
+            faceDetection: 'Optimal (100% Match)',
+            tabSwitches: 0,
+            multiPerson: 0,
+            voiceEvents: 0,
+            suspicionScore: 0,
+            riskLevel: 'Clear / Verified'
+          },
+          insights: {
+            strong: `${correctQ} questions solved correctly on assigned set ${parsedBreakdown?.assigned_set_name || ''}`,
+            weak: wrongQ > 0 ? `${wrongQ} incorrect answers identified for review` : 'None identified',
+            suggestions: 'Excellent comprehension of syllabus concepts. Review explanations for any missed questions.',
+            prediction: `${r.grade} (GPA: ${r.gpa}) official grade recorded in student profile`
+          },
+          questions: mappedQuestions
+        };
+      });
       setExams(mapped);
       setSelectedExam(mapped[0] || null);
     }

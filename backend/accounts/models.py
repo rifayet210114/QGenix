@@ -226,6 +226,7 @@ class StudentExamResult(models.Model):
     submitted_by = models.CharField(max_length=150, blank=True, default='')
     submitted_at = models.DateTimeField(auto_now_add=True)
     published_at = models.DateTimeField(null=True, blank=True)
+    breakdown = models.TextField(blank=True, default='')
 
     class Meta:
         ordering = ['-submitted_at']
