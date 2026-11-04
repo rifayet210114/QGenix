@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Video, Users, Plus, CheckCircle2, Clock, Calendar, 
   ExternalLink, Sparkles, BookOpen, Layers, Radio, AlertCircle,
-  Copy, Check, PhoneOff, RefreshCw, Eye
+  Copy, Check, PhoneOff, RefreshCw, Eye, Globe, Monitor
 } from 'lucide-react';
 import { API_BASE } from '../../config';
 import { useAuth } from '../../contexts/AuthContext';
@@ -13,9 +13,9 @@ export default function TeacherOnlineClass() {
   const { user } = useAuth();
   const { profile } = useProfile();
 
-  const teacherName = profile?.fullName || user?.first_name 
+  const teacherName = profile?.fullName || (user?.first_name 
     ? `${user?.first_name || ''} ${user?.last_name || ''}`.trim() 
-    : user?.username || 'Teacher';
+    : user?.username || 'Teacher');
 
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -36,8 +36,8 @@ export default function TeacherOnlineClass() {
     semester: '5th Semester',
     section: 'A',
     title: '',
-    meeting_type: 'in_app', // 'in_app' or 'external'
-    custom_meeting_link: ''
+    platform: 'google_meet', // 'google_meet' | 'in_app'
+    meeting_link: ''
   });
 
   const semestersList = [
@@ -90,12 +90,6 @@ export default function TeacherOnlineClass() {
       const data = await res.json();
       const list = Array.isArray(data) ? data : data?.results || [];
       setSessions(list);
-
-      // Check if there is an active session
-      const live = list.find(s => s.status === 'LIVE' && s.is_active);
-      if (live && !activeSession) {
-        // Don't auto-open unless user clicks, but keep track
-      }
     } catch (err) {
       console.warn('Error fetching sessions:', err);
     } finally {
@@ -119,6 +113,10 @@ export default function TeacherOnlineClass() {
     }));
   };
 
+  const handleCreateGoogleMeet = () => {
+    window.open('https://meet.google.com/new', '_blank');
+  };
+
   const handleLaunchSession = async (e) => {
     e.preventDefault();
     if (!formData.title.trim()) {
@@ -126,8 +124,19 @@ export default function TeacherOnlineClass() {
       return;
     }
 
+    if (formData.platform === 'google_meet' && !formData.meeting_link.trim()) {
+      alert('Please paste your Google Meet link (click "Create Google Meet" to get one)');
+      return;
+    }
+
     try {
       setSubmitting(true);
+      const roomId = `qgenix-class-${Date.now().toString(36)}`;
+      let finalLink = formData.meeting_link.trim();
+      if (formData.platform === 'in_app' || !finalLink) {
+        finalLink = `https://p2p.mirotalk.com/join?room=${roomId}&name=${encodeURIComponent(teacherName)}&audio=1&video=1&chat=1&screen=1`;
+      }
+
       const payload = {
         title: formData.title.trim(),
         course_code: formData.course_code || 'CSE-301',
@@ -136,9 +145,8 @@ export default function TeacherOnlineClass() {
         batch: formData.batch,
         semester: formData.semester,
         section: formData.section,
-        meeting_link: formData.meeting_type === 'external' && formData.custom_meeting_link.trim() 
-          ? formData.custom_meeting_link.trim() 
-          : '',
+        room_id: roomId,
+        meeting_link: finalLink,
         scheduled_time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         status: 'LIVE',
         is_active: true
@@ -166,9 +174,14 @@ export default function TeacherOnlineClass() {
       }
 
       setShowModal(false);
-      setFormData(prev => ({ ...prev, title: '' }));
+      setFormData(prev => ({ ...prev, title: '', meeting_link: '' }));
       await fetchSessions();
       setActiveSession(newSession);
+
+      // If Google Meet, also open it in new tab for the teacher
+      if (formData.platform === 'google_meet' && finalLink) {
+        window.open(finalLink, '_blank');
+      }
     } catch (err) {
       console.error('Failed to launch online class:', err);
       alert('Failed to launch session. Please try again.');
@@ -189,7 +202,6 @@ export default function TeacherOnlineClass() {
       }
       await fetchSessions();
       
-      // Notify students that class ended
       try {
         const channel = new BroadcastChannel('qgenix_online_class_sync');
         channel.postMessage({ type: 'CLASS_ENDED', sessionId });
@@ -211,6 +223,8 @@ export default function TeacherOnlineClass() {
   const totalConducted = sessions.filter(s => s.status === 'COMPLETED').length;
   const totalAttendees = sessions.reduce((acc, s) => acc + (s.joined_students?.length || 0), 0);
 
+  const isGoogleMeet = (link) => (link || '').includes('meet.google.com');
+
   return (
     <div style={{ padding: '24px 32px', minHeight: '100%', color: '#f3f4f6' }}>
       {/* Header Section */}
@@ -225,7 +239,7 @@ export default function TeacherOnlineClass() {
             </h1>
           </div>
           <p style={{ margin: 0, color: '#9ca3af', fontSize: '0.95rem', maxWidth: '680px' }}>
-            Generate real-time video lectures for your specific batch, semester, and section. Automatic high-priority notifications are dispatched to enrolled students immediately.
+            Conduct real-time interactive lectures for your specific batch, semester, and section. Automatic high-priority notifications are dispatched to enrolled students immediately.
           </p>
         </div>
 
@@ -310,14 +324,14 @@ export default function TeacherOnlineClass() {
         </div>
       </div>
 
-      {/* Embedded Live Classroom Section (When a class is active / selected) */}
+      {/* Active Live Session Studio (When a class is active / selected) */}
       {activeSession && (
         <div style={{ marginBottom: '32px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <span style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#ef4444', boxShadow: '0 0 10px #ef4444' }} />
               <h2 style={{ fontSize: '1.25rem', fontWeight: '700', margin: 0, color: '#ffffff' }}>
-                Active Interactive Studio — {activeSession.course_code}: {activeSession.title}
+                Active Session — {activeSession.course_code}: {activeSession.title}
               </h2>
             </div>
             <div style={{ display: 'flex', gap: '10px' }}>
@@ -360,86 +374,221 @@ export default function TeacherOnlineClass() {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 320px', gap: '20px' }}>
-            <JitsiClassroom
-              roomName={activeSession.room_id}
-              subject={`${activeSession.course_code} - ${activeSession.title}`}
-              userDisplayName={teacherName}
-              userEmail={user?.email || 'teacher@qgenix.edu'}
-              isTeacher={true}
-              height="620px"
-              onLeave={() => setActiveSession(null)}
-            />
-
-            {/* Side Panel: Audience & Attendance Roster */}
-            <div
-              style={{
-                borderRadius: '16px',
-                background: 'rgba(17, 24, 39, 0.85)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                padding: '20px',
-                display: 'flex',
-                flexDirection: 'column',
-                height: '620px',
-                backdropFilter: 'blur(10px)'
-              }}
-            >
-              <h3 style={{ fontSize: '1rem', fontWeight: '700', marginBottom: '12px', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Users size={18} color="#c084fc" />
-                Target & Attendance
-              </h3>
-
-              {/* Target info card */}
-              <div style={{ padding: '12px', borderRadius: '10px', background: 'rgba(139, 92, 246, 0.1)', border: '1px solid rgba(139, 92, 246, 0.2)', marginBottom: '16px' }}>
-                <div style={{ fontSize: '0.75rem', color: '#c084fc', textTransform: 'uppercase', fontWeight: '700', marginBottom: '4px' }}>Target Audience</div>
-                <div style={{ fontSize: '0.85rem', fontWeight: '600', color: '#e5e7eb' }}>
-                  {activeSession.batch}
+          {/* Conditional Stage: Google Meet / External vs Built-in */}
+          {isGoogleMeet(activeSession.meeting_link) ? (
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 340px', gap: '20px' }}>
+              {/* Google Meet Command Center Card */}
+              <div
+                style={{
+                  borderRadius: '16px',
+                  background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.95))',
+                  border: '1px solid rgba(139, 92, 246, 0.3)',
+                  padding: '36px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  textAlign: 'center',
+                  minHeight: '440px'
+                }}
+              >
+                <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(59, 130, 246, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px', color: '#60a5fa' }}>
+                  <Globe size={32} />
                 </div>
-                <div style={{ fontSize: '0.8rem', color: '#9ca3af' }}>
-                  {activeSession.semester} • Section {activeSession.section}
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 12px', borderRadius: '20px', background: 'rgba(239, 68, 68, 0.2)', color: '#f87171', fontSize: '0.8rem', fontWeight: '800', marginBottom: '12px' }}>
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ef4444' }} />
+                  GOOGLE MEET CLASSROOM ACTIVE
+                </div>
+                <h3 style={{ fontSize: '1.45rem', fontWeight: '800', color: '#ffffff', margin: '0 0 8px 0' }}>
+                  {activeSession.title}
+                </h3>
+                <p style={{ color: '#c084fc', fontSize: '1rem', fontWeight: '600', margin: '0 0 20px 0' }}>
+                  {activeSession.course_code}: {activeSession.course_title}
+                </p>
+
+                <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                  <a
+                    href={activeSession.meeting_link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '14px 28px',
+                      borderRadius: '12px',
+                      background: 'linear-gradient(135deg, #10b981, #059669)',
+                      color: '#ffffff',
+                      fontWeight: '700',
+                      fontSize: '1rem',
+                      textDecoration: 'none',
+                      boxShadow: '0 8px 20px rgba(16, 185, 129, 0.4)'
+                    }}
+                  >
+                    <ExternalLink size={18} /> Open Google Meet Window
+                  </a>
+                  <button
+                    onClick={() => copyRoomLink(activeSession)}
+                    style={{
+                      padding: '14px 20px',
+                      borderRadius: '12px',
+                      background: 'rgba(255, 255, 255, 0.08)',
+                      border: '1px solid rgba(255, 255, 255, 0.15)',
+                      color: '#ffffff',
+                      fontWeight: '600',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Copy Meeting Link
+                  </button>
+                </div>
+
+                <div style={{ marginTop: '24px', fontSize: '0.85rem', color: '#9ca3af', maxWidth: '440px' }}>
+                  Your Google Meet is running with 100% native HD audio, video, and screen sharing. Students in <strong>{activeSession.batch} ({activeSession.semester})</strong> are notified and joining below.
                 </div>
               </div>
 
-              {/* Attendance list */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <span style={{ fontSize: '0.8rem', color: '#9ca3af', fontWeight: '600' }}>Joined Students</span>
-                <span style={{ fontSize: '0.8rem', padding: '2px 8px', borderRadius: '10px', background: 'rgba(52, 211, 153, 0.2)', color: '#34d399', fontWeight: '700' }}>
-                  {activeSession.joined_students?.length || 0} Present
-                </span>
-              </div>
+              {/* Attendance Side Panel */}
+              <div
+                style={{
+                  borderRadius: '16px',
+                  background: 'rgba(17, 24, 39, 0.85)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  padding: '20px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  height: '440px',
+                  backdropFilter: 'blur(10px)'
+                }}
+              >
+                <h3 style={{ fontSize: '1rem', fontWeight: '700', marginBottom: '12px', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Users size={18} color="#c084fc" />
+                  Live Attendance Roster
+                </h3>
 
-              <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {activeSession.joined_students && activeSession.joined_students.length > 0 ? (
-                  activeSession.joined_students.map((stu, i) => (
-                    <div
-                      key={i}
-                      style={{
-                        padding: '10px 12px',
-                        borderRadius: '8px',
-                        background: 'rgba(255, 255, 255, 0.04)',
-                        border: '1px solid rgba(255, 255, 255, 0.06)',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center'
-                      }}
-                    >
-                      <div>
-                        <div style={{ fontSize: '0.85rem', fontWeight: '600', color: '#f3f4f6' }}>{stu.name || 'Student'}</div>
-                        <div style={{ fontSize: '0.72rem', color: '#9ca3af' }}>ID: {stu.id || 'N/A'}</div>
+                <div style={{ padding: '12px', borderRadius: '10px', background: 'rgba(139, 92, 246, 0.1)', border: '1px solid rgba(139, 92, 246, 0.2)', marginBottom: '16px' }}>
+                  <div style={{ fontSize: '0.75rem', color: '#c084fc', textTransform: 'uppercase', fontWeight: '700', marginBottom: '4px' }}>Target Cohort</div>
+                  <div style={{ fontSize: '0.85rem', fontWeight: '600', color: '#e5e7eb' }}>{activeSession.batch}</div>
+                  <div style={{ fontSize: '0.8rem', color: '#9ca3af' }}>{activeSession.semester} • Section {activeSession.section}</div>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '0.8rem', color: '#9ca3af', fontWeight: '600' }}>Checked-In Students</span>
+                  <span style={{ fontSize: '0.8rem', padding: '2px 8px', borderRadius: '10px', background: 'rgba(52, 211, 153, 0.2)', color: '#34d399', fontWeight: '700' }}>
+                    {activeSession.joined_students?.length || 0} Present
+                  </span>
+                </div>
+
+                <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {activeSession.joined_students && activeSession.joined_students.length > 0 ? (
+                    activeSession.joined_students.map((stu, i) => (
+                      <div
+                        key={i}
+                        style={{
+                          padding: '10px 12px',
+                          borderRadius: '8px',
+                          background: 'rgba(255, 255, 255, 0.04)',
+                          border: '1px solid rgba(255, 255, 255, 0.06)',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center'
+                        }}
+                      >
+                        <div>
+                          <div style={{ fontSize: '0.85rem', fontWeight: '600', color: '#f3f4f6' }}>{stu.name || 'Student'}</div>
+                          <div style={{ fontSize: '0.72rem', color: '#9ca3af' }}>ID: {stu.id || 'N/A'}</div>
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: '#34d399', fontWeight: '500' }}>
+                          {stu.joined_at || 'Just now'}
+                        </div>
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: '#34d399', fontWeight: '500' }}>
-                        {stu.joined_at || 'Just now'}
-                      </div>
+                    ))
+                  ) : (
+                    <div style={{ padding: '30px 10px', textAlign: 'center', color: '#6b7280', fontSize: '0.85rem' }}>
+                      Waiting for students to click Join in their student portal...
                     </div>
-                  ))
-                ) : (
-                  <div style={{ padding: '30px 10px', textAlign: 'center', color: '#6b7280', fontSize: '0.85rem' }}>
-                    Waiting for students to join from their student portal...
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
-          </div>
+          ) : (
+            /* Built-in WebRTC Classroom stage with dedicated window popout option */
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 320px', gap: '20px' }}>
+              <JitsiClassroom
+                roomName={activeSession.room_id}
+                meetingLink={activeSession.meeting_link}
+                subject={`${activeSession.course_code} - ${activeSession.title}`}
+                userDisplayName={teacherName}
+                userEmail={user?.email || 'teacher@qgenix.edu'}
+                isTeacher={true}
+                height="620px"
+                onLeave={() => setActiveSession(null)}
+              />
+
+              {/* Side Panel: Audience & Attendance Roster */}
+              <div
+                style={{
+                  borderRadius: '16px',
+                  background: 'rgba(17, 24, 39, 0.85)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  padding: '20px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  height: '620px',
+                  backdropFilter: 'blur(10px)'
+                }}
+              >
+                <h3 style={{ fontSize: '1rem', fontWeight: '700', marginBottom: '12px', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Users size={18} color="#c084fc" />
+                  Target & Attendance
+                </h3>
+
+                <div style={{ padding: '12px', borderRadius: '10px', background: 'rgba(139, 92, 246, 0.1)', border: '1px solid rgba(139, 92, 246, 0.2)', marginBottom: '16px' }}>
+                  <div style={{ fontSize: '0.75rem', color: '#c084fc', textTransform: 'uppercase', fontWeight: '700', marginBottom: '4px' }}>Target Audience</div>
+                  <div style={{ fontSize: '0.85rem', fontWeight: '600', color: '#e5e7eb' }}>{activeSession.batch}</div>
+                  <div style={{ fontSize: '0.8rem', color: '#9ca3af' }}>{activeSession.semester} • Section {activeSession.section}</div>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '0.8rem', color: '#9ca3af', fontWeight: '600' }}>Joined Students</span>
+                  <span style={{ fontSize: '0.8rem', padding: '2px 8px', borderRadius: '10px', background: 'rgba(52, 211, 153, 0.2)', color: '#34d399', fontWeight: '700' }}>
+                    {activeSession.joined_students?.length || 0} Present
+                  </span>
+                </div>
+
+                <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {activeSession.joined_students && activeSession.joined_students.length > 0 ? (
+                    activeSession.joined_students.map((stu, i) => (
+                      <div
+                        key={i}
+                        style={{
+                          padding: '10px 12px',
+                          borderRadius: '8px',
+                          background: 'rgba(255, 255, 255, 0.04)',
+                          border: '1px solid rgba(255, 255, 255, 0.06)',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center'
+                        }}
+                      >
+                        <div>
+                          <div style={{ fontSize: '0.85rem', fontWeight: '600', color: '#f3f4f6' }}>{stu.name || 'Student'}</div>
+                          <div style={{ fontSize: '0.72rem', color: '#9ca3af' }}>ID: {stu.id || 'N/A'}</div>
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: '#34d399', fontWeight: '500' }}>
+                          {stu.joined_at || 'Just now'}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div style={{ padding: '30px 10px', textAlign: 'center', color: '#6b7280', fontSize: '0.85rem' }}>
+                      Waiting for students to join from their student portal...
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -492,6 +641,7 @@ export default function TeacherOnlineClass() {
               <thead>
                 <tr style={{ background: 'rgba(255, 255, 255, 0.02)', color: '#9ca3af', borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
                   <th style={{ padding: '14px 20px' }}>Course & Topic</th>
+                  <th style={{ padding: '14px 20px' }}>Platform</th>
                   <th style={{ padding: '14px 20px' }}>Target Audience</th>
                   <th style={{ padding: '14px 20px' }}>Teacher</th>
                   <th style={{ padding: '14px 20px' }}>Status</th>
@@ -503,6 +653,8 @@ export default function TeacherOnlineClass() {
               <tbody>
                 {sessions.map((sess) => {
                   const isLive = sess.status === 'LIVE' && sess.is_active;
+                  const isGMeet = isGoogleMeet(sess.meeting_link);
+
                   return (
                     <tr
                       key={sess.id}
@@ -517,6 +669,21 @@ export default function TeacherOnlineClass() {
                         <div style={{ fontSize: '0.8rem', color: '#c084fc', marginTop: '2px' }}>
                           {sess.course_code}: {sess.course_title}
                         </div>
+                      </td>
+
+                      <td style={{ padding: '16px 20px' }}>
+                        <span
+                          style={{
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            background: isGMeet ? 'rgba(59, 130, 246, 0.15)' : 'rgba(168, 85, 247, 0.15)',
+                            color: isGMeet ? '#60a5fa' : '#c084fc',
+                            fontSize: '0.78rem',
+                            fontWeight: '600'
+                          }}
+                        >
+                          {isGMeet ? 'Google Meet' : 'Built-in Studio'}
+                        </span>
                       </td>
 
                       <td style={{ padding: '16px 20px' }}>
@@ -595,7 +762,7 @@ export default function TeacherOnlineClass() {
                                   cursor: 'pointer'
                                 }}
                               >
-                                Enter Room
+                                View Stage
                               </button>
                               <button
                                 onClick={() => handleEndSession(sess.id)}
@@ -661,7 +828,7 @@ export default function TeacherOnlineClass() {
           <div
             style={{
               width: '100%',
-              maxWidth: '540px',
+              maxWidth: '560px',
               borderRadius: '20px',
               background: 'linear-gradient(145deg, #182234, #0f172a)',
               border: '1px solid rgba(139, 92, 246, 0.3)',
@@ -710,6 +877,105 @@ export default function TeacherOnlineClass() {
             {/* Modal Form */}
             <form onSubmit={handleLaunchSession} style={{ padding: '24px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                
+                {/* Platform Selector */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#d1d5db', marginBottom: '8px' }}>
+                    Classroom Platform
+                  </label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                    <div
+                      onClick={() => setFormData(prev => ({ ...prev, platform: 'google_meet' }))}
+                      style={{
+                        padding: '12px 14px',
+                        borderRadius: '12px',
+                        background: formData.platform === 'google_meet' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255, 255, 255, 0.04)',
+                        border: formData.platform === 'google_meet' ? '2px solid #3b82f6' : '1px solid rgba(255, 255, 255, 0.1)',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700', color: '#ffffff', fontSize: '0.9rem', marginBottom: '4px' }}>
+                        <Globe size={18} color="#60a5fa" />
+                        Google Meet
+                      </div>
+                      <div style={{ fontSize: '0.74rem', color: '#9ca3af' }}>
+                        Recommended • 100% HD Mic & Screen Share
+                      </div>
+                    </div>
+
+                    <div
+                      onClick={() => setFormData(prev => ({ ...prev, platform: 'in_app' }))}
+                      style={{
+                        padding: '12px 14px',
+                        borderRadius: '12px',
+                        background: formData.platform === 'in_app' ? 'rgba(139, 92, 246, 0.2)' : 'rgba(255, 255, 255, 0.04)',
+                        border: formData.platform === 'in_app' ? '2px solid #8b5cf6' : '1px solid rgba(255, 255, 255, 0.1)',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700', color: '#ffffff', fontSize: '0.9rem', marginBottom: '4px' }}>
+                        <Monitor size={18} color="#c084fc" />
+                        Built-in Web Studio
+                      </div>
+                      <div style={{ fontSize: '0.74rem', color: '#9ca3af' }}>
+                        Instant 1-Click Room • Dedicated Window
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Google Meet Link Input & Generator */}
+                {formData.platform === 'google_meet' && (
+                  <div style={{ padding: '14px', borderRadius: '12px', background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.25)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <label style={{ fontSize: '0.85rem', fontWeight: '700', color: '#93c5fd' }}>
+                        Google Meet Link / Code *
+                      </label>
+                      <button
+                        type="button"
+                        onClick={handleCreateGoogleMeet}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          padding: '4px 10px',
+                          borderRadius: '6px',
+                          background: '#3b82f6',
+                          color: '#fff',
+                          fontSize: '0.75rem',
+                          fontWeight: '700',
+                          border: 'none',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <Sparkles size={12} /> Create Google Meet
+                      </button>
+                    </div>
+                    <input
+                      type="url"
+                      required
+                      placeholder="e.g. https://meet.google.com/xyz-abcd-efg"
+                      value={formData.meeting_link}
+                      onChange={(e) => setFormData(prev => ({ ...prev, meeting_link: e.target.value }))}
+                      style={{
+                        width: '100%',
+                        padding: '10px 14px',
+                        borderRadius: '8px',
+                        background: 'rgba(0, 0, 0, 0.3)',
+                        border: '1px solid rgba(59, 130, 246, 0.4)',
+                        color: '#ffffff',
+                        fontSize: '0.9rem',
+                        outline: 'none'
+                      }}
+                    />
+                    <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '6px' }}>
+                      Click "Create Google Meet" to open a meeting room, copy its URL and paste it here.
+                    </div>
+                  </div>
+                )}
+
                 {/* Course Selection */}
                 <div>
                   <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#d1d5db', marginBottom: '6px' }}>
@@ -832,75 +1098,6 @@ export default function TeacherOnlineClass() {
                     </select>
                   </div>
                 </div>
-
-                {/* Meeting Platform Selector */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#d1d5db', marginBottom: '6px' }}>
-                    Classroom Platform
-                  </label>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                    <button
-                      type="button"
-                      onClick={() => setFormData(prev => ({ ...prev, meeting_type: 'in_app' }))}
-                      style={{
-                        padding: '10px',
-                        borderRadius: '10px',
-                        background: formData.meeting_type === 'in_app' ? 'rgba(139, 92, 246, 0.25)' : 'rgba(255, 255, 255, 0.04)',
-                        border: formData.meeting_type === 'in_app' ? '1px solid #8b5cf6' : '1px solid rgba(255, 255, 255, 0.1)',
-                        color: formData.meeting_type === 'in_app' ? '#c084fc' : '#9ca3af',
-                        fontWeight: '700',
-                        fontSize: '0.82rem',
-                        cursor: 'pointer',
-                        textAlign: 'center'
-                      }}
-                    >
-                      ⚡ In-App Live Studio (Auto)
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setFormData(prev => ({ ...prev, meeting_type: 'external' }))}
-                      style={{
-                        padding: '10px',
-                        borderRadius: '10px',
-                        background: formData.meeting_type === 'external' ? 'rgba(59, 130, 246, 0.25)' : 'rgba(255, 255, 255, 0.04)',
-                        border: formData.meeting_type === 'external' ? '1px solid #3b82f6' : '1px solid rgba(255, 255, 255, 0.1)',
-                        color: formData.meeting_type === 'external' ? '#93c5fd' : '#9ca3af',
-                        fontWeight: '700',
-                        fontSize: '0.82rem',
-                        cursor: 'pointer',
-                        textAlign: 'center'
-                      }}
-                    >
-                      🔗 Google Meet / Zoom URL
-                    </button>
-                  </div>
-                </div>
-
-                {formData.meeting_type === 'external' && (
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#d1d5db', marginBottom: '6px' }}>
-                      Meeting URL (Google Meet / Zoom) *
-                    </label>
-                    <input
-                      type="url"
-                      required
-                      placeholder="https://meet.google.com/abc-defg-hij"
-                      value={formData.custom_meeting_link}
-                      onChange={(e) => setFormData(prev => ({ ...prev, custom_meeting_link: e.target.value }))}
-                      style={{
-                        width: '100%',
-                        padding: '12px 14px',
-                        borderRadius: '10px',
-                        background: 'rgba(255, 255, 255, 0.05)',
-                        border: '1px solid rgba(255, 255, 255, 0.15)',
-                        color: '#ffffff',
-                        fontSize: '0.9rem',
-                        outline: 'none'
-                      }}
-                    />
-                  </div>
-                )}
 
                 {/* Class Topic / Title */}
                 <div>

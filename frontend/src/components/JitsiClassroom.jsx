@@ -1,16 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { Maximize2, Minimize2, PhoneOff, ExternalLink, Video } from 'lucide-react';
+import { Maximize2, Minimize2, PhoneOff, ExternalLink, Video, Mic, Share2, AlertCircle } from 'lucide-react';
 
 /**
  * JitsiClassroom Component
- * High-performance embedded WebRTC SFU interactive video classroom for QGenix
- * Runs 100% in-app with camera, microphone, screen sharing, chat, whiteboard & no login requirements
+ * High-performance embedded WebRTC interactive video classroom for QGenix
+ * Runs in-app with full permissions policy delegation & dedicated popout stage
  */
 export default function JitsiClassroom({
   roomName,
   subject,
   userDisplayName = 'Participant',
   userEmail = '',
+  meetingLink = '',
   isTeacher = false,
   onLeave,
   height = '720px'
@@ -37,12 +38,10 @@ export default function JitsiClassroom({
     .replace(/[^a-zA-Z0-9-_]/g, '')
     .slice(0, 50);
 
-  // MiroTalk SFU cluster:
-  // screen=0 -> NEVER prompt for screen share on entry!
-  // audio=0  -> start muted to avoid microphone feedback howl
-  // video=1  -> camera enabled
-  // notify=0 -> disable chime sound on join
-  const embedUrl = `https://sfu.mirotalk.com/join?room=${cleanRoom}&name=${encodeURIComponent(userDisplayName)}&audio=0&video=1&screen=0&notify=0`;
+  // Determine embed URL: if meetingLink provided and is web URL, or fallback to WebRTC room
+  const embedUrl = meetingLink && meetingLink.startsWith('http') 
+    ? meetingLink 
+    : `https://p2p.mirotalk.com/join?room=${cleanRoom}&name=${encodeURIComponent(userDisplayName)}&audio=1&video=1&chat=1&screen=1`;
 
   const toggleFullscreen = () => {
     const elem = document.getElementById('qgenix-classroom-wrapper');
@@ -52,6 +51,14 @@ export default function JitsiClassroom({
     } else {
       document.exitFullscreen().then(() => setIsFullscreen(false)).catch(() => {});
     }
+  };
+
+  const openDedicatedStage = () => {
+    window.open(
+      embedUrl,
+      'QGenixClassroomWindow',
+      'width=1280,height=800,menubar=no,toolbar=no,location=yes,status=no'
+    );
   };
 
   return (
@@ -82,7 +89,9 @@ export default function JitsiClassroom({
           padding: '12px 20px',
           background: 'rgba(15, 23, 42, 0.85)',
           backdropFilter: 'blur(12px)',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.08)'
+          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+          flexWrap: 'wrap',
+          gap: '10px'
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -122,7 +131,7 @@ export default function JitsiClassroom({
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div
             style={{
               padding: '4px 12px',
@@ -137,26 +146,27 @@ export default function JitsiClassroom({
             Duration: {formatDuration(sessionDuration)}
           </div>
 
-          <a
-            href={embedUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="Open in new window / multi-monitor"
+          {/* Dedicated Stage Button - Solves any browser iframe mic/screen blocks */}
+          <button
+            onClick={openDedicatedStage}
+            title="Launch Full Dedicated Stage (Best for Screen Sharing & HD Mic)"
             style={{
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              width: '36px',
-              height: '36px',
+              gap: '6px',
+              padding: '6px 14px',
               borderRadius: '8px',
-              background: 'rgba(255, 255, 255, 0.08)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              color: '#d1d5db',
-              textDecoration: 'none'
+              background: 'rgba(139, 92, 246, 0.2)',
+              border: '1px solid rgba(139, 92, 246, 0.4)',
+              color: '#c084fc',
+              fontSize: '0.82rem',
+              fontWeight: '600',
+              cursor: 'pointer'
             }}
           >
-            <ExternalLink size={17} />
-          </a>
+            <ExternalLink size={15} />
+            Dedicated Window
+          </button>
 
           <button
             onClick={toggleFullscreen}
@@ -165,8 +175,8 @@ export default function JitsiClassroom({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              width: '36px',
-              height: '36px',
+              width: '34px',
+              height: '34px',
               borderRadius: '8px',
               background: 'rgba(255, 255, 255, 0.08)',
               border: '1px solid rgba(255, 255, 255, 0.1)',
@@ -174,7 +184,7 @@ export default function JitsiClassroom({
               cursor: 'pointer'
             }}
           >
-            {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+            {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
           </button>
 
           <button
@@ -200,7 +210,7 @@ export default function JitsiClassroom({
         </div>
       </div>
 
-      {/* Main Container where WebRTC Classroom iframe is mounted */}
+      {/* Main Container where Classroom iframe is mounted with full wildcard permissions */}
       <div style={{ flex: 1, position: 'relative', width: '100%', height: '100%', background: '#0b0f19' }}>
         {loading && (
           <div
@@ -239,7 +249,8 @@ export default function JitsiClassroom({
         <iframe
           src={embedUrl}
           title={subject || 'QGenix Interactive Live Classroom'}
-          allow="camera; microphone; display-capture; fullscreen; clipboard-read; clipboard-write; web-share; autoplay; picture-in-picture; screen-wake-lock"
+          allow="camera *; microphone *; display-capture *; autoplay *; clipboard-read *; clipboard-write *; fullscreen *; screen-wake-lock *; encrypted-media *; speaker-selection *"
+          allowFullScreen
           style={{
             width: '100%',
             height: '100%',
@@ -248,6 +259,38 @@ export default function JitsiClassroom({
           }}
           onLoad={() => setLoading(false)}
         />
+      </div>
+
+      {/* Helpful Audio / Screen Sharing Tip Footer */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '8px 18px',
+          background: 'rgba(15, 23, 42, 0.95)',
+          borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+          fontSize: '0.78rem',
+          color: '#9ca3af'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <AlertCircle size={14} color="#60a5fa" />
+          <span>If your browser restricts mic or screen share inside the page, click <strong>"Dedicated Window"</strong> above for 100% native hardware access.</span>
+        </div>
+        <button
+          onClick={openDedicatedStage}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: '#c084fc',
+            cursor: 'pointer',
+            fontWeight: '600',
+            textDecoration: 'underline'
+          }}
+        >
+          Launch Dedicated Window →
+        </button>
       </div>
     </div>
   );

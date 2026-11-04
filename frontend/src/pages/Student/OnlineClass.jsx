@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Video, Users, Radio, CheckCircle2, Clock, Calendar, 
   Sparkles, BookOpen, AlertCircle, RefreshCw, ArrowRight,
-  ShieldCheck, PhoneOff, Check
+  ShieldCheck, PhoneOff, Check, Globe, ExternalLink
 } from 'lucide-react';
 import { API_BASE } from '../../config';
 import { useAuth } from '../../contexts/AuthContext';
@@ -29,8 +29,9 @@ export default function StudentOnlineClass() {
   const [activeSession, setActiveSession] = useState(null);
   const [joinedSession, setJoinedSession] = useState(null);
   const [joining, setJoining] = useState(false);
+  const [checkedInGMeet, setCheckedInGMeet] = useState(false);
 
-  // Fetch online classes targeted to this student with resilient matching
+  // Fetch online classes targeted to this student
   const fetchClasses = async () => {
     try {
       setLoading(true);
@@ -50,7 +51,6 @@ export default function StudentOnlineClass() {
       const displayList = filtered.length > 0 ? filtered : allSessions;
       setSessions(displayList);
 
-      // Current live class (matches batch or active in system)
       const live = displayList.find(s => s.status === 'LIVE' && s.is_active);
       setActiveSession(live || null);
     } catch (err) {
@@ -63,7 +63,6 @@ export default function StudentOnlineClass() {
   useEffect(() => {
     fetchClasses();
 
-    // Listen for cross-tab or server broadcast of new live classes
     const channel = new BroadcastChannel('qgenix_online_class_sync');
     channel.onmessage = (event) => {
       if (event.data?.type === 'CLASS_STARTED') {
@@ -72,12 +71,12 @@ export default function StudentOnlineClass() {
         if (joinedSession && joinedSession.id === event.data.sessionId) {
           setJoinedSession(null);
         }
+        setCheckedInGMeet(false);
         fetchClasses();
       }
     };
 
-    // Fast 4-second polling so student gets live classes from Render immediately
-    const interval = setInterval(fetchClasses, 4000);
+    const interval = setInterval(fetchClasses, 15000);
 
     return () => {
       channel.close();
@@ -88,7 +87,7 @@ export default function StudentOnlineClass() {
   const handleJoinClass = async (session) => {
     try {
       setJoining(true);
-      // Send join ping to record attendance in backend
+      // Register attendance in database
       await fetch(`${API_BASE}/api/auth/online-classes/${session.id}/join/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -98,15 +97,10 @@ export default function StudentOnlineClass() {
         })
       }).catch(e => console.warn('Join logging error:', e));
 
-      const isExternal = session.meeting_link && (
-        session.meeting_link.includes('meet.google.com') ||
-        session.meeting_link.includes('zoom.us') ||
-        session.meeting_link.includes('teams.microsoft.com')
-      );
-
-      if (isExternal) {
+      const isGMeet = (session.meeting_link || '').includes('meet.google.com') || (session.meeting_link || '').includes('zoom.us');
+      if (isGMeet && session.meeting_link) {
         window.open(session.meeting_link, '_blank');
-        fetchClasses();
+        setCheckedInGMeet(true);
       } else {
         setJoinedSession(session);
       }
@@ -114,13 +108,17 @@ export default function StudentOnlineClass() {
       console.error('Error joining session:', err);
     } finally {
       setJoining(false);
+      fetchClasses();
     }
   };
 
   const handleLeaveClass = () => {
     setJoinedSession(null);
+    setCheckedInGMeet(false);
     fetchClasses();
   };
+
+  const isGoogleMeet = (link) => (link || '').includes('meet.google.com');
 
   return (
     <div style={{ padding: '24px 32px', minHeight: '100%', color: '#f3f4f6' }}>
@@ -136,7 +134,7 @@ export default function StudentOnlineClass() {
             </h1>
           </div>
           <p style={{ margin: 0, color: '#9ca3af', fontSize: '0.95rem', maxWidth: '680px' }}>
-            Join interactive video lectures conducted live by your course instructors with full audio, video, screen share, and group chat.
+            Join interactive lectures conducted live by your course instructors with full HD audio, video, screen share, and group chat.
           </p>
         </div>
 
@@ -195,7 +193,7 @@ export default function StudentOnlineClass() {
         </div>
       </div>
 
-      {/* Embedded Live Video Conference View (When student clicks Join) */}
+      {/* In-App Interactive Classroom (When student joins Built-in room) */}
       {joinedSession ? (
         <div style={{ marginBottom: '32px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
@@ -227,6 +225,7 @@ export default function StudentOnlineClass() {
 
           <JitsiClassroom
             roomName={joinedSession.room_id}
+            meetingLink={joinedSession.meeting_link}
             subject={`${joinedSession.course_code}: ${joinedSession.title}`}
             userDisplayName={studentName}
             userEmail={user?.email || `${studentId.toLowerCase()}@qgenix.edu`}
@@ -249,7 +248,6 @@ export default function StudentOnlineClass() {
             overflow: 'hidden'
           }}
         >
-          {/* Ambient Glow */}
           <div
             style={{
               position: 'absolute',
@@ -265,7 +263,7 @@ export default function StudentOnlineClass() {
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '20px', position: 'relative', zIndex: 1 }}>
             <div style={{ maxWidth: '640px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px', flexWrap: 'wrap' }}>
                 <div
                   style={{
                     display: 'inline-flex',
@@ -284,8 +282,21 @@ export default function StudentOnlineClass() {
                   LIVE CLASS IN PROGRESS
                 </div>
 
+                <span
+                  style={{
+                    padding: '3px 10px',
+                    borderRadius: '6px',
+                    background: isGoogleMeet(activeSession.meeting_link) ? 'rgba(59, 130, 246, 0.2)' : 'rgba(168, 85, 247, 0.2)',
+                    color: isGoogleMeet(activeSession.meeting_link) ? '#93c5fd' : '#c084fc',
+                    fontSize: '0.8rem',
+                    fontWeight: '700'
+                  }}
+                >
+                  {isGoogleMeet(activeSession.meeting_link) ? 'Google Meet Live Session' : 'Interactive Classroom'}
+                </span>
+
                 <span style={{ fontSize: '0.85rem', color: '#c084fc', fontWeight: '600' }}>
-                  Targeted for {activeSession.batch} • {activeSession.semester}
+                  Target: {activeSession.batch} • {activeSession.semester}
                 </span>
               </div>
 
@@ -308,9 +319,15 @@ export default function StudentOnlineClass() {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Radio size={16} color="#34d399" />
-                  <span>{activeSession.joined_students?.length || 0} Students currently attending</span>
+                  <span>{activeSession.joined_students?.length || 0} Students attended</span>
                 </div>
               </div>
+
+              {checkedInGMeet && (
+                <div style={{ marginTop: '16px', display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 14px', borderRadius: '10px', background: 'rgba(52, 211, 153, 0.15)', border: '1px solid rgba(52, 211, 153, 0.3)', color: '#34d399', fontSize: '0.85rem', fontWeight: '700' }}>
+                  <Check size={16} /> Attendance Recorded: You are checked in as Present!
+                </div>
+              )}
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'center' }}>
@@ -337,11 +354,11 @@ export default function StudentOnlineClass() {
                 onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
               >
                 <Video size={22} />
-                {joining ? 'Connecting to Room...' : 'Join Live Class Now'}
+                {joining ? 'Connecting...' : isGoogleMeet(activeSession.meeting_link) ? 'Join Google Meet Class' : 'Join Live Class Now'}
                 <ArrowRight size={20} />
               </button>
               <div style={{ fontSize: '0.78rem', color: '#9ca3af', marginTop: '10px', textAlign: 'center', width: '100%' }}>
-                One-click in-app direct entry • No password required
+                One-click direct entry • Attendance auto-recorded
               </div>
             </div>
           </div>
@@ -405,6 +422,7 @@ export default function StudentOnlineClass() {
               <thead>
                 <tr style={{ background: 'rgba(255, 255, 255, 0.02)', color: '#9ca3af', borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
                   <th style={{ padding: '14px 20px' }}>Course & Topic</th>
+                  <th style={{ padding: '14px 20px' }}>Platform</th>
                   <th style={{ padding: '14px 20px' }}>Instructor</th>
                   <th style={{ padding: '14px 20px' }}>Status</th>
                   <th style={{ padding: '14px 20px' }}>Date / Time</th>
@@ -415,6 +433,7 @@ export default function StudentOnlineClass() {
                 {sessions.map((sess) => {
                   const isLive = sess.status === 'LIVE' && sess.is_active;
                   const attended = sess.joined_students?.some(s => s.id === studentId);
+                  const isGMeet = isGoogleMeet(sess.meeting_link);
 
                   return (
                     <tr
@@ -429,6 +448,12 @@ export default function StudentOnlineClass() {
                         <div style={{ fontSize: '0.8rem', color: '#c084fc', marginTop: '2px' }}>
                           {sess.course_code}: {sess.course_title}
                         </div>
+                      </td>
+
+                      <td style={{ padding: '16px 20px' }}>
+                        <span style={{ fontSize: '0.8rem', color: isGMeet ? '#60a5fa' : '#c084fc', fontWeight: '600' }}>
+                          {isGMeet ? 'Google Meet' : 'Built-in Studio'}
+                        </span>
                       </td>
 
                       <td style={{ padding: '16px 20px', color: '#d1d5db' }}>
