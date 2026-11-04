@@ -991,472 +991,478 @@ export default function AIExamGenerator() {
         )}
 
         {/* =======================================
-            STEP 2: SOURCE & PARAMETERS
+            STEP 2: SOURCE & PARAMETERS (FRESH & CLEAN MODERN DESIGN)
             ======================================= */}
         {step === 2 && (
-          <div className="animate-fade-in">
-            <div className="flex justify-between items-center" style={{ marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '14px' }}>
+          <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            
+            {/* Step Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '16px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
               <div>
-                <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '700' }}>Step 2: Source PDF & Exam Parameters</h3>
-                <p style={{ color: 'var(--text-secondary)', margin: '4px 0 0 0', fontSize: '0.875rem' }}>
-                  Specify the textbook/PDF, exact page or volume, question difficulty, and paper heading.
+                <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <Settings size={22} style={{ color: '#8B5CF6' }} />
+                  Step 2: Exam Specifications & Source
+                </h3>
+                <p style={{ color: 'var(--text-secondary)', margin: '4px 0 0 0', fontSize: '0.86rem' }}>
+                  Configure header details, question sets, source material, and difficulty parameters.
                 </p>
               </div>
             </div>
 
             {generationError && (
-              <div style={{ padding: '12px 16px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', borderRadius: '8px', color: '#ef4444', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.9rem' }}>
-                <AlertCircle size={18} />
+              <div style={{ padding: '12px 16px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '12px', color: '#fca5a5', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.88rem' }}>
+                <AlertCircle size={18} style={{ color: '#f87171', flexShrink: 0 }} />
                 <span>{generationError}</span>
               </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5" style={{ marginBottom: '24px' }}>
-              
-              {/* Institution Name */}
-              <div className="md:col-span-2">
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600' }}>
-                  Institution Name
-                </label>
-                <input 
-                  type="text" 
-                  className="input-field" 
-                  value={institution} 
-                  onChange={(e) => setInstitution(e.target.value)}
-                  placeholder="DAFFODIL INSTITUTE OF IT"
-                />
+            {/* SECTION 1: EXAMINATION HEADER DETAILS (CLEAN 2x2 GRID) */}
+            <div style={{ background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.07)', borderRadius: '16px', padding: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                <GraduationCap size={18} style={{ color: '#8B5CF6' }} />
+                <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#f1f5f9' }}>Examination Header Details</span>
               </div>
 
-              {/* Degree Program */}
-              <div className="md:col-span-2">
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600' }}>
-                  Degree Program
-                </label>
-                <input 
-                  type="text" 
-                  className="input-field" 
-                  value={degreeProgram} 
-                  onChange={(e) => setDegreeProgram(e.target.value)}
-                  placeholder="B.Sc (Hons) in Computer Science & Engineering"
-                />
-              </div>
-
-              {/* Examination & Semester Line */}
-              <div className="md:col-span-2">
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600' }}>
-                  Examination & Semester Details
-                </label>
-                <input 
-                  type="text" 
-                  className="input-field" 
-                  value={semesterExam} 
-                  onChange={(e) => setSemesterExam(e.target.value)}
-                  placeholder="Midterm Examination, CSE 4th Year 8th Semester, 21st Batch, 2026"
-                />
-              </div>
-
-              {/* Course Code & Title */}
-              <div className="md:col-span-2">
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600' }}>
-                  Course Code & Subject Title
-                </label>
-                <div className="flex gap-2">
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8' }}>
+                    Institution Name
+                  </label>
                   <input 
                     type="text" 
                     className="input-field" 
-                    style={{ width: '130px' }}
-                    value={courseCode} 
-                    onChange={(e) => setCourseCode(e.target.value)}
-                    placeholder="PHY-101"
+                    value={institution} 
+                    onChange={(e) => setInstitution(e.target.value)}
+                    placeholder="DAFFODIL INSTITUTE OF IT"
+                    style={{ width: '100%', fontSize: '0.88rem', padding: '10px 14px' }}
                   />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8' }}>
+                    Degree Program
+                  </label>
                   <input 
                     type="text" 
                     className="input-field" 
-                    style={{ flex: 1 }}
-                    value={courseTitle} 
-                    onChange={(e) => {
-                      setCourseTitle(e.target.value);
-                      setSubject(e.target.value);
-                    }}
-                    placeholder="Physics I: Mechanics & Thermodynamics"
+                    value={degreeProgram} 
+                    onChange={(e) => setDegreeProgram(e.target.value)}
+                    placeholder="B.Sc (Hons) in Computer Science & Engineering"
+                    style={{ width: '100%', fontSize: '0.88rem', padding: '10px 14px' }}
                   />
                 </div>
-              </div>
 
-              {/* MULTI-SET ANTI-CHEATING CONFIGURATION (COMMON FOR DESCRIPTIVE & MCQ) */}
-              <div className="md:col-span-2" style={{ padding: '18px', background: 'var(--bg-secondary)', borderRadius: '12px', border: '1.5px solid var(--accent-primary)', position: 'relative' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <ShieldCheck size={20} style={{ color: 'var(--accent-primary)' }} />
-                    <label style={{ fontSize: '0.95rem', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>
-                      Anti-Cheating Multi-Set Generation & Set Code Definition
-                    </label>
-                  </div>
-                  <span className="badge badge-primary" style={{ fontSize: '0.75rem', padding: '3px 10px' }}>
-                    30% Common / 70% Distinct Rule
-                  </span>
-                </div>
-
-                <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', margin: '0 0 14px 0', lineHeight: '1.5' }}>
-                  Generate multiple different sets of question papers for the same examination to prevent cheating in the exam hall. Each student can be allocated a different set.
-                </p>
-
-                {/* Number of Parallel Sets to Generate */}
-                <div style={{ marginBottom: '14px' }}>
-                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.82rem', fontWeight: '600', color: 'var(--text-primary)' }}>
-                    Select Number of Parallel Exam Sets to Generate:
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8' }}>
+                    Semester & Exam Line
                   </label>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                    {[
-                      { count: 2, label: '2 Sets', desc: 'Set A & Set B' },
-                      { count: 3, label: '3 Sets', desc: 'Set A, Set B & Set C' },
-                      { count: 4, label: '4 Sets', desc: 'Set A, B, C & D (Standard)' },
-                      { count: 5, label: '5 Sets', desc: 'Set A, B, C, D & E (Maximum)' }
-                    ].map(item => (
-                      <div
-                        key={item.count}
-                        onClick={() => handleExamSetsCountChange(item.count)}
-                        style={{
-                          padding: '10px 12px',
-                          borderRadius: '8px',
-                          cursor: 'pointer',
-                          border: `2px solid ${examSetsCount === item.count ? 'var(--accent-primary)' : 'var(--border-color)'}`,
-                          background: examSetsCount === item.count ? 'rgba(99, 102, 241, 0.12)' : 'var(--bg-primary)',
-                          transition: 'all 0.15s',
-                          textAlign: 'center'
-                        }}
-                      >
-                        <div style={{ fontWeight: '700', fontSize: '0.95rem', color: examSetsCount === item.count ? 'var(--accent-primary)' : 'var(--text-primary)' }}>
-                          {item.label}
-                        </div>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                          {item.desc}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  <input 
+                    type="text" 
+                    className="input-field" 
+                    value={semesterExam} 
+                    onChange={(e) => setSemesterExam(e.target.value)}
+                    placeholder="Midterm Examination, CSE 4th Year 8th Semester, 21st Batch, 2026"
+                    style={{ width: '100%', fontSize: '0.88rem', padding: '10px 14px' }}
+                  />
                 </div>
 
-                {/* Define Set Names (Question Paper Set Codes) */}
-                <div style={{ marginBottom: '14px' }}>
-                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.82rem', fontWeight: '600', color: 'var(--text-primary)' }}>
-                    Define Custom Name / Code for Each Question Set:
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8' }}>
+                    Course Code & Subject Title
                   </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-                    {examSetNames.slice(0, examSetsCount).map((sName, idx) => (
-                      <div key={idx} style={{ background: 'var(--bg-primary)', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                        <div style={{ fontSize: '0.72rem', fontWeight: '700', color: 'var(--accent-primary)', marginBottom: '4px' }}>
-                          Set #{idx + 1} Code
-                        </div>
-                        <input
-                          type="text"
-                          className="input-field"
-                          value={sName}
-                          onChange={(e) => handleExamSetNameChange(idx, e.target.value)}
-                          placeholder={`e.g. SET: ${String.fromCharCode(65 + idx)}`}
-                          style={{ fontWeight: '700', textAlign: 'center', padding: '6px 8px' }}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Descriptive Only: Question Paper Notice & Sub-Questions */}
-              {generationType === 'descriptive' && (
-                <>
-                  {/* Question Paper Notice / Instructions */}
-                  <div className="md:col-span-2">
-                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600' }}>
-                      Examination Instructions Notice [N.B.]
-                    </label>
+                  <div style={{ display: 'flex', gap: '8px' }}>
                     <input 
                       type="text" 
                       className="input-field" 
-                      value={instructions} 
-                      onChange={(e) => setInstructions(e.target.value)}
-                      placeholder="[N.B. -- The figures in the right margin indicate full marks. Answer any two questions. All parts of the questions must be answered sequentially.]"
+                      style={{ width: '110px', fontSize: '0.88rem', padding: '10px 12px', fontWeight: 700 }}
+                      value={courseCode} 
+                      onChange={(e) => setCourseCode(e.target.value)}
+                      placeholder="CSE-315"
+                    />
+                    <input 
+                      type="text" 
+                      className="input-field" 
+                      style={{ flex: 1, fontSize: '0.88rem', padding: '10px 14px' }}
+                      value={courseTitle} 
+                      onChange={(e) => {
+                        setCourseTitle(e.target.value);
+                        setSubject(e.target.value);
+                      }}
+                      placeholder="Artificial Intelligence & Machine Learning"
                     />
                   </div>
-
-                  {/* Sub-Questions per Set (Teacher Selectable: 3, 4, 5) */}
-                  <div className="md:col-span-2" style={{ padding: '16px', background: 'var(--bg-secondary)', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                      <label style={{ fontSize: '0.9rem', fontWeight: '700', color: 'var(--text-primary)' }}>
-                        Teacher Selection: Number of Sub-questions in 1 Set
-                      </label>
-                      <span className="badge badge-primary" style={{ fontSize: '0.75rem', padding: '2px 8px' }}>
-                        Requested Format
-                      </span>
-                    </div>
-                    <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: '0 0 12px 0' }}>
-                      Choose how many sequential sub-questions (a, b, c, d, e) each question set will contain.
-                    </p>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      {[
-                        { count: 3, label: '3 Sub-questions', parts: 'Parts (a), (b), (c)', desc: 'Core theory & basic math problem' },
-                        { count: 4, label: '4 Sub-questions', parts: 'Parts (a), (b), (c), (d)', desc: 'DIIT Standard (with 5x5 image matrix)' },
-                        { count: 5, label: '5 Sub-questions', parts: 'Parts (a), (b), (c), (d), (e)', desc: 'Comprehensive multi-part problem set' }
-                      ].map(item => (
-                        <div
-                          key={item.count}
-                          onClick={() => setSubQuestionsPerSet(item.count)}
-                          style={{
-                            padding: '12px 14px',
-                            borderRadius: '8px',
-                            cursor: 'pointer',
-                            border: `2px solid ${subQuestionsPerSet === item.count ? 'var(--accent-primary)' : 'var(--border-color)'}`,
-                            background: subQuestionsPerSet === item.count ? 'rgba(99, 102, 241, 0.08)' : 'var(--bg-primary)',
-                            transition: 'all 0.15s'
-                          }}
-                        >
-                          <div style={{ fontWeight: '700', fontSize: '0.95rem', color: subQuestionsPerSet === item.count ? 'var(--accent-primary)' : 'var(--text-primary)', marginBottom: '3px' }}>
-                            {item.label}
-                          </div>
-                          <div style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--accent-primary)', marginBottom: '3px' }}>
-                            {item.parts}
-                          </div>
-                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                            {item.desc}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {/* Source PDF Selector (From Teacher's DB Resource Manager) */}
-              <div className="md:col-span-2" style={{ padding: '16px', background: 'var(--bg-secondary)', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
-                <div className="flex justify-between items-center" style={{ marginBottom: '10px' }}>
-                  <label style={{ fontSize: '0.9rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <BookOpen size={18} style={{ color: 'var(--accent-primary)' }} />
-                    Select Teacher Source PDF / Study Material
-                  </label>
-                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                    {resources.length} uploaded resources in database
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.82rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                      Course Document
-                    </label>
-                    <select 
-                      className="input-field" 
-                      value={selectedResourceId} 
-                      onChange={handleResourceChange}
-                      disabled={loadingResources}
-                    >
-                      <option value="">-- No Source (AI Core Knowledge) --</option>
-                      {resources.map(r => (
-                        <option key={r.id} value={r.id}>
-                          {r.file_name || r.title} ({r.course_code || 'General'} • {r.page_count || 1} {r.file_type === 'PPTX' ? 'Slides' : 'Pages'})
-                        </option>
-                      ))}
-                      {resources.length === 0 && (
-                        <>
-                          <option value="preset_1">Digital Image Processing.pdf (10 Pages)</option>
-                          <option value="preset_2">Chapter_4_Thermodynamics.pdf (28 Pages)</option>
-                          <option value="preset_3">Data_Structures_Algorithms.pdf (15 Pages)</option>
-                        </>
-                      )}
-                    </select>
-                  </div>
-
-                  {/* Dynamic Page Range Selector strictly bounded to [1, maxPages] */}
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                      <label style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                        Target Pages / Slides Range
-                      </label>
-                      {selectedResource && (
-                        <span style={{ 
-                          fontSize: '0.75rem', 
-                          fontWeight: 700, 
-                          color: 'var(--accent-primary)',
-                          background: 'rgba(99, 102, 241, 0.1)',
-                          padding: '2px 8px',
-                          borderRadius: '6px'
-                        }}>
-                          Doc Range: 1 – {maxPages} {selectedResource.file_type === 'PPTX' ? 'Slides' : 'Pages'}
-                        </span>
-                      )}
-                    </div>
-
-                    {selectedResource ? (
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '3px' }}>From Page</div>
-                            <input 
-                              type="number" 
-                              min={1}
-                              max={endPage}
-                              value={startPage}
-                              onChange={(e) => handleStartPageChange(e.target.value)}
-                              className="input-field"
-                              style={{ width: '100%', textAlign: 'center', fontWeight: 700 }}
-                            />
-                          </div>
-                          <span style={{ marginTop: '16px', fontWeight: 700, color: 'var(--text-muted)' }}>–</span>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '3px' }}>To Page (Max {maxPages})</div>
-                            <input 
-                              type="number" 
-                              min={startPage}
-                              max={maxPages}
-                              value={endPage}
-                              onChange={(e) => handleEndPageChange(e.target.value)}
-                              className="input-field"
-                              style={{ width: '100%', textAlign: 'center', fontWeight: 700 }}
-                            />
-                          </div>
-                        </div>
-
-                        {/* Quick Presets within range */}
-                        <div style={{ display: 'flex', gap: '6px', marginTop: '8px', flexWrap: 'wrap' }}>
-                          <button
-                            type="button"
-                            onClick={() => handleQuickPagePreset(1, maxPages)}
-                            style={{
-                              fontSize: '0.72rem',
-                              padding: '2px 8px',
-                              borderRadius: '4px',
-                              background: startPage === 1 && endPage === maxPages ? 'var(--accent-primary)' : 'rgba(255,255,255,0.06)',
-                              color: startPage === 1 && endPage === maxPages ? '#fff' : 'var(--text-secondary)',
-                              border: '1px solid var(--border-color)',
-                              cursor: 'pointer'
-                            }}
-                          >
-                            All ({1}–{maxPages})
-                          </button>
-                          {maxPages >= 4 && (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => handleQuickPagePreset(1, Math.ceil(maxPages / 2))}
-                                style={{
-                                  fontSize: '0.72rem',
-                                  padding: '2px 8px',
-                                  borderRadius: '4px',
-                                  background: startPage === 1 && endPage === Math.ceil(maxPages / 2) ? 'var(--accent-primary)' : 'rgba(255,255,255,0.06)',
-                                  color: startPage === 1 && endPage === Math.ceil(maxPages / 2) ? '#fff' : 'var(--text-secondary)',
-                                  border: '1px solid var(--border-color)',
-                                  cursor: 'pointer'
-                                }}
-                              >
-                                1st Half (1–{Math.ceil(maxPages / 2)})
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleQuickPagePreset(Math.ceil(maxPages / 2) + 1, maxPages)}
-                                style={{
-                                  fontSize: '0.72rem',
-                                  padding: '2px 8px',
-                                  borderRadius: '4px',
-                                  background: startPage === Math.ceil(maxPages / 2) + 1 && endPage === maxPages ? 'var(--accent-primary)' : 'rgba(255,255,255,0.06)',
-                                  color: startPage === Math.ceil(maxPages / 2) + 1 && endPage === maxPages ? '#fff' : 'var(--text-secondary)',
-                                  border: '1px solid var(--border-color)',
-                                  cursor: 'pointer'
-                                }}
-                              >
-                                2nd Half ({Math.ceil(maxPages / 2) + 1}–{maxPages})
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    ) : (
-                      <div>
-                        <input 
-                          type="text" 
-                          className="input-field" 
-                          value="Entire Subject Scope (AI Core Knowledge Base)" 
-                          disabled
-                          style={{ opacity: 0.6 }}
-                        />
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginTop: '4px' }}>
-                          Select an uploaded document to target specific page range.
-                        </span>
-                      </div>
-                    )}
-                  </div>
                 </div>
               </div>
+            </div>
 
-              {/* Difficulty Category Selector */}
-              <div className="md:col-span-2">
-                <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.85rem', fontWeight: '600' }}>
-                  Question Difficulty Category
-                </label>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {/* SECTION 2: PARALLEL EXAM SETS & CODES (CLEAN SEGMENTED CONTROL) */}
+            <div style={{ background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.07)', borderRadius: '16px', padding: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <ShieldCheck size={18} style={{ color: '#8B5CF6' }} />
+                  <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#f1f5f9' }}>Parallel Exam Sets (Anti-Cheating)</span>
+                </div>
+                <span style={{ fontSize: '0.74rem', padding: '3px 10px', borderRadius: '12px', background: 'rgba(139, 92, 246, 0.15)', color: '#c4b5fd', border: '1px solid rgba(139, 92, 246, 0.3)' }}>
+                  Shuffled Parallel Sets
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                {/* Clean Segmented Control for Set Count */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px' }}>
                   {[
-                    { key: 'Easy', label: 'Easy', desc: 'Direct rules, recall & basic facts', color: '#10b981' },
-                    { key: 'Intermediate', label: 'Intermediate', desc: 'Application, exceptions & analytical', color: '#f59e0b' },
-                    { key: 'Complicated', label: 'Complicated', desc: 'Subtle traps, advanced syntax & synthesis', color: '#ef4444' },
-                    { key: 'Mixed', label: 'Mixed Tiers', desc: 'Balanced: 35% Easy, 40% Mid, 25% Hard', color: 'var(--accent-primary)' }
-                  ].map(d => (
-                    <div 
-                      key={d.key}
-                      onClick={() => setDifficulty(d.key)}
-                      style={{ 
-                        padding: '12px 14px', borderRadius: '8px', cursor: 'pointer',
-                        border: `2px solid ${difficulty === d.key ? d.color : 'var(--border-color)'}`,
-                        background: difficulty === d.key ? 'rgba(99, 102, 241, 0.05)' : 'var(--bg-secondary)',
-                        transition: 'all 0.15s'
-                      }}
-                    >
-                      <div style={{ fontWeight: '700', fontSize: '0.95rem', color: d.color, marginBottom: '4px' }}>
-                        {d.label}
-                      </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: '1.3' }}>
-                        {d.desc}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Number of MCQ Questions (Only if MCQ mode) */}
-              {generationType === 'mcq' && (
-                <div className="md:col-span-2">
-                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600' }}>
-                    Number of Questions to Generate
-                  </label>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
-                    {[15, 20, 25, 30, 35, 40, 45, 50].map(cnt => (
-                      <button 
-                        key={cnt}
+                    { count: 2, label: '2 Sets', desc: 'Set A & Set B' },
+                    { count: 3, label: '3 Sets', desc: 'Set A, Set B & Set C' },
+                    { count: 4, label: '4 Sets', desc: 'Standard (Set A–D)' },
+                    { count: 5, label: '5 Sets', desc: 'Maximum (Set A–E)' }
+                  ].map(item => {
+                    const isSelected = examSetsCount === item.count;
+                    return (
+                      <button
+                        key={item.count}
                         type="button"
-                        onClick={() => setQuestionsCount(cnt)}
-                        className="btn"
-                        style={{ 
-                          padding: '9px 0', 
-                          fontSize: '0.88rem',
-                          fontWeight: questionsCount === cnt ? '800' : '600',
-                          background: questionsCount === cnt ? 'var(--accent-primary)' : 'var(--bg-secondary)',
-                          color: questionsCount === cnt ? 'white' : 'var(--text-primary)',
-                          border: `1px solid ${questionsCount === cnt ? 'var(--accent-primary)' : 'var(--border-color)'}`,
-                          boxShadow: questionsCount === cnt ? '0 0 10px rgba(99, 102, 241, 0.4)' : 'none',
-                          transition: 'all 0.15s ease'
+                        onClick={() => handleExamSetsCountChange(item.count)}
+                        style={{
+                          padding: '10px 14px',
+                          borderRadius: '12px',
+                          border: isSelected ? '1.5px solid #8B5CF6' : '1px solid rgba(255, 255, 255, 0.08)',
+                          background: isSelected ? 'linear-gradient(135deg, rgba(139, 92, 246, 0.22) 0%, rgba(99, 102, 241, 0.18) 100%)' : 'rgba(255, 255, 255, 0.02)',
+                          boxShadow: isSelected ? '0 4px 15px rgba(139, 92, 246, 0.25)' : 'none',
+                          cursor: 'pointer',
+                          textAlign: 'center',
+                          transition: 'all 0.2s ease'
                         }}
                       >
-                        {cnt}
+                        <div style={{ fontWeight: 800, fontSize: '0.88rem', color: isSelected ? '#fff' : '#cbd5e1' }}>
+                          {item.label}
+                        </div>
+                        <div style={{ fontSize: '0.72rem', color: isSelected ? '#c4b5fd' : '#64748b', marginTop: '2px' }}>
+                          {item.desc}
+                        </div>
                       </button>
+                    );
+                  })}
+                </div>
+
+                {/* Horizontal Inline Set Code Customizers */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', paddingTop: '10px', borderTop: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                  <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: 600 }}>Set Codes:</span>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', flex: 1 }}>
+                    {examSetNames.slice(0, examSetsCount).map((sName, idx) => (
+                      <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255, 255, 255, 0.04)', padding: '5px 12px', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                        <span style={{ fontSize: '0.72rem', color: '#a78bfa', fontWeight: 800 }}>#{idx + 1}</span>
+                        <input
+                          type="text"
+                          value={sName}
+                          onChange={(e) => handleExamSetNameChange(idx, e.target.value)}
+                          placeholder={`SET: ${String.fromCharCode(65 + idx)}`}
+                          style={{
+                            width: '80px',
+                            background: 'transparent',
+                            border: 'none',
+                            color: '#fff',
+                            fontSize: '0.8rem',
+                            fontWeight: 700,
+                            textAlign: 'center',
+                            outline: 'none'
+                          }}
+                        />
+                      </div>
                     ))}
                   </div>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '6px', display: 'block' }}>
-                    Standard entrance model sets contain 15 to 50 questions per section.
-                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Descriptive Format Specific Options */}
+            {generationType === 'descriptive' && (
+              <div style={{ background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.07)', borderRadius: '16px', padding: '20px' }}>
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8' }}>
+                    Examination Instructions Notice [N.B.]
+                  </label>
+                  <input 
+                    type="text" 
+                    className="input-field" 
+                    value={instructions} 
+                    onChange={(e) => setInstructions(e.target.value)}
+                    placeholder="[N.B. -- The figures in the right margin indicate full marks. Answer any two questions. All parts of the questions must be answered sequentially.]"
+                    style={{ width: '100%', fontSize: '0.85rem', padding: '10px 14px' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8' }}>
+                    Number of Sequential Sub-questions per Set
+                  </label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '8px' }}>
+                    {[
+                      { count: 3, label: '3 Sub-questions', parts: 'Parts (a), (b), (c)', desc: 'Core theory & basic problems' },
+                      { count: 4, label: '4 Sub-questions', parts: 'Parts (a), (b), (c), (d)', desc: 'DIIT Standard (with math matrix)' },
+                      { count: 5, label: '5 Sub-questions', parts: 'Parts (a), (b), (c), (d), (e)', desc: 'Comprehensive multi-part set' }
+                    ].map(item => {
+                      const isSelected = subQuestionsPerSet === item.count;
+                      return (
+                        <button
+                          key={item.count}
+                          type="button"
+                          onClick={() => setSubQuestionsPerSet(item.count)}
+                          style={{
+                            padding: '12px',
+                            borderRadius: '12px',
+                            border: isSelected ? '1.5px solid #8B5CF6' : '1px solid rgba(255, 255, 255, 0.08)',
+                            background: isSelected ? 'rgba(139, 92, 246, 0.15)' : 'rgba(255, 255, 255, 0.02)',
+                            cursor: 'pointer',
+                            textAlign: 'left',
+                            transition: 'all 0.2s ease'
+                          }}
+                        >
+                          <div style={{ fontWeight: 800, fontSize: '0.88rem', color: isSelected ? '#fff' : '#cbd5e1' }}>
+                            {item.label}
+                          </div>
+                          <div style={{ fontSize: '0.74rem', color: '#a78bfa', fontWeight: 600, marginTop: '2px' }}>
+                            {item.parts}
+                          </div>
+                          <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '2px' }}>
+                            {item.desc}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* SECTION 3: SOURCE PDF / STUDY MATERIAL SELECTION */}
+            <div style={{ background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.07)', borderRadius: '16px', padding: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <BookOpen size={18} style={{ color: '#8B5CF6' }} />
+                  <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#f1f5f9' }}>Source Study Material / Textbook</span>
+                </div>
+                <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
+                  {resources.length} uploaded resources in database
+                </span>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8' }}>
+                    Course Document
+                  </label>
+                  <select 
+                    className="input-field" 
+                    value={selectedResourceId} 
+                    onChange={handleResourceChange}
+                    disabled={loadingResources}
+                    style={{ width: '100%', fontSize: '0.85rem', padding: '10px 14px' }}
+                  >
+                    <option value="">-- No Source (AI Core Knowledge) --</option>
+                    {resources.map(r => (
+                      <option key={r.id} value={r.id}>
+                        {r.file_name || r.title} ({r.course_code || 'General'} • {r.page_count || 1} {r.file_type === 'PPTX' ? 'Slides' : 'Pages'})
+                      </option>
+                    ))}
+                    {resources.length === 0 && (
+                      <>
+                        <option value="preset_1">Digital Image Processing.pdf (10 Pages)</option>
+                        <option value="preset_2">Chapter_4_Thermodynamics.pdf (28 Pages)</option>
+                        <option value="preset_3">Data_Structures_Algorithms.pdf (15 Pages)</option>
+                      </>
+                    )}
+                  </select>
+                </div>
+
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8' }}>
+                      Target Pages / Slides Range
+                    </label>
+                    {selectedResource && (
+                      <span style={{ fontSize: '0.72rem', color: '#a78bfa', fontWeight: 700 }}>
+                        Max: {maxPages} {selectedResource.file_type === 'PPTX' ? 'Slides' : 'Pages'}
+                      </span>
+                    )}
+                  </div>
+
+                  {selectedResource ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <input 
+                          type="number" 
+                          min={1}
+                          max={endPage}
+                          value={startPage}
+                          onChange={(e) => handleStartPageChange(e.target.value)}
+                          className="input-field"
+                          style={{ width: '75px', textAlign: 'center', fontWeight: 700, padding: '8px' }}
+                        />
+                        <span style={{ color: '#64748b', fontWeight: 700 }}>–</span>
+                        <input 
+                          type="number" 
+                          min={startPage}
+                          max={maxPages}
+                          value={endPage}
+                          onChange={(e) => handleEndPageChange(e.target.value)}
+                          className="input-field"
+                          style={{ width: '75px', textAlign: 'center', fontWeight: 700, padding: '8px' }}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', gap: '4px', marginLeft: 'auto', flexWrap: 'wrap' }}>
+                        <button
+                          type="button"
+                          onClick={() => handleQuickPagePreset(1, maxPages)}
+                          style={{
+                            fontSize: '0.72rem',
+                            padding: '4px 10px',
+                            borderRadius: '8px',
+                            background: startPage === 1 && endPage === maxPages ? '#8B5CF6' : 'rgba(255,255,255,0.06)',
+                            color: '#fff',
+                            border: '1px solid rgba(255,255,255,0.1)',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          All ({maxPages})
+                        </button>
+                        {maxPages >= 4 && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleQuickPagePreset(1, Math.ceil(maxPages / 2))}
+                              style={{
+                                fontSize: '0.72rem',
+                                padding: '4px 10px',
+                                borderRadius: '8px',
+                                background: startPage === 1 && endPage === Math.ceil(maxPages / 2) ? '#8B5CF6' : 'rgba(255,255,255,0.06)',
+                                color: '#fff',
+                                border: '1px solid rgba(255,255,255,0.1)',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              1st Half
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleQuickPagePreset(Math.ceil(maxPages / 2) + 1, maxPages)}
+                              style={{
+                                fontSize: '0.72rem',
+                                padding: '4px 10px',
+                                borderRadius: '8px',
+                                background: startPage === Math.ceil(maxPages / 2) + 1 && endPage === maxPages ? '#8B5CF6' : 'rgba(255,255,255,0.06)',
+                                color: '#fff',
+                                border: '1px solid rgba(255,255,255,0.1)',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              2nd Half
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <input 
+                      type="text" 
+                      className="input-field" 
+                      value="Full Subject Scope (AI Core Knowledge)" 
+                      disabled
+                      style={{ width: '100%', opacity: 0.6, fontSize: '0.85rem', padding: '10px 14px' }}
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* SECTION 4: QUESTION PARAMETERS (DIFFICULTY, COUNTS, MARKS, DURATION) */}
+            <div style={{ background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.07)', borderRadius: '16px', padding: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                <SlidersHorizontal size={18} style={{ color: '#8B5CF6' }} />
+                <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#f1f5f9' }}>Question Parameters & Difficulty</span>
+              </div>
+
+              {/* Difficulty Segmented Chips */}
+              <div style={{ marginBottom: '18px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8' }}>
+                  Difficulty Category
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px' }}>
+                  {[
+                    { key: 'Easy', label: 'Easy', desc: 'Direct recall & basic facts', color: '#10b981' },
+                    { key: 'Intermediate', label: 'Intermediate', desc: 'Application & analytical', color: '#f59e0b' },
+                    { key: 'Complicated', label: 'Complicated', desc: 'Advanced synthesis & tricky', color: '#ef4444' },
+                    { key: 'Mixed', label: 'Mixed Tiers', desc: 'Balanced: 35% E, 40% M, 25% C', color: '#8B5CF6' }
+                  ].map(d => {
+                    const isSelected = difficulty === d.key;
+                    return (
+                      <button
+                        key={d.key}
+                        type="button"
+                        onClick={() => setDifficulty(d.key)}
+                        style={{
+                          padding: '10px 12px',
+                          borderRadius: '12px',
+                          border: isSelected ? `1.5px solid ${d.color}` : '1px solid rgba(255, 255, 255, 0.08)',
+                          background: isSelected ? 'rgba(255, 255, 255, 0.06)' : 'rgba(255, 255, 255, 0.02)',
+                          boxShadow: isSelected ? `0 0 12px ${d.color}25` : 'none',
+                          cursor: 'pointer',
+                          textAlign: 'center',
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
+                        <div style={{ fontWeight: 800, fontSize: '0.88rem', color: isSelected ? d.color : '#cbd5e1' }}>
+                          {d.label}
+                        </div>
+                        <div style={{ fontSize: '0.7rem', color: isSelected ? '#e2e8f0' : '#64748b', marginTop: '2px' }}>
+                          {d.desc}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Number of Questions (MCQ only) */}
+              {generationType === 'mcq' && (
+                <div style={{ marginBottom: '18px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8' }}>
+                    Number of Questions per Set
+                  </label>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    {[15, 20, 25, 30, 35, 40, 45, 50].map(cnt => {
+                      const isSelected = questionsCount === cnt;
+                      return (
+                        <button
+                          key={cnt}
+                          type="button"
+                          onClick={() => setQuestionsCount(cnt)}
+                          style={{
+                            flex: 1,
+                            minWidth: '55px',
+                            padding: '9px 0',
+                            borderRadius: '10px',
+                            border: isSelected ? '1.5px solid #8B5CF6' : '1px solid rgba(255, 255, 255, 0.08)',
+                            background: isSelected ? 'linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%)' : 'rgba(255, 255, 255, 0.02)',
+                            color: isSelected ? '#fff' : '#cbd5e1',
+                            fontWeight: isSelected ? 800 : 600,
+                            fontSize: '0.88rem',
+                            cursor: 'pointer',
+                            boxShadow: isSelected ? '0 4px 12px rgba(139, 92, 246, 0.35)' : 'none',
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          {cnt}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
 
-              {/* Time Allowed & Total Marks */}
-              <div className="flex gap-4 md:col-span-2">
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600' }}>
+              {/* Marks & Duration */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '16px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8' }}>
                     Total Marks
                   </label>
                   <input 
@@ -1464,10 +1470,11 @@ export default function AIExamGenerator() {
                     className="input-field" 
                     value={totalMarks} 
                     onChange={(e) => setTotalMarks(e.target.value)}
+                    style={{ width: '100%', fontSize: '0.88rem', padding: '10px 14px' }}
                   />
                 </div>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8' }}>
                     Duration Allowed
                   </label>
                   <input 
@@ -1475,28 +1482,14 @@ export default function AIExamGenerator() {
                     className="input-field" 
                     value={timeAllowed} 
                     onChange={(e) => setTimeAllowed(e.target.value)}
+                    style={{ width: '100%', fontSize: '0.88rem', padding: '10px 14px' }}
                   />
                 </div>
               </div>
 
-              {/* AI Complexity & Math Matrix Features Highlight for Descriptive */}
-              {generationType === 'descriptive' && (
-                <div className="md:col-span-2" style={{ padding: '14px 18px', background: 'rgba(16, 185, 129, 0.08)', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.25)', fontSize: '0.85rem', color: 'var(--text-primary)' }}>
-                  <div style={{ fontWeight: '700', color: '#10b981', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Sparkles size={16} /> AI Complexity-Based Marks & Math Matrix Drawing Enabled
-                  </div>
-                  <div style={{ color: 'var(--text-secondary)', lineHeight: '1.5' }}>
-                    • <strong>Sequential Sub-Questions:</strong> Generated as (a), (b), (c), (d) according to your set selection ({subQuestionsPerSet} per set).<br />
-                    • <strong>Complexity-Based Marks:</strong> AI calculates marks automatically (Definitions: 3–4, Theory: 5, Math/Matrix calculation: 6–8) displayed in the right margin.<br />
-                    • <strong>Math Matrix Drawing:</strong> When questions need pixel tables or coordinate matrices (e.g. 5×5 image matrix), AI draws the clean boxed grid table.<br />
-                    • <strong>Full Teacher Control:</strong> You can edit any question text, modify marks, or edit matrix cell values directly in Step 3.
-                  </div>
-                </div>
-              )}
-
-              {/* Extra Custom Instructions */}
-              <div className="md:col-span-2">
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600' }}>
+              {/* Teacher Focus Notes */}
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8' }}>
                   Teacher Custom Focus Notes (Optional)
                 </label>
                 <input 
@@ -1505,34 +1498,42 @@ export default function AIExamGenerator() {
                   value={customPrompt} 
                   onChange={(e) => setCustomPrompt(e.target.value)}
                   placeholder="e.g. Emphasize spatial filtering, histogram equalization, and distance metric calculations"
+                  style={{ width: '100%', fontSize: '0.85rem', padding: '10px 14px' }}
                 />
               </div>
-
             </div>
 
-            {/* Step 2 Actions */}
-            <div className="flex justify-between items-center">
-              <button className="btn btn-secondary" onClick={() => setStep(1)}>
+            {/* Step 2 Actions Bar */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '10px' }}>
+              <button 
+                type="button"
+                className="btn btn-secondary" 
+                onClick={() => setStep(1)}
+                style={{ padding: '10px 22px', fontSize: '0.88rem', fontWeight: 700 }}
+              >
                 Back
               </button>
               <button 
+                type="button"
                 className="btn btn-primary" 
                 onClick={handleGenerateExam}
                 disabled={isGenerating}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 24px' }}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 26px', fontSize: '0.88rem', fontWeight: 700, borderRadius: '12px' }}
               >
                 {isGenerating ? (
                   <>
                     <RefreshCw size={16} className="animate-spin" />
-                    Generating Questions with AI...
+                    Generating Questions...
                   </>
                 ) : (
                   <>
-                    {generationType === 'descriptive' ? 'Generate University Exam Paper' : 'Generate Entrance Paper'} <BrainCircuit size={16} />
+                    <Sparkles size={16} />
+                    Generate Exam Paper
                   </>
                 )}
               </button>
             </div>
+
           </div>
         )}
 
