@@ -4,7 +4,8 @@ import {
   BrainCircuit, Settings, Eye, Download, CheckCircle2, FileText, CheckSquare, 
   Plus, Trash2, Edit3, BookOpen, Layers, Sparkles, RefreshCw, X, Check,
   Share2, FileDown, HelpCircle, AlertCircle, Grid, Table, Printer, Sliders,
-  Users, Shuffle, Search, ShieldCheck, UserCheck
+  Users, Shuffle, Search, ShieldCheck, UserCheck,
+  GraduationCap, SlidersHorizontal
 } from 'lucide-react';
 import { 
   downloadEntranceModelQuestionPDF, 
