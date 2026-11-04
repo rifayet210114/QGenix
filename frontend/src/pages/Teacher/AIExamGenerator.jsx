@@ -1160,24 +1160,6 @@ export default function AIExamGenerator() {
                     ))}
                   </div>
                 </div>
-
-                {/* 30% Common / 70% Distinct Anti-Copying Explanatory Notice */}
-                <div style={{ padding: '10px 14px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.25)', fontSize: '0.8rem', lineHeight: '1.45', color: 'var(--text-secondary)' }}>
-                  <strong style={{ color: '#10b981' }}>🛡️ Anti-Cheating 30% Similarity / 70% Non-Similarity Protocol:</strong>
-                  <div style={{ marginTop: '4px' }}>
-                    {generationType === 'mcq' ? (
-                      <>
-                        • <strong>30% Common Anchor MCQs:</strong> Baseline questions shared across all {examSetsCount} sets for consistent evaluation.<br />
-                        • <strong>70% Distinct Variant MCQs & Shuffled Ordering:</strong> Varied questions, alternative distractors, and randomized problem choices so students seated side-by-side cannot copy answers.
-                      </>
-                    ) : (
-                      <>
-                        • <strong>30% Common Anchor:</strong> Sub-question <strong>(a)</strong> is identical across all {examSetsCount} sets so all students share a common foundational benchmark for grading.<br />
-                        • <strong>70% Distinct Variants:</strong> Sub-questions <strong>(b, c, d, e)</strong> and all <strong>math matrices</strong> will use uniquely varied numbers, problems, and parameters across each set so students seated side-by-side cannot copy answers.
-                      </>
-                    )}
-                  </div>
-                </div>
               </div>
 
               {/* Descriptive Only: Question Paper Notice & Sub-Questions */}
@@ -1385,9 +1367,6 @@ export default function AIExamGenerator() {
                             </>
                           )}
                         </div>
-                        <span style={{ fontSize: '0.74rem', color: '#10B981', display: 'block', marginTop: '6px', fontWeight: 500 }}>
-                          ✓ AI will analyze content strictly between Page {startPage} and Page {endPage} (out of {maxPages} pages).
-                        </span>
                       </div>
                     ) : (
                       <div>
