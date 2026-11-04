@@ -4376,7 +4376,7 @@ class OnlineClassSessionViewSet(viewsets.ModelViewSet):
         if not room_id:
             room_id = f"qgenix-class-{uuid.uuid4().hex[:10]}"
         
-        meeting_link = f"https://meet.ffmuc.net/{room_id}"
+        meeting_link = f"https://p2p.mirotalk.com/join?room={room_id}"
         session = serializer.save(room_id=room_id, meeting_link=meeting_link)
 
         # 1. Automatically create high-priority broadcast Notice

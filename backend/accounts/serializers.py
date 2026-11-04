@@ -410,7 +410,7 @@ class OnlineClassSessionSerializer(serializers.ModelSerializer):
         if not validated_data.get('room_id'):
             validated_data['room_id'] = f"qgenix-room-{uuid.uuid4().hex[:10]}"
         if not validated_data.get('meeting_link'):
-            validated_data['meeting_link'] = f"https://meet.ffmuc.net/{validated_data['room_id']}"
+            validated_data['meeting_link'] = f"https://p2p.mirotalk.com/join?room={validated_data['room_id']}"
         return super().create(validated_data)
 
     def get_joined_count(self, obj):

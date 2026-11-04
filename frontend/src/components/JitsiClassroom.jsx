@@ -1,10 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Maximize2, Minimize2, PhoneOff, Users, Video, Mic, Share2, ShieldCheck, Sparkles } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Maximize2, Minimize2, PhoneOff, ExternalLink, Video } from 'lucide-react';
 
 /**
  * JitsiClassroom Component
- * Embedded interactive video conference classroom for QGenix
- * Runs directly in-app using Jitsi Meet External API without external redirects
+ * High-performance embedded WebRTC interactive video classroom for QGenix
+ * Runs 100% in-app with camera, microphone, screen sharing, chat, whiteboard & no login requirements
  */
 export default function JitsiClassroom({
   roomName,
@@ -15,8 +15,6 @@ export default function JitsiClassroom({
   onLeave,
   height = '720px'
 }) {
-  const containerRef = useRef(null);
-  const jitsiApiRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [sessionDuration, setSessionDuration] = useState(0);
@@ -35,120 +33,11 @@ export default function JitsiClassroom({
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  useEffect(() => {
-    let isMounted = true;
+  const cleanRoom = (roomName || 'QGenix-Classroom')
+    .replace(/[^a-zA-Z0-9-_]/g, '')
+    .slice(0, 50);
 
-    const loadJitsiScript = () => {
-      return new Promise((resolve, reject) => {
-        if (window.JitsiMeetExternalAPI) {
-          resolve(window.JitsiMeetExternalAPI);
-          return;
-        }
-
-        const existingScript = document.getElementById('jitsi-external-api');
-        if (existingScript) {
-          existingScript.onload = () => resolve(window.JitsiMeetExternalAPI);
-          existingScript.onerror = reject;
-          return;
-        }
-
-        const script = document.createElement('script');
-        script.id = 'jitsi-external-api';
-        script.src = 'https://meet.ffmuc.net/external_api.js';
-        script.async = true;
-        script.onload = () => resolve(window.JitsiMeetExternalAPI);
-        script.onerror = () => reject(new Error('Failed to load Jitsi API script'));
-        document.body.appendChild(script);
-      });
-    };
-
-    loadJitsiScript()
-      .then((JitsiMeetExternalAPI) => {
-        if (!isMounted || !containerRef.current) return;
-
-        // Clean up previous instance if any
-        if (jitsiApiRef.current) {
-          jitsiApiRef.current.dispose();
-        }
-
-        const cleanRoom = (roomName || 'QGenix-Classroom')
-          .replace(/[^a-zA-Z0-9-_]/g, '')
-          .slice(0, 50);
-
-        const options = {
-          roomName: cleanRoom,
-          parentNode: containerRef.current,
-          width: '100%',
-          height: '100%',
-          configOverwrite: {
-            startWithAudioMuted: false,
-            startWithVideoMuted: false,
-            prejoinPageEnabled: false,
-            prejoinConfig: { enabled: false },
-            disableDeepLinking: true,
-            enableWelcomePage: false,
-            enableClosePage: false,
-            disableThirdPartyRequests: true,
-            toolbarButtons: [
-              'microphone',
-              'camera',
-              'closedcaptions',
-              'desktop',
-              'fullscreen',
-              'fodeviceselection',
-              'hangup',
-              'chat',
-              'raisehand',
-              'videoquality',
-              'filmstrip',
-              'tileview',
-              'select-background'
-            ]
-          },
-          interfaceConfigOverwrite: {
-            SHOW_JITSI_WATERMARK: false,
-            SHOW_WATERMARK_FOR_GUESTS: false,
-            SHOW_BRAND_WATERMARK: false,
-            BRAND_WATERMARK_LINK: '',
-            SHOW_POWERED_BY: false,
-            DEFAULT_REMOTE_DISPLAY_NAME: 'Classmate',
-            TOOLBAR_ALWAYS_VISIBLE: true,
-            DISABLE_JOIN_LEAVE_NOTIFICATIONS: false
-          },
-          userInfo: {
-            displayName: userDisplayName,
-            email: userEmail || 'user@qgenix.edu'
-          }
-        };
-
-        const api = new JitsiMeetExternalAPI('meet.ffmuc.net', options);
-        jitsiApiRef.current = api;
-        setLoading(false);
-
-        api.addEventListener('videoConferenceLeft', () => {
-          if (onLeave) onLeave();
-        });
-
-        api.addEventListener('readyToClose', () => {
-          if (onLeave) onLeave();
-        });
-      })
-      .catch((err) => {
-        console.error('Jitsi initialization failed:', err);
-        setLoading(false);
-      });
-
-    return () => {
-      isMounted = false;
-      if (jitsiApiRef.current) {
-        try {
-          jitsiApiRef.current.dispose();
-        } catch (e) {
-          // Ignore disposal errors
-        }
-      }
-    };
-  }, [roomName, userDisplayName, userEmail]);
+  const embedUrl = `https://p2p.mirotalk.com/join?room=${cleanRoom}&name=${encodeURIComponent(userDisplayName)}&audio=1&video=1&chat=1&screen=1`;
 
   const toggleFullscreen = () => {
     const elem = document.getElementById('qgenix-classroom-wrapper');
@@ -158,17 +47,6 @@ export default function JitsiClassroom({
     } else {
       document.exitFullscreen().then(() => setIsFullscreen(false)).catch(() => {});
     }
-  };
-
-  const handleManualLeave = () => {
-    if (jitsiApiRef.current) {
-      try {
-        jitsiApiRef.current.executeCommand('hangup');
-      } catch (e) {
-        // Fallback
-      }
-    }
-    if (onLeave) onLeave();
   };
 
   return (
@@ -223,8 +101,7 @@ export default function JitsiClassroom({
                 height: '8px',
                 borderRadius: '50%',
                 backgroundColor: '#ef4444',
-                boxShadow: '0 0 8px #ef4444',
-                animation: 'pulse 1.5s infinite'
+                boxShadow: '0 0 8px #ef4444'
               }}
             />
             LIVE CLASSROOM
@@ -255,6 +132,27 @@ export default function JitsiClassroom({
             Duration: {formatDuration(sessionDuration)}
           </div>
 
+          <a
+            href={embedUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Open in new window / multi-monitor"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '36px',
+              height: '36px',
+              borderRadius: '8px',
+              background: 'rgba(255, 255, 255, 0.08)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              color: '#d1d5db',
+              textDecoration: 'none'
+            }}
+          >
+            <ExternalLink size={17} />
+          </a>
+
           <button
             onClick={toggleFullscreen}
             title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
@@ -268,15 +166,14 @@ export default function JitsiClassroom({
               background: 'rgba(255, 255, 255, 0.08)',
               border: '1px solid rgba(255, 255, 255, 0.1)',
               color: '#d1d5db',
-              cursor: 'pointer',
-              transition: 'all 0.2s'
+              cursor: 'pointer'
             }}
           >
             {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
           </button>
 
           <button
-            onClick={handleManualLeave}
+            onClick={onLeave}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -298,7 +195,7 @@ export default function JitsiClassroom({
         </div>
       </div>
 
-      {/* Main Container where Jitsi iframe is mounted */}
+      {/* Main Container where WebRTC Classroom iframe is mounted */}
       <div style={{ flex: 1, position: 'relative', width: '100%', height: '100%', background: '#0b0f19' }}>
         {loading && (
           <div
@@ -331,16 +228,22 @@ export default function JitsiClassroom({
               @keyframes spin {
                 to { transform: rotate(360deg); }
               }
-              @keyframes pulse {
-                0%, 100% { opacity: 1; }
-                50% { opacity: 0.4; }
-              }
             `}</style>
           </div>
         )}
-        <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
+        <iframe
+          src={embedUrl}
+          title={subject || 'QGenix Interactive Live Classroom'}
+          allow="camera; microphone; display-capture; fullscreen; clipboard-read; clipboard-write; web-share; autoplay; picture-in-picture; screen-wake-lock"
+          style={{
+            width: '100%',
+            height: '100%',
+            border: 'none',
+            display: 'block'
+          }}
+          onLoad={() => setLoading(false)}
+        />
       </div>
     </div>
   );
 }
-
