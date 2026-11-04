@@ -54,7 +54,7 @@ export default function JitsiClassroom({
 
         const script = document.createElement('script');
         script.id = 'jitsi-external-api';
-        script.src = 'https://meet.jit.si/external_api.js';
+        script.src = 'https://meet.ffmuc.net/external_api.js';
         script.async = true;
         script.onload = () => resolve(window.JitsiMeetExternalAPI);
         script.onerror = () => reject(new Error('Failed to load Jitsi API script'));
@@ -121,7 +121,7 @@ export default function JitsiClassroom({
           }
         };
 
-        const api = new JitsiMeetExternalAPI('meet.jit.si', options);
+        const api = new JitsiMeetExternalAPI('meet.ffmuc.net', options);
         jitsiApiRef.current = api;
         setLoading(false);
 
@@ -343,3 +343,4 @@ export default function JitsiClassroom({
     </div>
   );
 }
+

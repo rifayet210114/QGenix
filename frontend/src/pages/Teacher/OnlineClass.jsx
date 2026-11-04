@@ -195,7 +195,7 @@ export default function TeacherOnlineClass() {
   };
 
   const copyRoomLink = (session) => {
-    const link = session.meeting_link || `https://meet.jit.si/${session.room_id}`;
+    const link = session.meeting_link || `https://meet.ffmuc.net/${session.room_id}`;
     navigator.clipboard.writeText(link);
     setCopiedId(session.id);
     setTimeout(() => setCopiedId(null), 2500);
