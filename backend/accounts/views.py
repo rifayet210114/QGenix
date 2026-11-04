@@ -4358,10 +4358,20 @@ class OnlineClassSessionViewSet(viewsets.ModelViewSet):
         teacher = self.request.query_params.get('teacher')
 
         if batch:
-            qs = qs.filter(batch__icontains=batch.strip())
-        if semester:
-            qs = qs.filter(semester__icontains=semester.strip())
-        if section and section != 'All':
+            clean_b = batch.replace('Batch', '').replace('-', ' ').strip()
+            # Match either full name or session year e.g. "2023"
+            parts = [p.strip() for p in clean_b.split() if len(p.strip()) >= 4]
+            batch_q = models.Q(batch__icontains=batch.strip())
+            for part in parts:
+                batch_q |= models.Q(batch__icontains=part)
+            qs = qs.filter(batch_q)
+
+        # For LIVE status, be flexible on semester so minor cohort discrepancies (4th vs 5th) don't hide active class
+        if semester and not status:
+            clean_s = semester.split()[0].strip()
+            qs = qs.filter(models.Q(semester__icontains=semester.strip()) | models.Q(semester__icontains=clean_s))
+
+        if section and section != 'All' and section.strip():
             qs = qs.filter(models.Q(section='All') | models.Q(section__iexact=section.strip()))
         if status:
             qs = qs.filter(status__iexact=status.strip())
@@ -4376,7 +4386,7 @@ class OnlineClassSessionViewSet(viewsets.ModelViewSet):
         if not room_id:
             room_id = f"qgenix-class-{uuid.uuid4().hex[:10]}"
         
-        meeting_link = f"https://p2p.mirotalk.com/join?room={room_id}"
+        meeting_link = serializer.validated_data.get("meeting_link") or f"https://sfu.mirotalk.com/join?room={room_id}"
         session = serializer.save(room_id=room_id, meeting_link=meeting_link)
 
         # 1. Automatically create high-priority broadcast Notice

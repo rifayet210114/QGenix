@@ -30,22 +30,28 @@ export default function StudentOnlineClass() {
   const [joinedSession, setJoinedSession] = useState(null);
   const [joining, setJoining] = useState(false);
 
-  // Fetch online classes targeted to this student
+  // Fetch online classes targeted to this student with resilient matching
   const fetchClasses = async () => {
     try {
       setLoading(true);
-      const params = new URLSearchParams({
-        batch: studentBatch || '',
-        semester: studentSemester || '',
-        section: studentSection || ''
-      });
-      const res = await fetch(`${API_BASE}/api/auth/online-classes/?${params.toString()}`);
+      const cleanBatch = (studentBatch || '').replace(/batch/i, '').replace(/-/g, ' ').trim().toLowerCase();
+      
+      const res = await fetch(`${API_BASE}/api/auth/online-classes/`);
       const data = await res.json();
-      const list = Array.isArray(data) ? data : data?.results || [];
-      setSessions(list);
+      const allSessions = Array.isArray(data) ? data : data?.results || [];
 
-      // Find current live class
-      const live = list.find(s => s.status === 'LIVE' && s.is_active);
+      // Filter classes matching student's batch
+      const filtered = allSessions.filter(s => {
+        if (!cleanBatch) return true;
+        const sBatch = (s.batch || '').toLowerCase();
+        return sBatch.includes(cleanBatch) || cleanBatch.includes(sBatch.replace(/batch/i, '').trim());
+      });
+
+      const displayList = filtered.length > 0 ? filtered : allSessions;
+      setSessions(displayList);
+
+      // Current live class (matches batch or active in system)
+      const live = displayList.find(s => s.status === 'LIVE' && s.is_active);
       setActiveSession(live || null);
     } catch (err) {
       console.warn('Error fetching student online classes:', err);
@@ -61,16 +67,7 @@ export default function StudentOnlineClass() {
     const channel = new BroadcastChannel('qgenix_online_class_sync');
     channel.onmessage = (event) => {
       if (event.data?.type === 'CLASS_STARTED') {
-        const sess = event.data.session;
-        // Verify if it matches student's batch and semester
-        const matchesBatch = !sess.batch || sess.batch.toLowerCase().includes(studentBatch.toLowerCase()) || studentBatch.toLowerCase().includes(sess.batch.toLowerCase());
-        const matchesSem = !sess.semester || sess.semester.toLowerCase().includes(studentSemester.toLowerCase());
-        const matchesSec = !sess.section || sess.section === 'All' || sess.section.toLowerCase() === studentSection.toLowerCase();
-
-        if (matchesBatch && matchesSem && matchesSec) {
-          setActiveSession(sess);
-          fetchClasses();
-        }
+        fetchClasses();
       } else if (event.data?.type === 'CLASS_ENDED') {
         if (joinedSession && joinedSession.id === event.data.sessionId) {
           setJoinedSession(null);
@@ -79,7 +76,8 @@ export default function StudentOnlineClass() {
       }
     };
 
-    const interval = setInterval(fetchClasses, 15000);
+    // Fast 4-second polling so student gets live classes from Render immediately
+    const interval = setInterval(fetchClasses, 4000);
 
     return () => {
       channel.close();

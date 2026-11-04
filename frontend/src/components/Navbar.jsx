@@ -200,24 +200,36 @@ export default function Navbar({ title, role, onMenuClick }) {
     }
   };
 
-  // Check for active online classes matching student cohort
+  // Check for active online classes matching student cohort with flexible batch matching
   const checkLiveOnlineClasses = async () => {
     if (role !== 'Student') return;
     try {
-      const studentBatch = profile?.batch || user?.batch;
-      const studentSemester = profile?.semester || user?.semester;
-      const studentSection = profile?.section || user?.section;
-      let url = `${API_BASE}/api/auth/online-classes/?status=LIVE`;
-      if (studentBatch) url += `&batch=${encodeURIComponent(studentBatch)}`;
-      if (studentSemester) url += `&semester=${encodeURIComponent(studentSemester)}`;
-      if (studentSection && studentSection !== 'All') url += `&section=${encodeURIComponent(studentSection)}`;
+      const studentBatch = profile?.batch || user?.batch || '';
+      const cleanBatch = studentBatch.replace(/batch/i, '').replace(/-/g, ' ').trim().toLowerCase();
 
-      const res = await fetch(url);
+      const res = await fetch(`${API_BASE}/api/auth/online-classes/?status=LIVE`);
       if (res.ok) {
         const data = await res.json();
         const list = Array.isArray(data) ? data : data?.results || [];
-        const live = list.find(s => s.status === 'LIVE' && s.is_active);
-        setLiveOnlineClass(live || null);
+        const live = list.find(s => {
+          if (s.status !== 'LIVE' || !s.is_active) return false;
+          if (!cleanBatch) return true;
+          const sBatch = (s.batch || '').toLowerCase();
+          return sBatch.includes(cleanBatch) || cleanBatch.includes(sBatch.replace(/batch/i, '').trim());
+        });
+
+        if (live) {
+          // If a new live class appeared, show toast alert
+          setLiveOnlineClass(prev => {
+            if (!prev || prev.id !== live.id) {
+              setShowLiveToast(true);
+            }
+            return live;
+          });
+        } else {
+          setLiveOnlineClass(null);
+          setShowLiveToast(false);
+        }
       }
     } catch (e) {
       // Ignore network errors
@@ -227,28 +239,28 @@ export default function Navbar({ title, role, onMenuClick }) {
   useEffect(() => {
     if (role === 'Student') {
       checkLiveOnlineClasses();
-    }
+      const timer = setInterval(checkLiveOnlineClasses, 4000);
 
-    let channel;
-    try {
-      channel = new BroadcastChannel('qgenix_online_class_sync');
-      channel.onmessage = (event) => {
-        if (event.data?.type === 'CLASS_STARTED') {
-          if (role === 'Student') {
+      let channel;
+      try {
+        channel = new BroadcastChannel('qgenix_online_class_sync');
+        channel.onmessage = (event) => {
+          if (event.data?.type === 'CLASS_STARTED') {
             setLiveOnlineClass(event.data.session);
             setShowLiveToast(true);
             checkUnreadNotices();
+          } else if (event.data?.type === 'CLASS_ENDED') {
+            setLiveOnlineClass(null);
+            setShowLiveToast(false);
           }
-        } else if (event.data?.type === 'CLASS_ENDED') {
-          setLiveOnlineClass(null);
-          setShowLiveToast(false);
-        }
-      };
-    } catch (e) {}
+        };
+      } catch (e) {}
 
-    return () => {
-      if (channel) channel.close();
-    };
+      return () => {
+        clearInterval(timer);
+        if (channel) channel.close();
+      };
+    }
   }, [role, user, profile]);
 
   useEffect(() => {
