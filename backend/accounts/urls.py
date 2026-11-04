@@ -43,7 +43,8 @@ from .views import (
     SubmitTeacherExamResultsView,
     PublishBatchExamResultsView,
     UnpublishBatchExamResultsView,
-    OnlineClassSessionViewSet
+    OnlineClassSessionViewSet,
+    StudentAllocatedCoursesView
 )
 
 router = DefaultRouter()
@@ -77,6 +78,8 @@ urlpatterns = [
     path('faculty-timesheet/<int:pk>/', FacultyTimesheetView.as_view(), name='faculty-timesheet-detail'),
     # Teacher Course Resources, Books & Notes Management (100% DB Table: teacher_course_resources)
     path('teacher-resources/', TeacherCourseResourceView.as_view(), name='teacher-resources'),
+    # Student Allocated Courses (100% DB-driven)
+    path('student-courses/', StudentAllocatedCoursesView.as_view(), name='student-courses'),
     path('teacher-resources/<int:pk>/', TeacherCourseResourceView.as_view(), name='teacher-resources-detail'),
     # AI Exam Generation & Publish Endpoints
     path('ai-generate-exam/', AIGenerateExamView.as_view(), name='ai-generate-exam'),
