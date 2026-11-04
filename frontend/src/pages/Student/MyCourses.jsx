@@ -4,7 +4,7 @@
 // 100% Real Database Synced: Loads dynamically allocated courses for the 
 // currently logged-in student's Batch and Semester from SQLite.
 // Strictly ZERO hardcoded mock or demo data.
-// Features: Centered Resources Card Modal + In-Window Fullscreen Document Viewer
+// Features: Centered Floating Window Card + In-Screen Document Viewer (PDF/Slides)
 // ============================================================================
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -169,11 +169,12 @@ export default function MyCourses() {
   }, [courses, searchQuery, statusFilter, sortOption]);
 
   return (
-    <div className="flex flex-col gap-6 w-full relative">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%', position: 'relative' }}>
       {/* ----------------------------------------------------------------------
-         CUSTOM LIQUID GLASSMORPHIC LAYOUT & ANIMATION CSS STYLES
+         CUSTOM LIQUID GLASSMORPHIC & MODAL OVERLAY STYLES
          ---------------------------------------------------------------------- */}
       <style>{`
+        /* Core Course Cards Liquid Glassmorphism */
         .glass-card-liquid {
           position: relative;
           background: linear-gradient(
@@ -207,17 +208,6 @@ export default function MyCourses() {
             0 0 30px -5px     rgba(40, 110, 240, 0.2) !important;
         }
 
-        body.light-mode .glass-card-liquid {
-          background: rgba(255, 255, 255, 0.28) !important;
-          border: 1px solid transparent !important;
-          backdrop-filter: blur(32px) saturate(220%) !important;
-          -webkit-backdrop-filter: blur(32px) saturate(220%) !important;
-          box-shadow:
-            inset 0 1.5px 0 rgba(255, 255, 255, 0.85),
-            inset 0 12px 24px rgba(255, 255, 255, 0.15),
-            0 8px 30px -10px rgba(100, 160, 220, 0.15) !important;
-        }
-
         .course-cards-responsive-grid {
           display: grid;
           grid-template-columns: 1fr;
@@ -234,6 +224,57 @@ export default function MyCourses() {
           }
         }
 
+        /* 
+          CENTRAL FLOATING MODAL OVERLAY (100% Fixed Viewport Fullscreen Dimmer)
+        */
+        .qgenix-modal-backdrop {
+          position: fixed !important;
+          top: 0 !important;
+          left: 0 !important;
+          right: 0 !important;
+          bottom: 0 !important;
+          width: 100vw !important;
+          height: 100vh !important;
+          background: rgba(4, 8, 18, 0.82) !important;
+          backdrop-filter: blur(16px) !important;
+          -webkit-backdrop-filter: blur(16px) !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          z-index: 999999 !important;
+          padding: 20px !important;
+          box-sizing: border-box !important;
+        }
+
+        /* Centered Floating Window Card */
+        .qgenix-window-card {
+          background: rgba(13, 20, 38, 0.96) !important;
+          backdrop-filter: blur(35px) saturate(200%) !important;
+          -webkit-backdrop-filter: blur(35px) saturate(200%) !important;
+          border: 1px solid rgba(255, 255, 255, 0.16) !important;
+          border-radius: 24px !important;
+          box-shadow: 
+            0 30px 80px rgba(0, 0, 0, 0.85),
+            0 0 50px rgba(139, 92, 246, 0.15),
+            inset 0 1.5px 0 rgba(255, 255, 255, 0.15) !important;
+          display: flex !important;
+          flex-direction: column !important;
+          overflow: hidden !important;
+          transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1) !important;
+          width: 100% !important;
+          max-width: 720px !important;
+          max-height: 88vh !important;
+        }
+
+        /* Screen Document Viewer Window (Expanded inside window) */
+        .qgenix-window-card.viewer-mode {
+          max-width: 1250px !important;
+          width: 95vw !important;
+          height: 92vh !important;
+          max-height: 92vh !important;
+        }
+
+        /* Circular Close Button */
         .btn-close-modal {
           background: rgba(255, 255, 255, 0.08) !important;
           border: 1px solid rgba(255, 255, 255, 0.15) !important;
@@ -249,56 +290,84 @@ export default function MyCourses() {
         }
 
         .btn-close-modal:hover {
-          background: rgba(239, 68, 68, 0.2) !important;
-          border-color: rgba(239, 68, 68, 0.4) !important;
+          background: rgba(239, 68, 68, 0.25) !important;
+          border-color: rgba(239, 68, 68, 0.5) !important;
           color: #ffffff !important;
           transform: rotate(90deg) scale(1.08) !important;
         }
 
-        .hover-resource-card {
-          background: rgba(255, 255, 255, 0.03) !important;
-          border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        /* Resource File Item Card */
+        .resource-file-row {
+          background: rgba(255, 255, 255, 0.025) !important;
+          border: 1px solid rgba(255, 255, 255, 0.07) !important;
+          border-radius: 16px !important;
+          padding: 16px 20px !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: space-between !important;
+          gap: 16px !important;
+          cursor: pointer !important;
+          transition: all 0.25s cubic-bezier(0.25, 1, 0.5, 1) !important;
+        }
+
+        .resource-file-row:hover {
+          background: rgba(255, 255, 255, 0.055) !important;
+          border-color: rgba(139, 92, 246, 0.45) !important;
+          transform: translateY(-2px) !important;
+          box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 0 20px rgba(139, 92, 246, 0.12) !important;
+        }
+
+        /* View Button */
+        .btn-view-document {
+          background: linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%) !important;
+          color: #fff !important;
+          font-weight: 700 !important;
+          font-size: 0.8rem !important;
+          border: none !important;
+          border-radius: 12px !important;
+          padding: 8px 16px !important;
+          display: flex !important;
+          align-items: center !important;
+          gap: 6px !important;
+          cursor: pointer !important;
+          box-shadow: 0 4px 15px rgba(139, 92, 246, 0.35) !important;
           transition: all 0.25s ease !important;
         }
-        .hover-resource-card:hover {
-          background: rgba(255, 255, 255, 0.07) !important;
-          border-color: rgba(139, 92, 246, 0.4) !important;
-          transform: translateY(-2px) !important;
-          box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 0 15px rgba(139, 92, 246, 0.15) !important;
+
+        .btn-view-document:hover {
+          transform: translateY(-1.5px) scale(1.03) !important;
+          box-shadow: 0 6px 20px rgba(139, 92, 246, 0.5) !important;
+          filter: brightness(1.1) !important;
+        }
+
+        .scrollbar-hidden::-webkit-scrollbar {
+          display: none;
         }
       `}</style>
 
       {/* =======================================================================
          PAGE HEADER SECTION
          ======================================================================= */}
-      <motion.div 
-        initial={{ opacity: 0, y: -15 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: 'easeOut' }}
-        className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-1 relative z-10"
-      >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px' }}>
         <div>
-          <h1 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '2.2rem', fontWeight: 800, letterSpacing: '-0.02em', fontFamily: 'var(--font-heading)' }} className="flex items-center gap-3">
-            <GraduationCap className="text-violet-500" size={36} />
+          <h1 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '2.2rem', fontWeight: 800, letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <GraduationCap style={{ color: '#8B5CF6' }} size={36} />
             My Courses
           </h1>
-          <p style={{ color: 'var(--text-secondary)', margin: '4px 0 0 0', fontSize: '1rem', fontWeight: '500' }}>
+          <p style={{ color: 'var(--text-secondary)', margin: '6px 0 0 0', fontSize: '1rem', fontWeight: 500 }}>
             View academic progression, access study resources, and monitor core evaluation performance
           </p>
         </div>
-      </motion.div>
+      </div>
 
       {/* =======================================================================
          SEARCH + FILTER BAR PANEL
          ======================================================================= */}
-      <motion.div 
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1, duration: 0.4 }}
+      <div 
         className="glass-card-liquid"
         style={{ padding: '16px 20px' }}
       >
-        <div className="flex flex-wrap gap-4 items-center justify-between">
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ position: 'relative', flex: 1, minWidth: '260px' }}>
             <Search size={16} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
             <input 
@@ -318,8 +387,8 @@ export default function MyCourses() {
             />
           </div>
 
-          <div className="flex gap-3 flex-wrap items-center">
-            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.02] border border-white/[0.05] hover:border-white/[0.12] transition-all">
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 14px', borderRadius: '12px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
               <SlidersHorizontal size={14} style={{ color: 'var(--text-secondary)' }} />
               <select 
                 value={statusFilter} 
@@ -333,7 +402,7 @@ export default function MyCourses() {
               </select>
             </div>
 
-            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.02] border border-white/[0.05] hover:border-white/[0.12] transition-all">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 14px', borderRadius: '12px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
               <ArrowUpDown size={14} style={{ color: 'var(--text-secondary)' }} />
               <select 
                 value={sortOption} 
@@ -347,485 +416,553 @@ export default function MyCourses() {
             </div>
           </div>
         </div>
-      </motion.div>
+      </div>
 
       {/* =======================================================================
          COURSE CARDS GRID (100% Dynamic from SQLite)
          ======================================================================= */}
       {loading ? (
-        <div className="flex flex-col items-center justify-center py-20 gap-3 text-slate-400">
-          <Loader2 className="animate-spin text-violet-500" size={36} />
-          <p className="text-sm font-semibold">Loading allocated courses from database...</p>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 20px', gap: '12px', color: '#94a3b8' }}>
+          <Loader2 className="animate-spin" size={36} style={{ color: '#8B5CF6' }} />
+          <p style={{ fontSize: '0.9rem', fontWeight: 600 }}>Loading allocated courses from database...</p>
         </div>
       ) : error ? (
-        <div className="p-8 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-center text-rose-300">
-          <AlertCircle className="mx-auto mb-2 text-rose-400" size={32} />
-          <p className="font-bold">{error}</p>
+        <div style={{ padding: '32px', borderRadius: '20px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.25)', textAlign: 'center', color: '#fca5a5' }}>
+          <AlertCircle style={{ margin: '0 auto 10px', color: '#f87171' }} size={32} />
+          <p style={{ fontWeight: 700 }}>{error}</p>
         </div>
       ) : filteredCourses.length === 0 ? (
-        <div className="p-12 rounded-2xl bg-white/[0.02] border border-white/[0.06] text-center text-slate-400">
-          <BookOpen className="mx-auto mb-3 text-slate-500" size={40} />
-          <h3 className="text-lg font-bold text-slate-200">No Courses Allocated</h3>
-          <p className="text-sm mt-1 text-slate-400">
-            No active courses found for batch <strong className="text-violet-400">{user?.batch || 'Current'}</strong> ({user?.semester || 'Semester'}).
+        <div style={{ padding: '48px', borderRadius: '20px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', textAlign: 'center', color: '#94a3b8' }}>
+          <BookOpen style={{ margin: '0 auto 12px', color: '#64748b' }} size={40} />
+          <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#f1f5f9' }}>No Courses Allocated</h3>
+          <p style={{ fontSize: '0.88rem', marginTop: '6px', color: '#94a3b8' }}>
+            No active courses found for batch <strong style={{ color: '#a78bfa' }}>{user?.batch || 'Current'}</strong> ({user?.semester || 'Semester'}).
           </p>
         </div>
       ) : (
         <div className="course-cards-responsive-grid">
-          <AnimatePresence mode="popLayout">
-            {filteredCourses.map((course) => {
-              const statusColor = statusColors[course.status] || { text: '#06B6D4', bg: 'rgba(6,182,212,0.12)', border: 'rgba(6,182,212,0.25)' };
+          {filteredCourses.map((course) => {
+            const statusColor = statusColors[course.status] || { text: '#06B6D4', bg: 'rgba(6,182,212,0.12)', border: 'rgba(6,182,212,0.25)' };
 
-              return (
-                <motion.div
-                  layout
-                  key={course.id}
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  transition={{ duration: 0.35 }}
-                  className="glass-card-liquid"
-                  style={{
-                    padding: '24px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '16px',
-                  }}
-                >
-                  {/* A. Course Header Row */}
-                  <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start', paddingRight: '85px' }}>
-                    <div style={{ 
-                      width: '48px', 
-                      height: '48px', 
-                      borderRadius: '16px', 
-                      background: course.gradient, 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      justifyContent: 'center',
-                      color: '#fff',
-                      boxShadow: `0 8px 16px ${course.borderGlow}20`,
-                      flexShrink: 0
-                    }}>
-                      <GraduationCap size={24} />
+            return (
+              <div
+                key={course.id}
+                className="glass-card-liquid"
+                style={{
+                  padding: '24px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '16px',
+                }}
+              >
+                {/* A. Course Header Row */}
+                <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start', paddingRight: '85px' }}>
+                  <div style={{ 
+                    width: '48px', 
+                    height: '48px', 
+                    borderRadius: '16px', 
+                    background: course.gradient, 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    color: '#fff',
+                    boxShadow: `0 8px 16px ${course.borderGlow}20`,
+                    flexShrink: 0
+                  }}>
+                    <GraduationCap size={24} />
+                  </div>
+                  
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.05em' }}>
+                        {course.code}
+                      </span>
                     </div>
                     
-                    <div className="flex-1 min-w-0">
-                      <div>
-                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: '700', letterSpacing: '0.05em' }}>
-                          {course.code}
-                        </span>
-                      </div>
-                      
-                      <h4 className="truncate text-base font-extrabold text-white mt-1 leading-snug" style={{ color: 'var(--text-primary)' }} title={course.name}>
-                        {course.name}
-                      </h4>
-                      
-                      <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginTop: '2px', fontWeight: 500 }}>
-                        Prof: {course.instructor}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Absolute Status Badge */}
-                  <div style={{ position: 'absolute', top: '24px', right: '24px', zIndex: 10 }}>
-                    <span style={{
-                      fontSize: '0.7rem',
-                      fontWeight: '800',
-                      padding: '4px 10px',
-                      borderRadius: '10px',
-                      background: statusColor.bg,
-                      color: statusColor.text,
-                      border: `1px solid ${statusColor.border}`,
-                      boxShadow: `0 4px 10px ${statusColor.text}10`
-                    }}>
-                      {course.status}
+                    <h4 style={{ margin: '4px 0 0 0', fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={course.name}>
+                      {course.name}
+                    </h4>
+                    
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginTop: '2px', fontWeight: 500 }}>
+                      Prof: {course.instructor}
                     </span>
                   </div>
+                </div>
 
-                  {/* B. Description & Duration */}
-                  <div>
-                    <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.4, height: '40px', overflow: 'hidden' }}>
-                      {course.description || `${course.name} - Allocated course curriculum for ${course.batch}.`}
-                    </p>
-                    <div className="flex items-center gap-2 mt-3 text-[11px] text-slate-400 font-semibold">
-                      <Calendar size={12} className="text-cyan-400" />
-                      <span>Term: {course.startDate} — {course.endDate}</span>
-                    </div>
+                {/* Absolute Status Badge */}
+                <div style={{ position: 'absolute', top: '24px', right: '24px', zIndex: 10 }}>
+                  <span style={{
+                    fontSize: '0.7rem',
+                    fontWeight: 800,
+                    padding: '4px 10px',
+                    borderRadius: '10px',
+                    background: statusColor.bg,
+                    color: statusColor.text,
+                    border: `1px solid ${statusColor.border}`,
+                    boxShadow: `0 4px 10px ${statusColor.text}10`
+                  }}>
+                    {course.status}
+                  </span>
+                </div>
+
+                {/* B. Description & Duration */}
+                <div>
+                  <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.4, height: '40px', overflow: 'hidden' }}>
+                    {course.description || `${course.name} - Allocated course curriculum for ${course.batch}.`}
+                  </p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '12px', fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>
+                    <Calendar size={12} style={{ color: '#22d3ee' }} />
+                    <span>Term: {course.startDate} — {course.endDate}</span>
                   </div>
+                </div>
 
-                  {/* C. Progress Slider Indicator */}
-                  <div style={{ background: 'rgba(255,255,255,0.015)', padding: '12px 14px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.03)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.76rem', marginBottom: '6px' }}>
-                      <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Lessons Track</span>
-                      <span style={{ color: 'var(--text-primary)', fontWeight: 800 }}>{course.completionPct}%</span>
-                    </div>
-                    <div style={{ width: '100%', height: '6px', background: isLightMode ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.04)', borderRadius: '10px', overflow: 'hidden', position: 'relative' }}>
-                      <motion.div 
-                        initial={{ width: 0 }}
-                        animate={{ width: `${course.completionPct}%` }}
-                        transition={{ duration: 1, ease: 'easeOut' }}
-                        style={{ 
-                          height: '100%', 
-                          background: course.gradient, 
-                          borderRadius: '10px',
-                          position: 'relative'
-                        }} 
-                      />
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '6px', fontWeight: 600 }}>
-                      <span>Completed Modules</span>
-                      <span style={{ color: 'var(--text-secondary)' }}>{course.completedLessons} / {course.totalLessons} Units</span>
-                    </div>
+                {/* C. Progress Slider Indicator */}
+                <div style={{ background: 'rgba(255,255,255,0.015)', padding: '12px 14px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.03)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.76rem', marginBottom: '6px' }}>
+                    <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Lessons Track</span>
+                    <span style={{ color: 'var(--text-primary)', fontWeight: 800 }}>{course.completionPct}%</span>
                   </div>
-
-                  {/* D. Mini Stats row */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '12px', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                      <span className="font-semibold">Assignments</span>
-                      <span style={{ color: 'var(--text-primary)', fontWeight: 800 }}>
-                        No Pending
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'center' }}>
-                      <span className="font-semibold">Quizzes</span>
-                      <span style={{ color: 'var(--text-primary)', fontWeight: 800 }}>Scheduled</span>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'flex-end' }}>
-                      <span className="font-semibold">Attendance</span>
-                      <span style={{ color: course.attendance < 75 ? '#EF4444' : '#10B981', fontWeight: 800 }}>
-                        {course.attendance}% Attended
-                      </span>
-                    </div>
+                  <div style={{ width: '100%', height: '6px', background: isLightMode ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.04)', borderRadius: '10px', overflow: 'hidden', position: 'relative' }}>
+                    <div 
+                      style={{ 
+                        width: `${course.completionPct}%`,
+                        height: '100%', 
+                        background: course.gradient, 
+                        borderRadius: '10px',
+                        transition: 'width 1s ease'
+                      }} 
+                    />
                   </div>
-
-                  {/* E. CTA Action Buttons */}
-                  <div style={{ display: 'flex', marginTop: '4px', gap: '10px', justifyContent: 'space-between' }} className="relative z-10">
-                    <button
-                      onClick={() => setSelectedCourseOutline(course)}
-                      className="btn-glass-cta flex-1 flex items-center justify-center gap-2 py-2.5 px-3 text-xs font-bold rounded-xl transition-all"
-                      style={{ color: 'var(--text-primary)', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
-                    >
-                      <FileText size={16} className="text-violet-400" />
-                      <span>Course Outline</span>
-                    </button>
-
-                    <button
-                      onClick={() => handleOpenResources(course)}
-                      className="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 text-xs font-bold rounded-xl active:scale-95 transition-all cursor-pointer"
-                      style={{
-                        background: course.gradient,
-                        border: `1px solid ${course.borderGlow}`,
-                        color: '#fff',
-                        boxShadow: `0 4px 15px ${course.borderGlow}25`
-                      }}
-                    >
-                      <FolderOpen size={16} />
-                      <span>Resources {course.resource_count > 0 && `(${course.resource_count})`}</span>
-                    </button>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '6px', fontWeight: 600 }}>
+                    <span>Completed Modules</span>
+                    <span style={{ color: 'var(--text-secondary)' }}>{course.completedLessons} / {course.totalLessons} Units</span>
                   </div>
-                </motion.div>
-              );
-            })}
-          </AnimatePresence>
+                </div>
+
+                {/* D. Mini Stats row */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '12px', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <span style={{ fontWeight: 600 }}>Assignments</span>
+                    <span style={{ color: 'var(--text-primary)', fontWeight: 800 }}>
+                      No Pending
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'center' }}>
+                    <span style={{ fontWeight: 600 }}>Quizzes</span>
+                    <span style={{ color: 'var(--text-primary)', fontWeight: 800 }}>Scheduled</span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'flex-end' }}>
+                    <span style={{ fontWeight: 600 }}>Attendance</span>
+                    <span style={{ color: course.attendance < 75 ? '#EF4444' : '#10B981', fontWeight: 800 }}>
+                      {course.attendance}% Attended
+                    </span>
+                  </div>
+                </div>
+
+                {/* E. CTA Action Buttons */}
+                <div style={{ display: 'flex', marginTop: '4px', gap: '10px', justifyContent: 'space-between' }}>
+                  <button
+                    onClick={() => setSelectedCourseOutline(course)}
+                    style={{ 
+                      flex: 1, 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center', 
+                      gap: '8px', 
+                      padding: '10px 14px', 
+                      fontSize: '0.8rem', 
+                      fontWeight: 700, 
+                      borderRadius: '12px', 
+                      color: 'var(--text-primary)', 
+                      background: 'rgba(255,255,255,0.04)', 
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <FileText size={16} style={{ color: '#a78bfa' }} />
+                    <span>Course Outline</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleOpenResources(course)}
+                    style={{
+                      flex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      padding: '10px 14px',
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
+                      borderRadius: '12px',
+                      background: course.gradient,
+                      border: `1px solid ${course.borderGlow}`,
+                      color: '#fff',
+                      boxShadow: `0 4px 15px ${course.borderGlow}25`,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <FolderOpen size={16} />
+                    <span>Resources {course.resource_count > 0 && `(${course.resource_count})`}</span>
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
       {/* =======================================================================
-         COURSE OUTLINE MODAL (Portaled to document.body)
+         COURSE OUTLINE MODAL (Portaled Directly to Document Body)
          ======================================================================= */}
-      {typeof document !== 'undefined' && createPortal(
-        <AnimatePresence>
-          {selectedCourseOutline && (
-            <div 
-              className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
-              onClick={() => setSelectedCourseOutline(null)}
-            >
-              <motion.div
-                initial={{ scale: 0.94, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.94, opacity: 0 }}
-                onClick={(e) => e.stopPropagation()}
-                className="w-full max-w-2xl bg-[#0d1426] border border-white/15 rounded-2xl p-6 shadow-2xl flex flex-col gap-4 max-h-[85vh] overflow-y-auto"
+      {typeof document !== 'undefined' && selectedCourseOutline && createPortal(
+        <div 
+          className="qgenix-modal-backdrop"
+          onClick={() => setSelectedCourseOutline(null)}
+        >
+          <div 
+            className="qgenix-window-card"
+            style={{ padding: '28px' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                <div 
+                  style={{ 
+                    width: '46px', 
+                    height: '46px', 
+                    borderRadius: '14px', 
+                    background: selectedCourseOutline.gradient, 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    color: '#fff', 
+                    flexShrink: 0 
+                  }}
+                >
+                  <GraduationCap size={24} />
+                </div>
+                <div>
+                  <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#94a3b8' }}>
+                    {selectedCourseOutline.code} • {selectedCourseOutline.credits} Credits
+                  </span>
+                  <h3 style={{ margin: '4px 0 0 0', fontSize: '1.25rem', fontWeight: 800, color: '#fff' }}>
+                    {selectedCourseOutline.name}
+                  </h3>
+                </div>
+              </div>
+              <button 
+                onClick={() => setSelectedCourseOutline(null)}
+                className="btn-close-modal"
+                title="Close"
               >
-                <div className="flex justify-between items-start gap-4 border-b border-white/10 pb-4">
-                  <div className="flex items-center gap-3">
-                    <div 
-                      className="w-11 h-11 rounded-xl flex items-center justify-center text-white flex-shrink-0"
-                      style={{ background: selectedCourseOutline.gradient }}
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto' }}>
+              <div style={{ padding: '16px', borderRadius: '16px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <p style={{ margin: 0, fontSize: '0.88rem', color: '#cbd5e1', lineHeight: 1.5 }}>
+                  {selectedCourseOutline.description}
+                </p>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginTop: '14px', paddingTop: '14px', borderTop: '1px solid rgba(255,255,255,0.06)', fontSize: '0.78rem' }}>
+                  <div>
+                    <span style={{ color: '#64748b', display: 'block' }}>Instructor Desk:</span>
+                    <strong style={{ color: '#fff', fontSize: '0.9rem', marginTop: '2px', display: 'block' }}>{selectedCourseOutline.instructor}</strong>
+                  </div>
+                  <div>
+                    <span style={{ color: '#64748b', display: 'block' }}>Target Batch:</span>
+                    <strong style={{ color: '#fff', fontSize: '0.9rem', marginTop: '2px', display: 'block' }}>{selectedCourseOutline.batch} (Sec: {selectedCourseOutline.section})</strong>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h4 style={{ margin: '0 0 12px 0', fontSize: '0.95rem', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <BookOpen size={16} style={{ color: '#a78bfa' }} />
+                  Syllabus Modules & Curriculum Units
+                </h4>
+                {selectedCourseOutline.modules && selectedCourseOutline.modules.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {selectedCourseOutline.modules.map((m, idx) => (
+                      <div key={idx} style={{ padding: '12px 16px', borderRadius: '12px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.8rem' }}>
+                        <span style={{ fontWeight: 600, color: '#e2e8f0' }}>{typeof m === 'string' ? m : m.name}</span>
+                        <span style={{ padding: '2px 8px', borderRadius: '12px', background: 'rgba(16, 185, 129, 0.12)', color: '#34d399', fontWeight: 700, fontSize: '0.72rem', border: '1px solid rgba(16, 185, 129, 0.25)' }}>
+                          Unit {idx + 1}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ padding: '16px', borderRadius: '12px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', fontSize: '0.8rem', color: '#94a3b8' }}>
+                    Standard syllabus curriculum module tracking active for {selectedCourseOutline.hours_per_week} hours/week.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* =======================================================================
+         RESOURCES WINDOW MODAL & SCREEN VIEWER (Portaled Directly to Document Body)
+         ======================================================================= */}
+      {typeof document !== 'undefined' && selectedCourseResources && createPortal(
+        <div 
+          className="qgenix-modal-backdrop"
+          onClick={handleCloseResources}
+        >
+          <div 
+            className={`qgenix-window-card ${activeDoc ? 'viewer-mode' : ''}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* ---------------- VIEW 1: IN-SCREEN DOCUMENT VIEWER ---------------- */}
+            {activeDoc ? (
+              <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%' }}>
+                {/* Top Control Bar */}
+                <div style={{ height: '64px', padding: '0 24px', background: 'rgba(6, 10, 20, 0.95)', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexShrink: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0 }}>
+                    <button
+                      onClick={() => setActiveDoc(null)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '8px 14px',
+                        borderRadius: '12px',
+                        background: 'rgba(255,255,255,0.08)',
+                        border: '1px solid rgba(255,255,255,0.15)',
+                        color: '#f1f5f9',
+                        fontSize: '0.8rem',
+                        fontWeight: 700,
+                        cursor: 'pointer'
+                      }}
                     >
-                      <GraduationCap size={22} />
-                    </div>
-                    <div>
-                      <span className="text-xs font-bold text-slate-400">{selectedCourseOutline.code} • {selectedCourseOutline.credits} Credits</span>
-                      <h3 className="text-lg font-extrabold text-white">{selectedCourseOutline.name}</h3>
+                      <ArrowLeft size={16} />
+                      <span>Back to Files</span>
+                    </button>
+                    <div style={{ minWidth: 0 }}>
+                      <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={activeDoc.title}>
+                        {activeDoc.title}
+                      </h4>
+                      <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                        {selectedCourseResources.code} • {activeDoc.file_name} ({activeDoc.file_size})
+                      </span>
                     </div>
                   </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    {(activeDoc.file_data || activeDoc.file_url) && (
+                      <a
+                        href={activeDoc.file_data || activeDoc.file_url}
+                        download={activeDoc.file_name || 'document.pdf'}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '8px 16px',
+                          borderRadius: '12px',
+                          background: 'linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%)',
+                          color: '#fff',
+                          fontSize: '0.8rem',
+                          fontWeight: 700,
+                          textDecoration: 'none',
+                          boxShadow: '0 4px 15px rgba(139, 92, 246, 0.4)'
+                        }}
+                      >
+                        <Download size={15} />
+                        <span>Download</span>
+                      </a>
+                    )}
+                    <button
+                      onClick={handleCloseResources}
+                      className="btn-close-modal"
+                      title="Close"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Main Document Viewing Canvas */}
+                <div style={{ flex: 1, width: '100%', height: 'calc(100% - 64px)', position: 'relative', background: '#070a14', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {(activeDoc.file_data || activeDoc.file_url) ? (
+                    <iframe
+                      src={activeDoc.file_data || activeDoc.file_url}
+                      style={{ width: '100%', height: '100%', border: 'none', background: '#070a14' }}
+                      title={activeDoc.title}
+                    />
+                  ) : (
+                    <div style={{ textAlign: 'center', padding: '32px', color: '#94a3b8' }}>
+                      <AlertCircle size={44} style={{ margin: '0 auto 12px', color: '#f59e0b' }} />
+                      <h4 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#fff' }}>Preview Not Available Directly</h4>
+                      <p style={{ fontSize: '0.85rem', color: '#94a3b8', marginTop: '6px' }}>
+                        Please click Download to view this file format locally.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              /* ---------------- VIEW 2: FLOATING RESOURCES LIST CARD ---------------- */
+              <div style={{ padding: '28px', display: 'flex', flexDirection: 'column', gap: '20px', overflowY: 'auto' }}>
+                {/* Header */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '18px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                    <div 
+                      style={{ 
+                        width: '50px', 
+                        height: '50px', 
+                        borderRadius: '16px', 
+                        background: selectedCourseResources.gradient, 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center', 
+                        color: '#fff', 
+                        flexShrink: 0,
+                        boxShadow: `0 8px 20px ${selectedCourseResources.borderGlow}30`
+                      }}
+                    >
+                      <FolderOpen size={26} />
+                    </div>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ padding: '2px 8px', borderRadius: '8px', background: 'rgba(139, 92, 246, 0.2)', color: '#c4b5fd', fontWeight: 800, fontSize: '0.74rem', border: '1px solid rgba(139, 92, 246, 0.35)' }}>
+                          {selectedCourseResources.code}
+                        </span>
+                        <span style={{ fontSize: '0.76rem', color: '#94a3b8', fontWeight: 600 }}>{selectedCourseResources.batch}</span>
+                      </div>
+                      <h3 style={{ margin: '6px 0 2px 0', fontSize: '1.3rem', fontWeight: 800, color: '#fff' }}>
+                        {selectedCourseResources.name}
+                      </h3>
+                      <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
+                        Course Study Resources & Uploaded Books
+                      </span>
+                    </div>
+                  </div>
+
                   <button 
-                    onClick={() => setSelectedCourseOutline(null)}
+                    onClick={handleCloseResources}
                     className="btn-close-modal"
+                    title="Close"
                   >
                     <X size={18} />
                   </button>
                 </div>
 
-                <div className="space-y-4 text-sm text-slate-300">
-                  <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 space-y-2">
-                    <p className="text-slate-300 leading-relaxed">{selectedCourseOutline.description}</p>
-                    <div className="grid grid-cols-2 gap-3 pt-3 border-t border-white/5 text-xs">
-                      <div>
-                        <span className="text-slate-500 block">Instructor Desk:</span>
-                        <strong className="text-white text-sm">{selectedCourseOutline.instructor}</strong>
-                      </div>
-                      <div>
-                        <span className="text-slate-500 block">Target Batch:</span>
-                        <strong className="text-white text-sm">{selectedCourseOutline.batch} (Sec: {selectedCourseOutline.section})</strong>
-                      </div>
-                    </div>
+                {/* Body Content */}
+                {loadingResources ? (
+                  <div style={{ padding: '60px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', color: '#94a3b8' }}>
+                    <Loader2 className="animate-spin" size={32} style={{ color: '#8B5CF6' }} />
+                    <p style={{ fontSize: '0.88rem', fontWeight: 600 }}>Loading uploaded materials from database...</p>
                   </div>
-
-                  <div>
-                    <h4 className="font-bold text-white mb-2 flex items-center gap-2">
-                      <BookOpen size={16} className="text-violet-400" />
-                      Syllabus Modules & Curriculum Units
-                    </h4>
-                    {selectedCourseOutline.modules && selectedCourseOutline.modules.length > 0 ? (
-                      <div className="space-y-2">
-                        {selectedCourseOutline.modules.map((m, idx) => (
-                          <div key={idx} className="p-3 rounded-xl bg-white/[0.02] border border-white/5 flex items-center justify-between text-xs">
-                            <span className="font-semibold text-slate-200">{typeof m === 'string' ? m : m.name}</span>
-                            <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-bold border border-emerald-500/20">
-                              Unit {idx + 1}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 text-xs text-slate-400">
-                        Standard syllabus curriculum module tracking active for {selectedCourseOutline.hours_per_week} hours/week.
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </motion.div>
-            </div>
-          )}
-        </AnimatePresence>,
-        document.body
-      )}
-
-      {/* =======================================================================
-         RESOURCES CARD WINDOW MODAL & SCREEN VIEWER (Portaled to document.body)
-         ======================================================================= */}
-      {typeof document !== 'undefined' && createPortal(
-        <AnimatePresence>
-          {selectedCourseResources && (
-            <div 
-              className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md"
-              onClick={handleCloseResources}
-            >
-              <motion.div
-                initial={{ scale: 0.94, opacity: 0, y: 15 }}
-                animate={{ scale: 1, opacity: 1, y: 0 }}
-                exit={{ scale: 0.94, opacity: 0, y: 15 }}
-                transition={{ duration: 0.25, ease: 'easeOut' }}
-                onClick={(e) => e.stopPropagation()}
-                className={`w-full bg-[#0d1426] border border-white/20 rounded-2xl shadow-2xl flex flex-col overflow-hidden transition-all duration-300 ${
-                  activeDoc ? 'max-w-7xl h-[94vh]' : 'max-w-2xl max-h-[85vh]'
-                }`}
-              >
-                {/* ---------------- VIEW 1: DOCUMENT SCREEN VIEWER ---------------- */}
-                {activeDoc ? (
-                  <div className="flex flex-col h-full w-full">
-                    {/* Top Control Bar */}
-                    <div className="h-16 px-4 sm:px-6 bg-[#080d1a] border-b border-white/10 flex items-center justify-between gap-4 flex-shrink-0">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <button
-                          onClick={() => setActiveDoc(null)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/15 text-slate-200 text-xs font-bold transition-all border border-white/10"
-                        >
-                          <ArrowLeft size={16} />
-                          <span>Back to Files</span>
-                        </button>
-                        <div className="min-w-0">
-                          <h4 className="text-sm sm:text-base font-extrabold text-white truncate max-w-lg" title={activeDoc.title}>
-                            {activeDoc.title}
-                          </h4>
-                          <span className="text-xs text-slate-400 hidden sm:inline">
-                            {selectedCourseResources.code} • {activeDoc.file_name} ({activeDoc.file_size})
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        {(activeDoc.file_data || activeDoc.file_url) && (
-                          <a
-                            href={activeDoc.file_data || activeDoc.file_url}
-                            download={activeDoc.file_name || 'document.pdf'}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold transition-all shadow-lg shadow-violet-600/30"
-                          >
-                            <Download size={14} />
-                            <span className="hidden sm:inline">Download</span>
-                          </a>
-                        )}
-                        <button
-                          onClick={handleCloseResources}
-                          className="btn-close-modal"
-                          title="Close"
-                        >
-                          <X size={18} />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Main Screen Document Display Canvas */}
-                    <div className="flex-1 w-full h-[calc(100%-64px)] relative bg-slate-950 flex items-center justify-center overflow-hidden">
-                      {(activeDoc.file_data || activeDoc.file_url) ? (
-                        <iframe
-                          src={activeDoc.file_data || activeDoc.file_url}
-                          className="w-full h-full border-0 bg-slate-900"
-                          title={activeDoc.title}
-                        />
-                      ) : (
-                        <div className="text-center p-8 text-slate-400 space-y-3">
-                          <AlertCircle className="mx-auto text-amber-400" size={48} />
-                          <h4 className="text-lg font-bold text-white">Preview Not Available Directly</h4>
-                          <p className="text-sm max-w-md text-slate-400">
-                            This document cannot be previewed in the frame. Please click Download to view it locally.
-                          </p>
-                        </div>
-                      )}
-                    </div>
+                ) : resourcesList.length === 0 ? (
+                  <div style={{ padding: '40px 20px', borderRadius: '16px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', textAlign: 'center', color: '#94a3b8' }}>
+                    <FileText size={40} style={{ margin: '0 auto 10px', color: '#64748b' }} />
+                    <h4 style={{ fontWeight: 700, color: '#f1f5f9', margin: 0 }}>No Documents Uploaded Yet</h4>
+                    <p style={{ fontSize: '0.82rem', marginTop: '6px', color: '#94a3b8' }}>
+                      Course instructor ({selectedCourseResources.instructor}) has not uploaded any study books or slides for {selectedCourseResources.code} yet.
+                    </p>
                   </div>
                 ) : (
-                  /* ---------------- VIEW 2: RESOURCES LIST CARD ---------------- */
-                  <div className="p-6 flex flex-col gap-5 overflow-y-auto max-h-[85vh]">
-                    {/* Card Header */}
-                    <div className="flex justify-between items-start gap-4 border-b border-white/10 pb-4">
-                      <div className="flex items-center gap-3">
-                        <div 
-                          className="w-12 h-12 rounded-xl flex items-center justify-center text-white flex-shrink-0 shadow-lg"
-                          style={{ background: selectedCourseResources.gradient }}
-                        >
-                          <FolderOpen size={24} />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="px-2 py-0.5 rounded-md bg-violet-500/20 text-violet-300 font-extrabold text-xs tracking-wider border border-violet-500/30">
-                              {selectedCourseResources.code}
-                            </span>
-                            <span className="text-xs text-slate-400 font-semibold">{selectedCourseResources.batch}</span>
-                          </div>
-                          <h3 className="text-lg font-extrabold text-white mt-1">
-                            {selectedCourseResources.name}
-                          </h3>
-                          <span className="text-xs text-slate-400">
-                            Uploaded Course Study Resources & Materials
-                          </span>
-                        </div>
-                      </div>
-                      <button 
-                        onClick={handleCloseResources}
-                        className="btn-close-modal"
-                        title="Close"
-                      >
-                        <X size={18} />
-                      </button>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem', color: '#94a3b8', fontWeight: 600, padding: '0 4px' }}>
+                      <span>Available Study Files ({resourcesList.length})</span>
+                      <span>Click to view file directly on screen</span>
                     </div>
 
-                    {/* Card Content List */}
-                    {loadingResources ? (
-                      <div className="py-16 flex flex-col items-center justify-center gap-2 text-slate-400">
-                        <Loader2 className="animate-spin text-violet-500" size={32} />
-                        <p className="text-sm font-semibold">Loading uploaded materials from database...</p>
-                      </div>
-                    ) : resourcesList.length === 0 ? (
-                      <div className="p-8 rounded-xl bg-white/[0.02] border border-white/5 text-center text-slate-400">
-                        <FileText className="mx-auto mb-2 text-slate-600" size={40} />
-                        <h4 className="font-bold text-slate-200">No Documents Uploaded Yet</h4>
-                        <p className="text-xs mt-1 text-slate-400">
-                          Course instructor ({selectedCourseResources.instructor}) has not uploaded any study books or slides for {selectedCourseResources.code} yet.
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col gap-3">
-                        <div className="flex items-center justify-between text-xs text-slate-400 font-semibold px-1">
-                          <span>Available Course Files ({resourcesList.length})</span>
-                          <span>Click to open and view on screen</span>
-                        </div>
+                    {resourcesList.map((res) => {
+                      const isPdf = (res.file_type || '').toUpperCase().includes('PDF') || (res.file_name || '').toLowerCase().endsWith('.pdf');
+                      const isPpt = (res.file_type || '').toUpperCase().includes('PPT') || (res.file_name || '').toLowerCase().endsWith('.pptx');
 
-                        {resourcesList.map((res) => {
-                          const isPdf = (res.file_type || '').toUpperCase().includes('PDF') || (res.file_name || '').toLowerCase().endsWith('.pdf');
-                          const isPpt = (res.file_type || '').toUpperCase().includes('PPT') || (res.file_name || '').toLowerCase().endsWith('.pptx');
+                      return (
+                        <div
+                          key={res.id}
+                          onClick={() => setActiveDoc(res)}
+                          className="resource-file-row"
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0, flex: 1 }}>
+                            <div style={{
+                              width: '44px',
+                              height: '44px',
+                              borderRadius: '14px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0,
+                              background: isPdf ? 'rgba(239, 68, 68, 0.15)' : isPpt ? 'rgba(245, 158, 11, 0.15)' : 'rgba(59, 130, 246, 0.15)',
+                              color: isPdf ? '#f87171' : isPpt ? '#fbbf24' : '#60a5fa',
+                              border: `1px solid ${isPdf ? 'rgba(239, 68, 68, 0.3)' : isPpt ? 'rgba(245, 158, 11, 0.3)' : 'rgba(59, 130, 246, 0.3)'}`
+                            }}>
+                              <FileText size={22} />
+                            </div>
 
-                          return (
-                            <div
-                              key={res.id}
-                              onClick={() => setActiveDoc(res)}
-                              className="hover-resource-card p-4 rounded-xl flex items-center justify-between gap-4 cursor-pointer group"
-                            >
-                              <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                                <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-105 ${
-                                  isPdf ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30' : 
-                                  isPpt ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30' : 
-                                  'bg-blue-500/15 text-blue-400 border border-blue-500/30'
-                                }`}>
-                                  <FileText size={22} />
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                  <h5 className="font-bold text-sm text-slate-100 group-hover:text-violet-300 transition-colors truncate" title={res.title}>
-                                    {res.title}
-                                  </h5>
-                                  <div className="flex items-center gap-2 mt-1 text-xs text-slate-400">
-                                    <span className="px-1.5 py-0.2 rounded bg-white/10 text-slate-300 font-mono text-[10px] font-bold">
-                                      {res.file_type || 'PDF'}
-                                    </span>
+                            <div style={{ minWidth: 0, flex: 1 }}>
+                              <h5 style={{ margin: '0 0 4px 0', fontSize: '0.92rem', fontWeight: 700, color: '#f8fafc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={res.title}>
+                                {res.title}
+                              </h5>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.74rem', color: '#94a3b8' }}>
+                                <span style={{ padding: '2px 6px', borderRadius: '6px', background: 'rgba(255,255,255,0.08)', color: '#e2e8f0', fontFamily: 'monospace', fontWeight: 700, fontSize: '0.68rem' }}>
+                                  {res.file_type || 'PDF'}
+                                </span>
+                                <span>•</span>
+                                <span style={{ color: '#cbd5e1', fontWeight: 500 }}>{res.file_size || 'Document'}</span>
+                                {res.teacher_name && (
+                                  <>
                                     <span>•</span>
-                                    <span className="text-slate-300 font-medium">{res.file_size || 'Document'}</span>
-                                    {res.teacher_name && (
-                                      <>
-                                        <span>•</span>
-                                        <span className="text-slate-400 truncate">By {res.teacher_name}</span>
-                                      </>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="flex items-center gap-2">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setActiveDoc(res);
-                                  }}
-                                  className="px-3.5 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-violet-600/30 transition-all cursor-pointer"
-                                  title="View on Screen"
-                                >
-                                  <Eye size={14} />
-                                  <span>View</span>
-                                </button>
-                                {(res.file_data || res.file_url) && (
-                                  <a
-                                    href={res.file_data || res.file_url}
-                                    download={res.file_name || 'document.pdf'}
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="p-2 rounded-xl bg-white/5 text-slate-300 hover:bg-white/15 hover:text-white transition-all border border-white/5"
-                                    title="Download File"
-                                  >
-                                    <Download size={15} />
-                                  </a>
+                                    <span style={{ color: '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>By {res.teacher_name}</span>
+                                  </>
                                 )}
                               </div>
                             </div>
-                          );
-                        })}
-                      </div>
-                    )}
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveDoc(res);
+                              }}
+                              className="btn-view-document"
+                              title="View on Screen"
+                            >
+                              <Eye size={15} />
+                              <span>View</span>
+                            </button>
+                            {(res.file_data || res.file_url) && (
+                              <a
+                                href={res.file_data || res.file_url}
+                                download={res.file_name || 'document.pdf'}
+                                onClick={(e) => e.stopPropagation()}
+                                style={{
+                                  padding: '8px',
+                                  borderRadius: '10px',
+                                  background: 'rgba(255,255,255,0.05)',
+                                  border: '1px solid rgba(255,255,255,0.1)',
+                                  color: '#cbd5e1',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  textDecoration: 'none'
+                                }}
+                                title="Download File"
+                              >
+                                <Download size={15} />
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
-              </motion.div>
-            </div>
-          )}
-        </AnimatePresence>,
+              </div>
+            )}
+          </div>
+        </div>,
         document.body
       )}
 
