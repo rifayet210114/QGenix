@@ -538,3 +538,43 @@ class TeacherCourseResource(models.Model):
         return f"{self.file_name} ({self.course_code}) - {self.teacher.username if self.teacher else 'Faculty'}"
 
 
+
+
+class OnlineClassSession(models.Model):
+    """
+    Real-time Online Video Class Sessions created by Teachers for specific Batch, Semester, and Section.
+    """
+    STATUS_CHOICES = (
+        ('LIVE', 'Live'),
+        ('SCHEDULED', 'Scheduled'),
+        ('COMPLETED', 'Completed'),
+        ('CANCELLED', 'Cancelled'),
+    )
+
+    title = models.CharField(max_length=255, help_text="Session topic / title")
+    course_code = models.CharField(max_length=50)
+    course_title = models.CharField(max_length=255)
+    teacher = models.CharField(max_length=150, help_text="Teacher full name")
+    teacher_user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name='hosted_online_classes')
+    
+    batch = models.CharField(max_length=100, help_text="Target Batch (e.g. Batch 2023 - 2024)")
+    semester = models.CharField(max_length=50, help_text="Target Semester (e.g. 5th Semester)")
+    section = models.CharField(max_length=50, default='All', help_text="Target Section (e.g. A, B, or All)")
+    
+    room_id = models.CharField(max_length=120, unique=True, help_text="Unique Jitsi meeting room id")
+    meeting_link = models.CharField(max_length=500, blank=True, default='')
+    scheduled_time = models.CharField(max_length=100, blank=True, default='')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='LIVE')
+    is_active = models.BooleanField(default=True)
+    
+    joined_students = models.JSONField(default=list, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    ended_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'online_class_sessions'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.course_code}: {self.title} ({self.batch} - {self.semester} - Sec {self.section}) [{self.status}]"

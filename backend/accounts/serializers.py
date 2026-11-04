@@ -252,7 +252,7 @@ from .models import (
     GradingScaleRule, StudentExamResult,
     Department, Course, Batch, ExamSession, Notice, AuditLog, ClassRoutine, 
     CourseAllocation, AIConfiguration, SemesterArchive, StudentSemesterRecord, 
-    SystemSetting, ClassAttendance, AIQuestionPaper
+    SystemSetting, ClassAttendance, AIQuestionPaper, OnlineClassSession
 )
 
 class SystemSettingSerializer(serializers.ModelSerializer):
@@ -394,3 +394,26 @@ class StudentExamResultSerializer(serializers.ModelSerializer):
     class Meta:
         model = StudentExamResult
         fields = '__all__'
+
+
+
+class OnlineClassSessionSerializer(serializers.ModelSerializer):
+    room_id = serializers.CharField(required=False, allow_blank=True, default='')
+    joined_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = OnlineClassSession
+        fields = '__all__'
+
+    def create(self, validated_data):
+        import uuid
+        if not validated_data.get('room_id'):
+            validated_data['room_id'] = f"qgenix-room-{uuid.uuid4().hex[:10]}"
+        if not validated_data.get('meeting_link'):
+            validated_data['meeting_link'] = f"https://meet.jit.si/{validated_data['room_id']}"
+        return super().create(validated_data)
+
+    def get_joined_count(self, obj):
+        if isinstance(obj.joined_students, list):
+            return len(obj.joined_students)
+        return 0

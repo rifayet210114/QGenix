@@ -42,7 +42,8 @@ from .views import (
     StudentExamResultViewSet,
     SubmitTeacherExamResultsView,
     PublishBatchExamResultsView,
-    UnpublishBatchExamResultsView
+    UnpublishBatchExamResultsView,
+    OnlineClassSessionViewSet
 )
 
 router = DefaultRouter()
@@ -61,6 +62,7 @@ router.register(r'notices', NoticeViewSet, basename='admin-notices')
 router.register(r'audit-logs', AuditLogViewSet, basename='admin-audit-logs')
 router.register(r'ai-questions', AIQuestionPaperViewSet, basename='admin-ai-questions')
 router.register(r'student-exam-results', StudentExamResultViewSet, basename='student-exam-results')
+router.register(r'online-classes', OnlineClassSessionViewSet, basename='online-classes')
 
 
 urlpatterns = [

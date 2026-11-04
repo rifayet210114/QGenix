@@ -20,7 +20,8 @@ from .models import (
     ClassRoutine, CourseAllocation, AIConfiguration, SemesterArchive, StudentSemesterRecord,
     SystemSetting, FacultyBiometricLog, FacultyLeaveQuota, FacultyLeaveRecord, FacultySyllabusProgress,
     ClassAttendance, AIQuestionPaper, AITokenUsageLog, BiometricShiftPolicy, FacultyTimesheetEntry,
-    TeacherCourseResource
+    TeacherCourseResource,
+    OnlineClassSession
 )
 from .serializers import (
     CustomTokenObtainPairSerializer, 
@@ -42,7 +43,8 @@ from .serializers import (
     ClassAttendanceSerializer,
     AIQuestionPaperSerializer,
     GradingScaleRuleSerializer,
-    StudentExamResultSerializer
+    StudentExamResultSerializer,
+    OnlineClassSessionSerializer
 )
 import time
 import urllib.request
@@ -4335,3 +4337,113 @@ class UnpublishBatchExamResultsView(APIView):
         ).update(is_published=False)
 
         return Response({'success': True, 'unpublished_count': updated_count})
+
+
+
+class OnlineClassSessionViewSet(viewsets.ModelViewSet):
+    """
+    CRUD ViewSet for real-time online classes conducted by teachers.
+    Automatically generates high-priority Notice for target batch, semester, section.
+    """
+    queryset = OnlineClassSession.objects.all().order_by('-created_at')
+    serializer_class = OnlineClassSessionSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        qs = OnlineClassSession.objects.all().order_by('-created_at')
+        batch = self.request.query_params.get('batch')
+        semester = self.request.query_params.get('semester')
+        section = self.request.query_params.get('section')
+        status = self.request.query_params.get('status')
+        teacher = self.request.query_params.get('teacher')
+
+        if batch:
+            qs = qs.filter(batch__icontains=batch.strip())
+        if semester:
+            qs = qs.filter(semester__icontains=semester.strip())
+        if section and section != 'All':
+            qs = qs.filter(models.Q(section='All') | models.Q(section__iexact=section.strip()))
+        if status:
+            qs = qs.filter(status__iexact=status.strip())
+        if teacher:
+            qs = qs.filter(teacher__icontains=teacher.strip())
+
+        return qs
+
+    def perform_create(self, serializer):
+        import uuid
+        room_id = serializer.validated_data.get('room_id')
+        if not room_id:
+            room_id = f"qgenix-class-{uuid.uuid4().hex[:10]}"
+        
+        meeting_link = f"https://meet.jit.si/{room_id}"
+        session = serializer.save(room_id=room_id, meeting_link=meeting_link)
+
+        # 1. Automatically create high-priority broadcast Notice
+        try:
+            target_audience = f"{session.batch} • {session.semester}"
+            if session.section and session.section != 'All':
+                target_audience += f" • Section {session.section}"
+            else:
+                target_audience += " • All Sections"
+
+            Notice.objects.create(
+                title=f"🔴 LIVE CLASS: {session.course_title} ({session.course_code})",
+                category='Online Class',
+                audience=target_audience,
+                priority='High',
+                pinned=True,
+                author=session.teacher or 'Faculty Instructor',
+                date=datetime.now().strftime('%b %d, %Y - %I:%M %p'),
+                content=f"An online live class has started for {session.course_title} ({session.course_code}). Topic: '{session.title}'. Target: {target_audience}. Please go to the 'Online Class' page in your student portal to join the session now.",
+                attachment='/student/online-class'
+            )
+        except Exception as e:
+            print("Notice creation error:", e)
+
+        # 2. Audit Log
+        try:
+            AuditLog.objects.create(
+                user=session.teacher or 'Teacher',
+                action='Online Class Launched',
+                category='Online Class',
+                target=f"{session.course_code} - {session.title} ({session.batch})",
+                timestamp=datetime.now().strftime('%I:%M %p'),
+                status='Success'
+            )
+        except Exception:
+            pass
+
+    @action(detail=True, methods=['post'], url_path='end')
+    def end_session(self, request, pk=None):
+        from django.utils import timezone
+        session = self.get_object()
+        session.status = 'COMPLETED'
+        session.is_active = False
+        session.ended_at = timezone.now()
+        session.save()
+        return Response({'success': True, 'message': 'Class session marked as completed', 'status': session.status})
+
+    @action(detail=True, methods=['post'], url_path='join')
+    def join_session(self, request, pk=None):
+        session = self.get_object()
+        student_id = request.data.get('student_id') or (request.user.institutional_id if request.user.is_authenticated else 'STU-GUEST')
+        student_name = request.data.get('student_name') or (request.user.get_full_name() or request.user.username if request.user.is_authenticated else 'Student')
+        
+        joined = session.joined_students or []
+        existing = any(isinstance(s, dict) and s.get('id') == student_id for s in joined)
+        if not existing:
+            joined.append({
+                'id': student_id,
+                'name': student_name,
+                'joined_at': datetime.now().strftime('%I:%M %p')
+            })
+            session.joined_students = joined
+            session.save()
+
+        return Response({
+            'success': True,
+            'message': 'Joined class recorded',
+            'joined_count': len(session.joined_students),
+            'room_id': session.room_id
+        })

@@ -18,7 +18,7 @@
 
 import React, { useState, useEffect } from 'react';
 // Bell — notification icon, User — avatar fallback, LogOut — sign-out icon, Menu — hamburger, Search — search bar icon, LogIn & Clock for Check-In
-import { Bell, User, LogOut, Menu, Search, LogIn, Clock } from 'lucide-react';
+import { Bell, User, LogOut, Menu, Search, LogIn, Clock, Video } from 'lucide-react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 // ThemeToggle provides the dark/light mode switcher button
 import ThemeToggle from './ThemeToggle';
@@ -43,6 +43,8 @@ export default function Navbar({ title, role, onMenuClick }) {
   const location = useLocation();
 
   const [unreadCount, setUnreadCount] = useState(0);
+  const [liveOnlineClass, setLiveOnlineClass] = useState(null);
+  const [showLiveToast, setShowLiveToast] = useState(false);
 
   // Teacher Biometric Check-In & Check-Out state
   const [isCheckedIn, setIsCheckedIn] = useState(false);
@@ -197,6 +199,57 @@ export default function Navbar({ title, role, onMenuClick }) {
       console.warn('Error marking notices read:', e);
     }
   };
+
+  // Check for active online classes matching student cohort
+  const checkLiveOnlineClasses = async () => {
+    if (role !== 'Student') return;
+    try {
+      const studentBatch = profile?.batch || user?.batch;
+      const studentSemester = profile?.semester || user?.semester;
+      const studentSection = profile?.section || user?.section;
+      let url = `${API_BASE}/api/auth/online-classes/?status=LIVE`;
+      if (studentBatch) url += `&batch=${encodeURIComponent(studentBatch)}`;
+      if (studentSemester) url += `&semester=${encodeURIComponent(studentSemester)}`;
+      if (studentSection && studentSection !== 'All') url += `&section=${encodeURIComponent(studentSection)}`;
+
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : data?.results || [];
+        const live = list.find(s => s.status === 'LIVE' && s.is_active);
+        setLiveOnlineClass(live || null);
+      }
+    } catch (e) {
+      // Ignore network errors
+    }
+  };
+
+  useEffect(() => {
+    if (role === 'Student') {
+      checkLiveOnlineClasses();
+    }
+
+    let channel;
+    try {
+      channel = new BroadcastChannel('qgenix_online_class_sync');
+      channel.onmessage = (event) => {
+        if (event.data?.type === 'CLASS_STARTED') {
+          if (role === 'Student') {
+            setLiveOnlineClass(event.data.session);
+            setShowLiveToast(true);
+            checkUnreadNotices();
+          }
+        } else if (event.data?.type === 'CLASS_ENDED') {
+          setLiveOnlineClass(null);
+          setShowLiveToast(false);
+        }
+      };
+    } catch (e) {}
+
+    return () => {
+      if (channel) channel.close();
+    };
+  }, [role, user, profile]);
 
   useEffect(() => {
     checkUnreadNotices();
@@ -370,6 +423,32 @@ export default function Navbar({ title, role, onMenuClick }) {
         <div className="navbar-theme-toggle-wrapper">
           <ThemeToggle />
         </div>
+
+        {/* Live Class Indicator Badge for Students */}
+        {role === 'Student' && liveOnlineClass && (
+          <Link
+            to="/student/online-class"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '5px 12px',
+              borderRadius: '20px',
+              background: 'rgba(239, 68, 68, 0.2)',
+              border: '1px solid rgba(239, 68, 68, 0.5)',
+              color: '#f87171',
+              fontSize: '0.78rem',
+              fontWeight: '700',
+              textDecoration: 'none',
+              boxShadow: '0 0 12px rgba(239, 68, 68, 0.35)',
+              whiteSpace: 'nowrap'
+            }}
+            title={`Live class started: ${liveOnlineClass.course_code} - Click to join`}
+          >
+            <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: '#ef4444' }} />
+            Live Class
+          </Link>
+        )}
 
         {/* Notification bell shortcut — links to Student / Teacher / Admin notice board with unread indicator */}
         <Link 

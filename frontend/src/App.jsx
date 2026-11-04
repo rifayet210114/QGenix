@@ -35,7 +35,7 @@ import {
   LayoutDashboard, Users, Settings, BookOpen, FileText, 
   CheckSquare, Calendar, CalendarCheck, 
   Award, Clock, Bell, MessageSquare, FolderOpen, BrainCircuit, User, LogOut,
-  Building2, ShieldAlert, Sparkles, Archive, Crown
+  Building2, ShieldAlert, Sparkles, Archive, Crown, Video
 } from 'lucide-react';
 
 // ==================== LAYOUT ====================
@@ -79,7 +79,8 @@ import TeacherAssignments from './pages/Teacher/Assignments';    // Teacher assi
 import TeacherResults from './pages/Teacher/Results';            // Teacher results and grade sheets manager component
 import TeacherRoutine from './pages/Teacher/Routine';            // Teacher routine and planner component
 import TeacherNotices from './pages/Teacher/Notices';            // Teacher notices manager component
-import TeacherProfile from './pages/Teacher/Profile';            // Teacher profile component
+import TeacherProfile from './pages/Teacher/Profile';
+import TeacherOnlineClass from './pages/Teacher/OnlineClass';            // Teacher profile component
 
 // ==================== STUDENT PAGES ====================
 // Pages for students / learners
@@ -96,7 +97,8 @@ import Routine from './pages/Student/Routine';              // Student academic 
 import Notices from './pages/Student/Notices';              // Student notice board component
 import Resources from './pages/Student/Resources';            // Student academic resources component
 import AIAssistant from './pages/Student/AIAssistant';        // Student AI-driven performance advisor component
-import Profile from './pages/Student/Profile';                // Student Profile component
+import Profile from './pages/Student/Profile';
+import StudentOnlineClass from './pages/Student/OnlineClass';                // Student Profile component
 
 
 
@@ -131,6 +133,7 @@ const adminLinks = [
 const teacherLinks = [
   { path: '/teacher', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
   { path: '/teacher/attendance-timesheet', label: 'Attendance and Timesheet', icon: <Clock size={20} /> },
+  { path: '/teacher/online-class', label: 'Online Class', icon: <Video size={20} /> },
   { path: '/teacher/resources', label: 'Resource Manager', icon: <BookOpen size={20} /> },
   { path: '/teacher/attendance', label: 'Student Attendance', icon: <CalendarCheck size={20} /> },
   { path: '/teacher/generator', label: 'Questions Generator', icon: <FileText size={20} /> },
@@ -150,6 +153,7 @@ const teacherLinks = [
 const studentLinks = [
   { path: '/student', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
   { path: '/student/attendance', label: 'Attendance', icon: <CalendarCheck size={20} /> },
+  { path: '/student/online-class', label: 'Online Class', icon: <Video size={20} /> },
   { path: '/student/courses', label: 'My Courses', icon: <BookOpen size={20} /> },
   { path: '/student/results', label: 'Results', icon: <Award size={20} /> },
   { path: '/student/assignments', label: 'Assignments', icon: <CheckSquare size={20} /> },
@@ -273,6 +277,7 @@ function App() {
             <Route path="routine" element={<TeacherRoutine />} />
             <Route path="notices" element={<TeacherNotices />} />
             <Route path="profile" element={<TeacherProfile />} />
+            <Route path="online-class" element={<TeacherOnlineClass />} />
           </Route>
 
           {/* ==================== STUDENT ROUTES (PROTECTED VIA StudentRoute) ==================== */}
@@ -314,6 +319,7 @@ function App() {
             <Route path="resources" element={<Resources />} />
             <Route path="ai-assistant" element={<AIAssistant />} />
             <Route path="profile" element={<Profile />} />
+            <Route path="online-class" element={<StudentOnlineClass />} />
             <Route path="settings" element={<ComingSoon title="Account Settings" />} />
           </Route>
 
