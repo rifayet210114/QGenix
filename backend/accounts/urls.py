@@ -40,6 +40,7 @@ from .views import (
     AIPublishExamView,
     StudentAssignedExamView,
     StudentSubmitExamView,
+    StudentResultsHubView,
     StudentExamResultViewSet,
     SubmitTeacherExamResultsView,
     PublishBatchExamResultsView,
@@ -87,6 +88,7 @@ urlpatterns = [
     path('ai-publish-exam/', AIPublishExamView.as_view(), name='ai-publish-exam'),
     path('student-assigned-exam/', StudentAssignedExamView.as_view(), name='student-assigned-exam'),
     path('student-submit-exam/', StudentSubmitExamView.as_view(), name='student-submit-exam'),
+    path('student-results-hub/', StudentResultsHubView.as_view(), name='student-results-hub'),
     # Dynamic DB Metrics for Executive Dashboard
     path('dashboard-stats/', DashboardStatsView.as_view(), name='dashboard-stats'),
     # System Settings & Email Formats Configuration
