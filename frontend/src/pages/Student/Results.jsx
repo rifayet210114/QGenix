@@ -26,14 +26,12 @@ import {
 } from 'recharts';
 import Card from '../../components/Card';
 import { useAuth } from '../../contexts/AuthContext';
-import { useAdminData } from '../../contexts/AdminDataContext';
 import { downloadEntranceModelQuestionPDF } from '../../utils/entranceModelQuestionPdf';
 import { API_BASE } from '../../config';
 
 export default function Results() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { submittedExamResults = [] } = useAdminData();
 
   // Theme state observer
   const [isLightMode, setIsLightMode] = useState(document.body.classList.contains('light-mode'));
@@ -48,6 +46,7 @@ export default function Results() {
 
   // 100% Real Database States
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [exams, setExams] = useState([]);
   const [summaryStats, setSummaryStats] = useState(null);
   const [radarData, setRadarData] = useState([]);
@@ -66,17 +65,24 @@ export default function Results() {
   const [openReviewIndices, setOpenReviewIndices] = useState([0]);
   const [downloadingType, setDownloadingType] = useState(null);
 
-  // Fetch 100% dynamic DB results on mount and when user / submittedExamResults changes
-  useEffect(() => {
-    fetchResultsFromDB();
-  }, [user, submittedExamResults]);
+  const studentId = user?.institutional_id || user?.username || '';
 
-  const fetchResultsFromDB = async () => {
-    setLoading(true);
+  // Fetch 100% dynamic DB results on mount or when student identity changes
+  useEffect(() => {
+    fetchResultsFromDB(true);
+  }, [studentId]);
+
+  const fetchResultsFromDB = async (isInitial = false) => {
+    if (isInitial) {
+      setLoading(true);
+    } else {
+      setIsRefreshing(true);
+    }
+
     try {
       const token = localStorage.getItem('access') || localStorage.getItem('token');
-      const studentId = user?.institutional_id || user?.username || localStorage.getItem('institutional_id') || localStorage.getItem('user_id') || '';
-      const url = `${API_BASE}/api/auth/student-results-hub/?student_id=${encodeURIComponent(studentId)}`;
+      const resolvedId = studentId || localStorage.getItem('institutional_id') || localStorage.getItem('user_id') || '';
+      const url = `${API_BASE}/api/auth/student-results-hub/?student_id=${encodeURIComponent(resolvedId)}`;
       const res = await fetch(url, {
         headers: token ? { 'Authorization': `Bearer ${token}` } : {}
       });
@@ -90,13 +96,19 @@ export default function Results() {
           setRadarData(data.radar_data || []);
           setMonthlyProgress(data.monthly_progress || []);
           setLeaderboard(data.leaderboard || []);
-          setSelectedExam(fetchedExams[0] || null);
+          
+          setSelectedExam(prev => {
+            if (!prev) return fetchedExams[0] || null;
+            const match = fetchedExams.find(e => e.id === prev.id);
+            return match || fetchedExams[0] || null;
+          });
         }
       }
     } catch (err) {
       console.warn('Could not fetch student results from DB:', err);
     } finally {
-      setLoading(false);
+      if (isInitial) setLoading(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -322,7 +334,7 @@ export default function Results() {
         {/* Action: Refresh & Link to Exams */}
         <div style={{ display: 'flex', gap: '10px' }}>
           <button
-            onClick={fetchResultsFromDB}
+            onClick={() => fetchResultsFromDB(false)}
             className="btn-glass-cta"
             style={{
               padding: '9px 16px',
@@ -334,7 +346,7 @@ export default function Results() {
             }}
             title="Refresh database results"
           >
-            <RefreshCw size={15} className={loading ? "animate-spin text-purple-400" : "text-violet-400"} />
+            <RefreshCw size={15} className={(loading || isRefreshing) ? "animate-spin text-purple-400" : "text-violet-400"} />
             <span>Refresh</span>
           </button>
           
@@ -551,7 +563,7 @@ export default function Results() {
                     </tr>
                   </thead>
                   <tbody>
-                    {loading ? (
+                    {loading && exams.length === 0 ? (
                       <tr>
                         <td colSpan="8" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
                           <RefreshCw size={24} className="animate-spin text-purple-400" style={{ margin: '0 auto 10px' }} />
