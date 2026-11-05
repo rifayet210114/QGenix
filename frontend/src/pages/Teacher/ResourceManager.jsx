@@ -275,9 +275,13 @@ export default function ResourceManager() {
           description: `Course material for ${currentCourseObj.title} uploaded by ${teacherName}.`
         };
 
+        const token = localStorage.getItem('access') || localStorage.getItem('token');
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
         const res = await fetch(`${API_BASE}/api/auth/teacher-resources/`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers,
           body: JSON.stringify(payload)
         });
 
@@ -295,8 +299,17 @@ export default function ResourceManager() {
             bc.close();
           } catch (e) { }
         } else {
-          const err = await res.json();
-          triggerToast(`❌ ${err.error || 'Failed to save resource to database'}`);
+          let errMsg = 'Failed to save resource to database';
+          try {
+            const err = await res.json();
+            errMsg = err.error || err.detail || errMsg;
+          } catch (_) {
+            try {
+              const text = await res.text();
+              if (text && !text.includes('<!DOCTYPE')) errMsg = text.slice(0, 120);
+            } catch (_) {}
+          }
+          triggerToast(`❌ ${errMsg}`);
         }
       } catch (err) {
         console.error('Upload error:', err);

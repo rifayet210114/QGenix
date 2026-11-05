@@ -3342,12 +3342,20 @@ class TeacherCourseResourceView(APIView):
         except Exception:
             detected_page_count = 1
 
+        saved_file = uploaded_file
+        if not saved_file and raw_bytes:
+            from django.core.files.base import ContentFile
+            try:
+                saved_file = ContentFile(raw_bytes, name=file_name)
+            except Exception:
+                saved_file = None
+
         resource = TeacherCourseResource.objects.create(
             teacher=teacher,
             title=title,
             course_code=course_code or 'GEN-101',
             course_title=course_title or f"Course {course_code}",
-            file=uploaded_file if uploaded_file else None,
+            file=saved_file,
             file_name=file_name,
             file_type=file_type,
             file_size=file_size_str or '1.5 MB',
